@@ -5,6 +5,7 @@
   --text: #1a1d23;
   --muted: #6b7280;
   --accent: #2f5bea;
+  --project: #1a9c6b;
   --danger: #c0392b;
   color-scheme: light dark;
 }
@@ -17,6 +18,7 @@
     --text: #e8eaee;
     --muted: #9aa1ad;
     --accent: #6f8cff;
+    --project: #4bcf9a;
     --danger: #ef6a5c;
   }
 }
@@ -743,4 +745,37 @@ button.small {
    says so without changing the fill, which the root node relies on. */
 .tree-node.unquantified rect {
   stroke-dasharray: 4 3;
+}
+
+/* Projects drive outcomes rather than breaking down into them, so they get
+   their own color instead of the outcome accent, and aren't clickable —
+   there's no editor for them yet. */
+.tree-node.project {
+  cursor: default;
+}
+
+.tree-node.project rect {
+  fill: color-mix(in srgb, var(--project) 12%, var(--surface));
+  stroke: color-mix(in srgb, var(--project) 45%, transparent);
+}
+
+.tree-node.project text {
+  fill: var(--project);
+}
+
+.tree-node.project:hover rect {
+  stroke: color-mix(in srgb, var(--project) 65%, transparent);
+  stroke-width: 1.5;
+}
+
+/* A project can drive more than one outcome; the dashed line marks the
+   cross-links to outcomes it isn't drawn directly under. Colored to match
+   the project nodes it connects to, rather than the neutral outcome edges. */
+.tree-edge.project {
+  stroke: color-mix(in srgb, var(--project) 55%, transparent);
+  stroke-dasharray: 5 4;
+}
+
+.tree-arrowhead.project {
+  fill: color-mix(in srgb, var(--project) 55%, transparent);
 }

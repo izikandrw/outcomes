@@ -22,8 +22,7 @@ export default function OutcomeTree({
   onEdit,
   onAdd,
 }) {
-  const { nodes, edges, width, height } = layout(outcomes);
-  const nameOf = (collection, id) => collection.find((item) => item.id === id)?.name ?? null;
+  const { nodes, edges, width, height } = layout(outcomes, projects);
   // { outcome, left, top } — anchored in viewport coordinates so the menu is
   // never clipped by the scroll container.
   const [menu, setMenu] = useState(null);
@@ -74,96 +73,48 @@ export default function OutcomeTree({
           >
             <path className="tree-arrowhead" d="M0 1.5 L7 4 L0 6.5 z" />
           </marker>
+          <marker
+            id="tree-arrow-project"
+            viewBox="0 0 8 8"
+            refX="7"
+            refY="4"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path className="tree-arrowhead project" d="M0 1.5 L7 4 L0 6.5 z" />
+          </marker>
         </defs>
 
         {edges.map((edge) => (
           <line
             key={edge.key}
-            className="tree-edge"
+            className={['tree-edge', edge.kind === 'project' && 'project'].filter(Boolean).join(' ')}
             x1={edge.x1}
             y1={edge.y1}
             x2={edge.x2}
             y2={edge.y2}
-            markerEnd="url(#tree-arrow)"
+            markerEnd={edge.kind === 'project' ? 'url(#tree-arrow-project)' : 'url(#tree-arrow)'}
           />
         ))}
 
-        {nodes.map(({ outcome, x, y, depth }) => {
-          const lines = wrapLabel(outcome.name);
-          const team = nameOf(teams, outcome.team_id);
-          const linked = projectsForOutcome(projects, outcome);
-          const quantified = targetsForOutcome(targets, outcome);
-          const readings = measurementsForOutcome(measurements, targets, outcome);
-          // An outcome with no target can't be settled by evidence, so it is
-          // drawn differently rather than looking finished.
-          const className = ['tree-node', depth === 0 && 'root', quantified.length === 0 && 'unquantified']
-            .filter(Boolean)
-            .join(' ');
-          return (
-            <g
-              key={outcome.id}
-              className={className}
-              role="treeitem"
-              aria-level={depth + 1}
-              tabIndex={0}
-              onClick={() => onEdit(outcome)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault();
-                  onEdit(outcome);
-                }
-              }}
-            >
-              <title>
-                {[
-                  outcome.name,
-                  team && `Team: ${team}`,
-                  linked.length > 0 && `Projects: ${linked.map((item) => item.name).join(', ')}`,
-                  quantified.length > 0
-                    ? `Targets: ${quantified
-                        .map((item) => `${item.name} (${item.baseline_value} → ${item.target_value} ${item.unit})`)
-                        .join(', ')}`
-                    : 'No target yet',
-                  readings.length > 0 && `Measurements: ${readings.length}`,
-                  outcome.description,
-                ]
-                  .filter(Boolean)
-                  .join('\n')}
-              </title>
-              <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={NODE_H} rx="10" />
-              <text x={x} y={y + NODE_H / 2} textAnchor="middle" dominantBaseline="middle">
-                {lines.map((line, index) => (
-                  <tspan key={index} x={x} dy={index === 0 ? -((lines.length - 1) * LINE_H) / 2 : LINE_H}>
-                    {line}
-                  </tspan>
-                ))}
-              </text>
-
-              {/* Revealed on hover or keyboard focus; opens the add menu. */}
-              <g
-                className="node-add"
-                role="button"
-                tabIndex={0}
-                aria-label={`Add to ${outcome.name}`}
-                onClick={(event) => openMenu(event, outcome)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    openMenu(event, outcome);
-                  }
-                }}
-              >
-                <circle cx={x + NODE_W / 2} cy={y + NODE_H / 2} r="11" />
-                <path
-                  d={`M${x + NODE_W / 2 - 5} ${y + NODE_H / 2}h10M${x + NODE_W / 2} ${
-                    y + NODE_H / 2 - 5
-                  }v10`}
-                />
-              </g>
-            </g>
-          );
-        })}
+        {nodes.map((node) =>
+          node.type === 'project' ? (
+            <ProjectNode key={`project-${node.data.id}`} project={node.data} teams={teams} {...node} />
+          ) : (
+            <OutcomeNode
+              key={`outcome-${node.data.id}`}
+              outcome={node.data}
+              teams={teams}
+              projects={projects}
+              targets={targets}
+              measurements={measurements}
+              onEdit={onEdit}
+              onOpenMenu={openMenu}
+              {...node}
+            />
+          )
+        )}
       </svg>
 
       {menu && (
@@ -193,7 +144,112 @@ export default function OutcomeTree({
   );
 }
 
-function layout(outcomes) {
+function OutcomeNode({ outcome, x, y, depth, teams, projects, targets, measurements, onEdit, onOpenMenu }) {
+  const nameOf = (collection, id) => collection.find((item) => item.id === id)?.name ?? null;
+  const lines = wrapLabel(outcome.name);
+  const team = nameOf(teams, outcome.team_id);
+  const linked = projectsForOutcome(projects, outcome);
+  const quantified = targetsForOutcome(targets, outcome);
+  const readings = measurementsForOutcome(measurements, targets, outcome);
+  // An outcome with no target can't be settled by evidence, so it is
+  // drawn differently rather than looking finished.
+  const className = ['tree-node', depth === 0 && 'root', quantified.length === 0 && 'unquantified']
+    .filter(Boolean)
+    .join(' ');
+
+  return (
+    <g
+      className={className}
+      role="treeitem"
+      aria-level={depth + 1}
+      tabIndex={0}
+      onClick={() => onEdit(outcome)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onEdit(outcome);
+        }
+      }}
+    >
+      <title>
+        {[
+          outcome.name,
+          team && `Team: ${team}`,
+          linked.length > 0 && `Projects: ${linked.map((item) => item.name).join(', ')}`,
+          quantified.length > 0
+            ? `Targets: ${quantified
+                .map((item) => `${item.name} (${item.baseline_value} → ${item.target_value} ${item.unit})`)
+                .join(', ')}`
+            : 'No target yet',
+          readings.length > 0 && `Measurements: ${readings.length}`,
+          outcome.description,
+        ]
+          .filter(Boolean)
+          .join('\n')}
+      </title>
+      <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={NODE_H} rx="10" />
+      <text x={x} y={y + NODE_H / 2} textAnchor="middle" dominantBaseline="middle">
+        {lines.map((line, index) => (
+          <tspan key={index} x={x} dy={index === 0 ? -((lines.length - 1) * LINE_H) / 2 : LINE_H}>
+            {line}
+          </tspan>
+        ))}
+      </text>
+
+      {/* Revealed on hover or keyboard focus; opens the add menu. */}
+      <g
+        className="node-add"
+        role="button"
+        tabIndex={0}
+        aria-label={`Add to ${outcome.name}`}
+        onClick={(event) => onOpenMenu(event, outcome)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            event.stopPropagation();
+            onOpenMenu(event, outcome);
+          }
+        }}
+      >
+        <circle cx={x + NODE_W / 2} cy={y + NODE_H / 2} r="11" />
+        <path
+          d={`M${x + NODE_W / 2 - 5} ${y + NODE_H / 2}h10M${x + NODE_W / 2} ${
+            y + NODE_H / 2 - 5
+          }v10`}
+        />
+      </g>
+    </g>
+  );
+}
+
+// A project is a leaf: it isn't editable from this view yet and has no
+// children of its own here, so it gets no add-menu and no click handler.
+function ProjectNode({ project, x, y, depth, teams }) {
+  const team = teams.find((item) => item.id === project.team_id)?.name ?? null;
+  const lines = wrapLabel(project.name);
+
+  return (
+    <g className="tree-node project" role="treeitem" aria-level={depth + 1}>
+      <title>
+        {[project.name, team && `Team: ${team}`, project.description].filter(Boolean).join('\n')}
+      </title>
+      <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={NODE_H} rx="10" />
+      <text x={x} y={y + NODE_H / 2} textAnchor="middle" dominantBaseline="middle">
+        {lines.map((line, index) => (
+          <tspan key={index} x={x} dy={index === 0 ? -((lines.length - 1) * LINE_H) / 2 : LINE_H}>
+            {line}
+          </tspan>
+        ))}
+      </text>
+    </g>
+  );
+}
+
+// Places outcomes as a node-link tree, then hangs each project as a leaf
+// under the first outcome (in list order) it drives. A project linked to more
+// than one outcome is still drawn once — the other outcomes it drives get a
+// dashed cross-edge to that same node instead of a duplicate.
+function layout(outcomes, projects) {
   const byParent = new Map();
   for (const outcome of outcomes) {
     const key = outcome.parent_outcome_id ?? null;
@@ -201,16 +257,40 @@ function layout(outcomes) {
     byParent.get(key).push(outcome);
   }
 
+  const primaryOutcomeOf = new Map(); // project.id -> outcome.id it's drawn under
+  const projectsByOutcome = new Map(); // outcome.id -> project[] drawn under it
+  for (const outcome of outcomes) {
+    for (const project of projectsForOutcome(projects, outcome)) {
+      if (primaryOutcomeOf.has(project.id)) continue;
+      primaryOutcomeOf.set(project.id, outcome.id);
+      if (!projectsByOutcome.has(outcome.id)) projectsByOutcome.set(outcome.id, []);
+      projectsByOutcome.get(outcome.id).push(project);
+    }
+  }
+
   const nodes = [];
   const edges = [];
   const placed = new Set(); // guards against a parent cycle the API doesn't reject
   let maxDepth = 0;
 
-  function place(outcome, depth, left) {
-    placed.add(outcome.id);
+  function place(item, depth, left) {
     maxDepth = Math.max(maxDepth, depth);
     const y = PAD + depth * LEVEL_H;
-    const children = (byParent.get(outcome.id) ?? []).filter((child) => !placed.has(child.id));
+
+    if (item.kind === 'project') {
+      const x = left + NODE_W / 2;
+      nodes.push({ type: 'project', data: item.data, x, y, depth });
+      return { id: item.data.id, x, y, right: left + NODE_W };
+    }
+
+    const outcome = item.data;
+    placed.add(outcome.id);
+    const childOutcomes = (byParent.get(outcome.id) ?? []).filter((child) => !placed.has(child.id));
+    const childProjects = projectsByOutcome.get(outcome.id) ?? [];
+    const children = [
+      ...childOutcomes.map((child) => ({ kind: 'outcome', data: child })),
+      ...childProjects.map((project) => ({ kind: 'project', data: project })),
+    ];
 
     let x;
     let right;
@@ -223,21 +303,22 @@ function layout(outcomes) {
       let childLeft = left;
       for (const child of children) {
         const position = place(child, depth + 1, childLeft);
-        childPositions.push(position);
+        childPositions.push({ ...position, kind: child.kind });
         childLeft = position.right + H_GAP;
       }
       right = childLeft - H_GAP;
       x = (childPositions[0].x + childPositions[childPositions.length - 1].x) / 2;
     }
 
-    nodes.push({ outcome, x, y, depth });
+    nodes.push({ type: 'outcome', data: outcome, x, y, depth });
     for (const child of childPositions) {
       edges.push({
-        key: `${outcome.id}-${child.id}`,
+        key: `${outcome.id}-${child.kind}-${child.id}`,
         x1: x,
         y1: y + NODE_H,
         x2: child.x,
         y2: child.y - 3,
+        kind: child.kind,
       });
     }
 
@@ -254,8 +335,31 @@ function layout(outcomes) {
   let left = PAD;
   for (const root of roots) {
     if (placed.has(root.id)) continue;
-    const position = place(root, 0, left);
+    const position = place({ kind: 'outcome', data: root }, 0, left);
     left = position.right + H_GAP * 2;
+  }
+
+  const outcomeNodeById = new Map(
+    nodes.filter((node) => node.type === 'outcome').map((node) => [node.data.id, node])
+  );
+  const projectNodeById = new Map(
+    nodes.filter((node) => node.type === 'project').map((node) => [node.data.id, node])
+  );
+  for (const outcome of outcomes) {
+    for (const project of projectsForOutcome(projects, outcome)) {
+      if (String(primaryOutcomeOf.get(project.id)) === String(outcome.id)) continue;
+      const from = outcomeNodeById.get(outcome.id);
+      const to = projectNodeById.get(project.id);
+      if (!from || !to) continue;
+      edges.push({
+        key: `${outcome.id}-project-${project.id}-cross`,
+        x1: from.x,
+        y1: from.y + NODE_H,
+        x2: to.x,
+        y2: to.y - 3,
+        kind: 'project',
+      });
+    }
   }
 
   return {
