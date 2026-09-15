@@ -10,12 +10,16 @@ A project that can't name the outcome it drives is a project worth questioning.
 
 # Relationships
 
+# project
 Projects can contain one or more projects.
 
 Projects belong to at most one parent project. A project with no parent is a top-level project for its team.
 
+#team
 Projects can be connected to one team — the team doing the work.
 
+# outcome
 Projects can be connected to one or more outcomes. One project often moves several outcomes, and one outcome usually needs several projects.
 
+# insight
 Projects can be connected to one or more insights, which are the evidence that the project should be built.

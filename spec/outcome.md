@@ -10,16 +10,30 @@ An outcome is only settled by evidence. The behavior change should be observable
 
 # Relationships
 
-Outcomes can contain one or more outcomes.
+# outcome
+* Outcomes can contain one or more outcomes. This is because large outcomes, especially ones that are more impact level, need to be decomposed into smaller outcomes.
 
-Outcomes belong to at most one parent outcome. An outcome with no parent is a top-level outcome for its team.
+* Outcomes belong to at most one parent outcome.
+* An outcome with no parent is a top-level outcome for its team.
 
-Outcomes can be connected to one team. That team is accountable for the outcome, even when other teams run projects against it.
+# team
+* Outcomes can be connected to one team.
+* That team is accountable for the outcome, even when other teams run projects against it.
 
-Outcomes can be connected to one or more projects. The projects should be creating outputs that will drive the outcome.
+# project
+Outcomes can be connected to one or more projects.
 
-Outcomes can be connected to one or more insights. Those insights are the evidence that the outcome is worth pursuing. An outcome with no insight behind it is an assumption.
+ The projects should be creating outputs that will drive the outcome.
 
-Outcomes can be connected to one or more targets. A target is the outcome stated as numbers — the unit, the baseline and the value to reach. An outcome with no target is a sentence nobody can settle.
+# insight
+* Outcomes can be connected to one or more insights.
+
+* Those insights are the evidence that the outcome is worth pursuing. An outcome with no insight behind it is an assumption.
+
+# target
+
+* Outcomes can be connected to one or more targets.
+
+A target is the outcome stated as numbers — the unit, the baseline and the value to reach. An outcome with no target is a sentence nobody can settle.
 
 Outcomes are not connected to measurements directly. Readings hang off a target, so an outcome's progress is read through its targets.
