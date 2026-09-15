@@ -1,0 +1,65 @@
+// 16px stroke icons drawn in currentColor so they inherit button styling.
+function Icon({ children }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {children}
+    </svg>
+  );
+}
+
+export const PlusIcon = () => (
+  <Icon>
+    <path d="M8 3.25v9.5M3.25 8h9.5" />
+  </Icon>
+);
+
+export const PencilIcon = () => (
+  <Icon>
+    <path d="M11.1 2.9a1.55 1.55 0 0 1 2.2 2.2L6.1 12.3l-2.9.8.8-2.9z" />
+  </Icon>
+);
+
+export const TrashIcon = () => (
+  <Icon>
+    <path d="M2.75 4.25h10.5M6.25 4.25V3a1 1 0 0 1 1-1h1.5a1 1 0 0 1 1 1v1.25M4.25 4.25l.55 8.1a1 1 0 0 0 1 .9h4.4a1 1 0 0 0 1-.9l.55-8.1" />
+  </Icon>
+);
+
+export const ListIcon = () => (
+  <Icon>
+    <path d="M2.5 4h11M2.5 8h11M2.5 12h11" />
+  </Icon>
+);
+
+// A node with two children below it, matching the shape of the tree view.
+export const TreeIcon = () => (
+  <Icon>
+    <rect x="6" y="1.75" width="4" height="3" rx="1" />
+    <rect x="1.75" y="11.25" width="4" height="3" rx="1" />
+    <rect x="10.25" y="11.25" width="4" height="3" rx="1" />
+    <path d="M8 4.75v3.5M3.75 11.25V8.25h8.5v3" />
+  </Icon>
+);
+
+export const CloseIcon = () => (
+  <Icon>
+    <path d="M4.25 4.25l7.5 7.5M11.75 4.25l-7.5 7.5" />
+  </Icon>
+);
+
+export const ChevronDownIcon = () => (
+  <Icon>
+    <path d="M3.75 5.75L8 10.25l4.25-4.5" />
+  </Icon>
+);

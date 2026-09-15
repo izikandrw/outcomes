@@ -29,17 +29,17 @@ router.get('/:measurementId', async (req, res, next) => {
 });
 
 router.post('/', async (req, res, next) => {
-  const { outcome_id, value, unit, measured_at } = req.body;
-  if (!outcome_id) return res.status(400).json({ error: 'outcome_id is required' });
+  const { target_id, value, measured_at } = req.body;
+  if (!target_id) return res.status(400).json({ error: 'target_id is required' });
   if (value === undefined || value === null) return res.status(400).json({ error: 'value is required' });
   try {
-    if (!(await belongsToAccount('outcomes', outcome_id, req.accountId))) {
-      return res.status(400).json({ error: 'outcome_id not found in this account' });
+    if (!(await belongsToAccount('targets', target_id, req.accountId))) {
+      return res.status(400).json({ error: 'target_id not found in this account' });
     }
     const { rows } = await pool.query(
-      `INSERT INTO measurements (account_id, outcome_id, value, unit, measured_at)
-       VALUES ($1, $2, $3, $4, COALESCE($5, now())) RETURNING *`,
-      [req.accountId, outcome_id, value, unit || null, measured_at || null]
+      `INSERT INTO measurements (account_id, target_id, value, measured_at)
+       VALUES ($1, $2, $3, COALESCE($4, now())) RETURNING *`,
+      [req.accountId, target_id, value, measured_at || null]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -48,17 +48,17 @@ router.post('/', async (req, res, next) => {
 });
 
 router.put('/:measurementId', async (req, res, next) => {
-  const { outcome_id, value, unit, measured_at } = req.body;
-  if (!outcome_id) return res.status(400).json({ error: 'outcome_id is required' });
+  const { target_id, value, measured_at } = req.body;
+  if (!target_id) return res.status(400).json({ error: 'target_id is required' });
   if (value === undefined || value === null) return res.status(400).json({ error: 'value is required' });
   try {
-    if (!(await belongsToAccount('outcomes', outcome_id, req.accountId))) {
-      return res.status(400).json({ error: 'outcome_id not found in this account' });
+    if (!(await belongsToAccount('targets', target_id, req.accountId))) {
+      return res.status(400).json({ error: 'target_id not found in this account' });
     }
     const { rows } = await pool.query(
-      `UPDATE measurements SET outcome_id = $1, value = $2, unit = $3, measured_at = COALESCE($4, measured_at)
-       WHERE id = $5 AND account_id = $6 RETURNING *`,
-      [outcome_id, value, unit || null, measured_at || null, req.params.measurementId, req.accountId]
+      `UPDATE measurements SET target_id = $1, value = $2, measured_at = COALESCE($3, measured_at)
+       WHERE id = $4 AND account_id = $5 RETURNING *`,
+      [target_id, value, measured_at || null, req.params.measurementId, req.accountId]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'measurement not found' });
     res.json(rows[0]);

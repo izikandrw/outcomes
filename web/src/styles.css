@@ -1,0 +1,746 @@
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --border: #e2e5ea;
+  --text: #1a1d23;
+  --muted: #6b7280;
+  --accent: #2f5bea;
+  --danger: #c0392b;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15171c;
+    --surface: #1d2026;
+    --border: #2e333c;
+    --text: #e8eaee;
+    --muted: #9aa1ad;
+    --accent: #6f8cff;
+    --danger: #ef6a5c;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+h1 {
+  font-size: 24px;
+  margin: 0;
+}
+
+h2 {
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 0 0 4px;
+}
+
+h3 {
+  font-size: 16px;
+  margin: 0 0 4px;
+}
+
+/* The outcome list is the homepage; creating and editing happen in a modal. */
+main {
+  display: block;
+}
+
+.list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.view-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.view-toggle button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  border-radius: 0;
+  padding: 7px 11px;
+}
+
+.view-toggle button + button {
+  border-left: 1px solid var(--border);
+}
+
+.view-toggle button:hover {
+  color: var(--text);
+}
+
+.view-toggle button[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.account-bar,
+.inline-form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  flex: 1;
+  min-width: 0;
+}
+
+.account-bar label {
+  flex-direction: row;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.label-text {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.required {
+  font-weight: 400;
+  text-transform: none;
+  color: var(--accent);
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+textarea {
+  resize: vertical;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.row label {
+  flex: 1 1 150px;
+}
+
+button {
+  font: inherit;
+  font-weight: 600;
+  background: var(--accent);
+  color: #fff;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+button.ghost {
+  background: transparent;
+  color: var(--muted);
+  border-color: var(--border);
+}
+
+button.ghost:hover {
+  color: var(--text);
+}
+
+button.ghost.danger:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+button.with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.icon-button {
+  display: inline-flex;
+  background: transparent;
+  color: var(--muted);
+  border-color: var(--border);
+  padding: 7px;
+  line-height: 0;
+}
+
+.icon-button:hover {
+  color: var(--text);
+}
+
+.icon-button.danger:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.form-actions {
+  justify-content: flex-end;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+/* Native <dialog>: the UA centres it and paints ::backdrop over the page. */
+.modal {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 18px 50px rgb(0 0 0 / 0.25);
+}
+
+.modal::backdrop {
+  background: rgb(12 14 18 / 0.55);
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.modal-head h2 {
+  margin: 0;
+}
+
+/* Jira-style breadcrumb tag: sits where the modal title used to, and opens a
+   list to reassign the outcome's parent without leaving the modal. */
+.parent-tag {
+  position: relative;
+}
+
+.parent-tag-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 10px 6px 12px;
+}
+
+.parent-tag-button:hover {
+  border-color: var(--accent);
+}
+
+.parent-tag-button svg {
+  color: var(--muted);
+}
+
+.parent-tag-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.parent-tag-value.muted {
+  color: var(--muted);
+}
+
+.parent-tag-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  list-style: none;
+  margin: 0;
+  min-width: 220px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.2);
+}
+
+.parent-tag-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--text);
+  font-weight: 400;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 10px;
+}
+
+.parent-tag-menu button:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.parent-tag-menu li[aria-selected='true'] button {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.outcome-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+body.modal-open {
+  overflow: hidden;
+}
+
+.outcome-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Tree view: an SVG node-link diagram that scrolls sideways when it outgrows
+   the card, since width is driven by how wide the deepest level fans out. */
+.tree-scroll {
+  overflow-x: auto;
+  margin: 0 -4px;
+  padding: 0 4px 4px;
+}
+
+/* Centred while it fits; once it outgrows the card the auto margins collapse
+   and it overflows to the right, where .tree-scroll can reach it. */
+.tree {
+  display: block;
+  margin: 0 auto;
+}
+
+.tree-edge {
+  stroke: color-mix(in srgb, var(--muted) 55%, transparent);
+  stroke-width: 1.5;
+}
+
+.tree-arrowhead {
+  fill: color-mix(in srgb, var(--muted) 55%, transparent);
+}
+
+.tree-node {
+  cursor: pointer;
+}
+
+.tree-node rect {
+  fill: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  stroke: color-mix(in srgb, var(--accent) 40%, transparent);
+  stroke-width: 1.5;
+}
+
+.tree-node text {
+  fill: var(--text);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.tree-node.root rect {
+  fill: var(--accent);
+  stroke: var(--accent);
+}
+
+.tree-node.root text {
+  fill: #fff;
+}
+
+.tree-node:hover rect {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.tree-node:focus-visible {
+  outline: none;
+}
+
+.tree-node:focus-visible rect {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+
+/* Hidden until the node is hovered or something inside it takes focus. */
+.node-add {
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.12s ease;
+}
+
+.tree-node:hover .node-add,
+.tree-node:focus-within .node-add,
+.node-add:focus-visible {
+  opacity: 1;
+}
+
+.node-add circle {
+  fill: var(--surface);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+
+.node-add path {
+  stroke: var(--accent);
+  stroke-width: 1.75;
+  stroke-linecap: round;
+}
+
+.node-add:hover circle {
+  fill: var(--accent);
+}
+
+.node-add:hover path {
+  stroke: #fff;
+}
+
+.node-add:focus-visible {
+  outline: none;
+}
+
+.node-add:focus-visible circle {
+  stroke-width: 2.5;
+}
+
+/* Fixed rather than absolute so the scroll container can't clip it. */
+.node-menu {
+  position: fixed;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 172px;
+  padding: 5px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  box-shadow: 0 10px 28px rgb(0 0 0 / 0.18);
+}
+
+.node-menu-head {
+  margin: 0;
+  padding: 5px 9px 7px;
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+  border-bottom: 1px solid var(--border);
+}
+
+.node-menu button {
+  text-align: left;
+  background: transparent;
+  color: var(--text);
+  border: none;
+  border-radius: 6px;
+  padding: 8px 9px;
+  font-weight: 500;
+}
+
+.node-menu button:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+
+.hint {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.outcome {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.description {
+  margin: 0 0 6px;
+  color: var(--muted);
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  flex-wrap: wrap;
+}
+
+.tag {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+
+.tag.project {
+  background: color-mix(in srgb, var(--muted) 18%, transparent);
+  color: var(--muted);
+}
+
+.tag.measurement {
+  background: color-mix(in srgb, var(--muted) 12%, transparent);
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* Flat view drops the indentation, so the parent is named instead. */
+.tag.parent {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.id {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.empty {
+  color: var(--muted);
+  margin: 0;
+}
+
+.error {
+  color: var(--danger);
+  margin: 0;
+  font-size: 14px;
+}
+
+.error.banner {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+}
+
+/* Targets: the numbers under an outcome. Indented behind a rule so a target
+   reads as belonging to the outcome above it rather than as a sibling. */
+.outcome-list > li {
+  padding-bottom: 12px;
+}
+
+.targets {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-left: 2px;
+  padding: 10px 0 2px 14px;
+  border-left: 2px solid var(--border);
+}
+
+.no-targets {
+  font-size: 13px;
+  font-style: italic;
+}
+
+.target-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.target {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.target-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.target-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.target-range {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Revealed on hover or keyboard focus, like the tree's per-node add button. */
+.target-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.target:hover .target-actions,
+.target:focus-within .target-actions {
+  opacity: 1;
+}
+
+.target-progress {
+  height: 6px;
+  max-width: 420px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 18%, transparent);
+  overflow: hidden;
+}
+
+.target-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 200ms ease;
+}
+
+.target-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.target-meta > span + span::before {
+  content: '·';
+  margin-right: 6px;
+}
+
+.target-now {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.target-meta .muted {
+  color: var(--muted);
+}
+
+/* Live "412 → 600 admins" line under the number fields in the target form. */
+.target-preview {
+  margin: 0;
+  font-weight: 600;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+button.small {
+  font-size: 13px;
+  padding: 5px 10px;
+}
+
+/* An outcome with no target can't be settled by evidence. The dashed outline
+   says so without changing the fill, which the root node relies on. */
+.tree-node.unquantified rect {
+  stroke-dasharray: 4 3;
+}
