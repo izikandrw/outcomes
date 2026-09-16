@@ -28,6 +28,13 @@ export const listProjects = (accountId) => request(`/accounts/${accountId}/proje
 // project can be created already attached to the outcome it supports.
 export const createProject = (accountId, project) =>
   request(`/accounts/${accountId}/projects`, { method: 'POST', body: JSON.stringify(project) });
+export const updateProject = (accountId, projectId, project) =>
+  request(`/accounts/${accountId}/projects/${projectId}`, {
+    method: 'PUT',
+    body: JSON.stringify(project),
+  });
+export const deleteProject = (accountId, projectId) =>
+  request(`/accounts/${accountId}/projects/${projectId}`, { method: 'DELETE' });
 
 // Targets come back with latest_value, latest_measured_at and measurement_count
 // already joined on, so progress renders without loading the whole series.

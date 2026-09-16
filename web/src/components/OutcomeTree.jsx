@@ -20,6 +20,7 @@ export default function OutcomeTree({
   targets,
   measurements,
   onEdit,
+  onEditProject,
   onAdd,
 }) {
   const { nodes, edges, width, height } = layout(outcomes, projects);
@@ -87,20 +88,24 @@ export default function OutcomeTree({
         </defs>
 
         {edges.map((edge) => (
-          <line
+          <path
             key={edge.key}
             className={['tree-edge', edge.kind === 'project' && 'project'].filter(Boolean).join(' ')}
-            x1={edge.x1}
-            y1={edge.y1}
-            x2={edge.x2}
-            y2={edge.y2}
+            d={edge.d}
+            fill="none"
             markerEnd={edge.kind === 'project' ? 'url(#tree-arrow-project)' : 'url(#tree-arrow)'}
           />
         ))}
 
         {nodes.map((node) =>
           node.type === 'project' ? (
-            <ProjectNode key={`project-${node.data.id}`} project={node.data} teams={teams} {...node} />
+            <ProjectNode
+              key={`project-${node.data.id}`}
+              project={node.data}
+              teams={teams}
+              onEdit={onEditProject}
+              {...node}
+            />
           ) : (
             <OutcomeNode
               key={`outcome-${node.data.id}`}
@@ -222,21 +227,43 @@ function OutcomeNode({ outcome, x, y, depth, teams, projects, targets, measureme
   );
 }
 
-// A project is a leaf: it isn't editable from this view yet and has no
-// children of its own here, so it gets no add-menu and no click handler.
-function ProjectNode({ project, x, y, depth, teams }) {
+// A project is a leaf with no children of its own here, so it gets no
+// add-menu, but it opens the same edit modal an outcome does.
+function ProjectNode({ project, x, y, depth, teams, onEdit }) {
   const team = teams.find((item) => item.id === project.team_id)?.name ?? null;
-  const lines = wrapLabel(project.name);
+  // Reserve the last line for the team badge so it doesn't get squeezed out
+  // by a long project name.
+  const nameLines = wrapLabel(project.name, MAX_CHARS, team ? MAX_LINES - 1 : MAX_LINES);
+  const [teamLine] = team ? wrapLabel(team, MAX_CHARS, 1) : [null];
+  const lines = teamLine ? [...nameLines, teamLine] : nameLines;
+  const teamLineIndex = teamLine ? lines.length - 1 : -1;
 
   return (
-    <g className="tree-node project" role="treeitem" aria-level={depth + 1}>
+    <g
+      className="tree-node project"
+      role="treeitem"
+      aria-level={depth + 1}
+      tabIndex={0}
+      onClick={() => onEdit(project)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onEdit(project);
+        }
+      }}
+    >
       <title>
         {[project.name, team && `Team: ${team}`, project.description].filter(Boolean).join('\n')}
       </title>
       <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={NODE_H} rx="10" />
       <text x={x} y={y + NODE_H / 2} textAnchor="middle" dominantBaseline="middle">
         {lines.map((line, index) => (
-          <tspan key={index} x={x} dy={index === 0 ? -((lines.length - 1) * LINE_H) / 2 : LINE_H}>
+          <tspan
+            key={index}
+            className={index === teamLineIndex ? 'tree-node-team' : undefined}
+            x={x}
+            dy={index === 0 ? -((lines.length - 1) * LINE_H) / 2 : LINE_H}
+          >
             {line}
           </tspan>
         ))}
@@ -314,10 +341,7 @@ function layout(outcomes, projects) {
     for (const child of childPositions) {
       edges.push({
         key: `${outcome.id}-${child.kind}-${child.id}`,
-        x1: x,
-        y1: y + NODE_H,
-        x2: child.x,
-        y2: child.y - 3,
+        d: elbowPath(x, y + NODE_H, child.x, child.y - 3),
         kind: child.kind,
       });
     }
@@ -353,10 +377,7 @@ function layout(outcomes, projects) {
       if (!from || !to) continue;
       edges.push({
         key: `${outcome.id}-project-${project.id}-cross`,
-        x1: from.x,
-        y1: from.y + NODE_H,
-        x2: to.x,
-        y2: to.y - 3,
+        d: crossLinkPath(from, to),
         kind: 'project',
       });
     }
@@ -368,6 +389,33 @@ function layout(outcomes, projects) {
     width: Math.max(left - H_GAP * 2 + PAD, NODE_W + PAD * 2),
     height: PAD * 2 + maxDepth * LEVEL_H + NODE_H,
   };
+}
+
+// Right-angle connector: drops straight down from the parent, jogs sideways
+// only in the empty gap between rows, then drops straight into the child.
+// A straight diagonal here would cross through whichever sibling sits between
+// the parent's centred x (averaged over all its children) and this one.
+function elbowPath(x1, y1, x2, y2) {
+  if (x1 === x2) return `M${x1} ${y1} V${y2}`;
+  const midY = (y1 + y2) / 2;
+  return `M${x1} ${y1} V${midY} H${x2} V${y2}`;
+}
+
+// A project cross-linked from an outcome it isn't primarily drawn under can
+// land in the same row as that outcome (or even a shallower one) rather than
+// strictly below it, since its row is fixed by whichever outcome claimed it
+// first. The normal top-to-bottom elbow assumes the target is below the
+// source, so on overlapping rows it would cut a line straight through the
+// boxes in between. When rows overlap, dip a few pixels under both boxes
+// instead so the connector never crosses node interiors.
+function crossLinkPath(from, to) {
+  const rowsOverlap = from.y < to.y + NODE_H && to.y < from.y + NODE_H;
+  if (rowsOverlap) {
+    const dipY = Math.max(from.y, to.y) + NODE_H + 10;
+    return `M${from.x} ${from.y + NODE_H} V${dipY} H${to.x} V${to.y + NODE_H}`;
+  }
+  if (from.y < to.y) return elbowPath(from.x, from.y + NODE_H, to.x, to.y - 3);
+  return elbowPath(from.x, from.y - 3, to.x, to.y + NODE_H);
 }
 
 // SVG has no text wrapping, so lines are split on an approximate character
