@@ -9,6 +9,7 @@ import ProjectForm from './components/ProjectForm.jsx';
 import TargetForm from './components/TargetForm.jsx';
 import OutcomeList from './components/OutcomeList.jsx';
 import OutcomeTree from './components/OutcomeTree.jsx';
+import PotentialIssues from './components/PotentialIssues.jsx';
 import ViewToggle from './components/ViewToggle.jsx';
 import { PlusIcon } from './components/icons.jsx';
 import { targetsForOutcome } from './lib/links.js';
@@ -223,7 +224,7 @@ export default function App() {
                 onEdit={openEdit}
                 onAdd={openAdd}
               />
-            ) : (
+            ) : view === 'list' ? (
               <OutcomeList
                 outcomes={outcomes}
                 teams={teams}
@@ -235,6 +236,8 @@ export default function App() {
                 onEditTarget={openEditTarget}
                 onDeleteTarget={removeTarget}
               />
+            ) : (
+              <PotentialIssues outcomes={outcomes} projects={projects} teams={teams} onEdit={openEdit} />
             )}
           </section>
         </main>

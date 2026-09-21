@@ -779,3 +779,46 @@ button.small {
 .tree-arrowhead.project {
   fill: color-mix(in srgb, var(--project) 55%, transparent);
 }
+
+.issues {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.issue-section h2 {
+  color: var(--danger);
+}
+
+.issue-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.issue-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.issue-row-button {
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border);
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.issue-row-button:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
