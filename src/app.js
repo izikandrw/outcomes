@@ -1,8 +1,14 @@
 const express = require('express');
+const cors = require('cors');
 const accountsRouter = require('./routes/accounts');
 
 const app = express();
+// CORS_ORIGIN is the deployed frontend's origin (e.g. https://outcomes.vercel.app).
+// Falls back to allowing any origin so local dev and first deploys work without it set.
+app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
 app.use(express.json());
+
+app.get('/health', (req, res) => res.json({ ok: true }));
 
 app.use('/accounts', accountsRouter);
 

@@ -1,15 +1,31 @@
 import { useEffect, useState } from 'react';
 
-// Creates a project already linked to the outcome it is meant to drive. The
-// team defaults to the outcome's, since that is nearly always the same team.
-export default function ProjectForm({ outcome, teams, onSubmit, onCancel }) {
-  const [form, setForm] = useState({
-    name: '',
-    description: '',
-    team_id: outcome.team_id ? String(outcome.team_id) : '',
-  });
+const EMPTY = { name: '', description: '', team_id: '' };
+
+// Creates a project already linked to the outcome it is meant to drive (when
+// `outcome` is given), or edits an existing one in place (when `editing` is
+// given). The team defaults to the outcome's on create, since that is nearly
+// always the same team.
+export default function ProjectForm({ editing, outcome, teams, onSubmit, onCancel, onDelete }) {
+  const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (editing) {
+      setForm({
+        name: editing.name ?? '',
+        description: editing.description ?? '',
+        team_id: editing.team_id ? String(editing.team_id) : '',
+      });
+    } else {
+      setForm({
+        ...EMPTY,
+        team_id: outcome?.team_id ? String(outcome.team_id) : '',
+      });
+    }
+    setError(null);
+  }, [editing, outcome]);
 
   useEffect(() => {
     if (!form.team_id && teams.length === 1) {
@@ -33,7 +49,7 @@ export default function ProjectForm({ outcome, teams, onSubmit, onCancel }) {
         name: form.name.trim(),
         description: form.description.trim() || null,
         team_id: Number(form.team_id),
-        outcome_ids: [outcome.id],
+        ...(editing ? {} : { outcome_ids: [outcome.id] }),
       });
     } catch (err) {
       setError(err.message);
@@ -44,9 +60,11 @@ export default function ProjectForm({ outcome, teams, onSubmit, onCancel }) {
 
   return (
     <form className="outcome-form" onSubmit={submit}>
-      <p className="empty">
-        This project will be linked to <strong>{outcome.name}</strong>.
-      </p>
+      {!editing && (
+        <p className="empty">
+          This project will be linked to <strong>{outcome.name}</strong>.
+        </p>
+      )}
 
       <label>
         Name
@@ -85,11 +103,16 @@ export default function ProjectForm({ outcome, teams, onSubmit, onCancel }) {
       {error && <p className="error">{error}</p>}
 
       <div className="actions form-actions">
+        {editing && (
+          <button type="button" className="ghost danger" style={{ marginRight: 'auto' }} onClick={onDelete}>
+            Delete
+          </button>
+        )}
         <button type="button" className="ghost" onClick={onCancel}>
           Cancel
         </button>
         <button type="submit" disabled={saving}>
-          {saving ? 'Saving…' : 'Add project'}
+          {saving ? 'Saving…' : editing ? 'Save changes' : 'Add project'}
         </button>
       </div>
     </form>
