@@ -3,12 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "main": "src/server.js",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "start": "node src/server.js",
     "web": "npm --prefix web run dev",
     "web:build": "npm --prefix web run build"
   },
   "dependencies": {
+    "cors": "^2.8.6",
     "express": "^4.19.2",
     "pg": "^8.11.5"
   }
