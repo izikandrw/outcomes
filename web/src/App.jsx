@@ -243,6 +243,8 @@ export default function App() {
                 onEdit={openEdit}
                 onEditProject={openEditProject}
                 onAdd={openAdd}
+                onDelete={removeOutcome}
+                onDeleteProject={removeProject}
               />
             ) : (
               <OutcomeList
