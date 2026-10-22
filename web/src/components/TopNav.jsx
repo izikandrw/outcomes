@@ -1,6 +1,7 @@
 const PAGES = [
   { id: 'outcomes', label: 'Outcomes' },
   { id: 'roadmap', label: 'Roadmap' },
+  { id: 'teams', label: 'Teams' },
 ];
 
 export default function TopNav({ page, onChange }) {

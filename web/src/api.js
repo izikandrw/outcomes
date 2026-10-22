@@ -51,8 +51,12 @@ export const deleteInvite = (accountId, inviteId) =>
   request(`/accounts/${accountId}/invites/${inviteId}`, { method: 'DELETE' });
 
 export const listTeams = (accountId) => request(`/accounts/${accountId}/teams`);
-export const createTeam = (accountId, name) =>
-  request(`/accounts/${accountId}/teams`, { method: 'POST', body: JSON.stringify({ name }) });
+export const createTeam = (accountId, team) =>
+  request(`/accounts/${accountId}/teams`, { method: 'POST', body: JSON.stringify(team) });
+export const updateTeam = (accountId, teamId, team) =>
+  request(`/accounts/${accountId}/teams/${teamId}`, { method: 'PUT', body: JSON.stringify(team) });
+export const deleteTeam = (accountId, teamId) =>
+  request(`/accounts/${accountId}/teams/${teamId}`, { method: 'DELETE' });
 
 export const listProjects = (accountId) => request(`/accounts/${accountId}/projects`);
 // outcome_ids writes the project_outcomes links in the same transaction, so a

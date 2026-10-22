@@ -7,6 +7,8 @@ import OutcomeForm from './components/OutcomeForm.jsx';
 import ParentOutcomeTag from './components/ParentOutcomeTag.jsx';
 import ProjectForm from './components/ProjectForm.jsx';
 import TargetForm from './components/TargetForm.jsx';
+import TeamForm from './components/TeamForm.jsx';
+import TeamList from './components/TeamList.jsx';
 import OutcomeList from './components/OutcomeList.jsx';
 import OutcomeTree from './components/OutcomeTree.jsx';
 import PotentialIssues from './components/PotentialIssues.jsx';
@@ -94,8 +96,34 @@ export default function App({ user, account, onSignOut }) {
   }
 
   async function addTeam(name) {
-    const team = await api.createTeam(accountId, name);
+    const team = await api.createTeam(accountId, { name });
     setTeams((current) => [...current, team]);
+  }
+
+  async function saveTeam(team) {
+    const editing = modal?.team;
+    if (editing) {
+      const updated = await api.updateTeam(accountId, editing.id, team);
+      setTeams((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+    } else {
+      const created = await api.createTeam(accountId, team);
+      setTeams((current) => [...current, created]);
+    }
+    setModal(null);
+  }
+
+  async function removeTeam(team) {
+    if (!window.confirm(`Delete team "${team.name}"?`)) return;
+    try {
+      await api.deleteTeam(accountId, team.id);
+      setTeams((current) => current.filter((item) => item.id !== team.id));
+      setModal(null);
+      setError(null);
+    } catch (err) {
+      // 409 when a child team, outcome or project still belongs to it.
+      setError(`Could not delete: ${err.message}`);
+      setModal(null);
+    }
   }
 
   // Throws on failure so the form can surface the error and stay open; the
@@ -214,7 +242,22 @@ export default function App({ user, account, onSignOut }) {
         <NeedsTeam onCreate={addTeam} />
       ) : (
         <main>
-          {page === 'roadmap' ? (
+          {page === 'teams' ? (
+            <section className="card" aria-label="Teams">
+              {loading ? (
+                <p className="empty">Loading…</p>
+              ) : (
+                <TeamList
+                  teams={teams}
+                  outcomes={outcomes}
+                  projects={projects}
+                  onCreate={() => setModal({ kind: 'team', team: null })}
+                  onEdit={(team) => setModal({ kind: 'team', team })}
+                  onDelete={removeTeam}
+                />
+              )}
+            </section>
+          ) : page === 'roadmap' ? (
             <section className="card" aria-label="Roadmap">
               {loading ? (
                 <p className="empty">Loading…</p>
@@ -290,6 +333,15 @@ export default function App({ user, account, onSignOut }) {
         >
           {modal.kind === 'members' ? (
             <Members accountId={accountId} currentUserId={user.id} />
+          ) : modal.kind === 'team' ? (
+            <TeamForm
+              key={modal.team?.id ?? 'new'}
+              editing={modal.team}
+              teams={teams}
+              onSubmit={saveTeam}
+              onCancel={() => setModal(null)}
+              onDelete={() => removeTeam(modal.team)}
+            />
           ) : modal.kind === 'target' ? (
             <TargetForm
               outcome={modal.parent}
@@ -331,8 +383,9 @@ export default function App({ user, account, onSignOut }) {
   );
 }
 
-function modalTitle({ kind, outcome, parent, target, project }) {
+function modalTitle({ kind, outcome, parent, target, project, team }) {
   if (kind === 'members') return 'Members';
+  if (kind === 'team') return team ? `Edit team #${team.id}` : 'New team';
   if (kind === 'target') return target ? `Edit target #${target.id}` : 'New target';
   if (kind === 'measurement') return 'New measurement';
   if (kind === 'project') return project ? `Edit project #${project.id}` : 'New project';

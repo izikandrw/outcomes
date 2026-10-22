@@ -35,6 +35,8 @@ router.post('/signup', async (req, res, next) => {
   try {
     await client.query('BEGIN');
     const account = (await client.query('INSERT INTO accounts (name) VALUES ($1) RETURNING *', [accountName.trim()])).rows[0];
+    // The whole company is the first team; later teams nest beneath it.
+    await client.query('INSERT INTO teams (account_id, name) VALUES ($1, $2)', [account.id, account.name]);
     const user = (
       await client.query(
         "INSERT INTO users (account_id, email, password_hash, role) VALUES ($1, $2, $3, 'admin') RETURNING *",
