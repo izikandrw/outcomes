@@ -9,11 +9,15 @@ import ProjectForm from './components/ProjectForm.jsx';
 import TargetForm from './components/TargetForm.jsx';
 import OutcomeList from './components/OutcomeList.jsx';
 import OutcomeTree from './components/OutcomeTree.jsx';
+import PotentialIssues from './components/PotentialIssues.jsx';
+import Roadmap from './components/Roadmap.jsx';
+import TopNav from './components/TopNav.jsx';
 import ViewToggle from './components/ViewToggle.jsx';
 import { PlusIcon } from './components/icons.jsx';
 import { targetsForOutcome } from './lib/links.js';
 
 const STORED_VIEW = 'outcomes.view';
+const STORED_PAGE = 'outcomes.page';
 
 export default function App({ user, account, onSignOut }) {
   const accountId = account.id;
@@ -27,6 +31,7 @@ export default function App({ user, account, onSignOut }) {
   // `parentId` (for kind 'outcome') the live value of the parent-outcome tag.
   const [modal, setModal] = useState(null);
   const [view, setView] = useState(() => localStorage.getItem(STORED_VIEW) || 'tree');
+  const [page, setPage] = useState(() => localStorage.getItem(STORED_PAGE) || 'outcomes');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -77,6 +82,11 @@ export default function App({ user, account, onSignOut }) {
     setModal({ kind: 'target', outcome: null, target, parent: outcome });
   const openEditProject = (project) => setModal({ kind: 'project', project, parent: null });
   const setModalParentId = (parentId) => setModal((current) => (current ? { ...current, parentId } : current));
+
+  function changePage(next) {
+    setPage(next);
+    localStorage.setItem(STORED_PAGE, next);
+  }
 
   function changeView(next) {
     setView(next);
@@ -182,6 +192,7 @@ export default function App({ user, account, onSignOut }) {
     <div className="app">
       <header>
         <h1>Outcomes</h1>
+        <TopNav page={page} onChange={changePage} />
         <div className="account-bar">
           <span className="account-name">
             {account.name} · {user.email}
@@ -203,6 +214,20 @@ export default function App({ user, account, onSignOut }) {
         <NeedsTeam onCreate={addTeam} />
       ) : (
         <main>
+          {page === 'roadmap' ? (
+            <section className="card" aria-label="Roadmap">
+              {loading ? (
+                <p className="empty">Loading…</p>
+              ) : (
+                <Roadmap
+                  projects={projects}
+                  outcomes={outcomes}
+                  teams={teams}
+                  onEditProject={openEditProject}
+                />
+              )}
+            </section>
+          ) : (
           <section className="card" aria-label="Outcomes">
             <div className="list-head">
               <ViewToggle view={view} onChange={changeView} />
@@ -228,7 +253,7 @@ export default function App({ user, account, onSignOut }) {
                 onDelete={removeOutcome}
                 onDeleteProject={removeProject}
               />
-            ) : (
+            ) : view === 'list' ? (
               <OutcomeList
                 outcomes={outcomes}
                 teams={teams}
@@ -240,8 +265,11 @@ export default function App({ user, account, onSignOut }) {
                 onEditTarget={openEditTarget}
                 onDeleteTarget={removeTarget}
               />
+            ) : (
+              <PotentialIssues outcomes={outcomes} projects={projects} teams={teams} onEdit={openEdit} />
             )}
           </section>
+          )}
         </main>
       )}
 

@@ -63,3 +63,11 @@ export const ChevronDownIcon = () => (
     <path d="M3.75 5.75L8 10.25l4.25-4.5" />
   </Icon>
 );
+
+export const WarningIcon = () => (
+  <Icon>
+    <path d="M8 2.4 14.5 13.5h-13z" />
+    <path d="M8 6.5v3" />
+    <path d="M8 11.6h.01" />
+  </Icon>
+);

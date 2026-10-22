@@ -809,6 +809,125 @@ button.small {
   fill: color-mix(in srgb, var(--project) 55%, transparent);
 }
 
+.issues {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.issue-section h2 {
+  color: var(--danger);
+}
+
+.issue-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.issue-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.issue-row-button {
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border);
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.issue-row-button:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+/* Top-level page nav */
+.top-nav {
+  display: inline-flex;
+  gap: 4px;
+  margin-right: auto;
+}
+
+.top-nav button {
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  border-radius: 7px;
+  padding: 6px 12px;
+  font-size: 14px;
+}
+
+.top-nav button:hover {
+  color: var(--text);
+}
+
+.top-nav button[aria-current='page'] {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+
+/* Roadmap */
+.roadmap {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.roadmap-group ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  border-left: 2px solid var(--border);
+}
+
+.roadmap-item {
+  display: flex;
+  gap: 14px;
+  padding: 8px 0 8px 14px;
+}
+
+.roadmap-date {
+  flex: 0 0 150px;
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.roadmap-body .meta {
+  margin: 2px 0 0;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.tag.warn {
+  color: var(--danger, #c0392b);
+}
+
 .auth {
   max-width: 420px;
 }

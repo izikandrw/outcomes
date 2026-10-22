@@ -17,6 +17,21 @@ export function targetsForOutcome(targets, outcome) {
   return targets.filter((target) => same(target.outcome_id, outcome.id));
 }
 
+// The reverse of projectsForOutcome: every outcome that links to this project,
+// via either the join table or the legacy single-column link. Empty means the
+// project can't name the outcome it drives.
+export function outcomesForProject(outcomes, project) {
+  return outcomes.filter((outcome) => projectsForOutcome([project], outcome).length > 0);
+}
+
+// An outcome earns its place once something carries it forward: a child
+// outcome narrowing it further, or a project driving it. Neither means it's a
+// dead end — either it should have one, or it shouldn't exist as its own node.
+export function outcomeHasChildren(outcomes, projects, outcome) {
+  const hasChildOutcome = outcomes.some((candidate) => same(candidate.parent_outcome_id, outcome.id));
+  return hasChildOutcome || projectsForOutcome(projects, outcome).length > 0;
+}
+
 // Oldest first: a series is only meaningful read in order.
 export function measurementsForTarget(measurements, target) {
   return measurements

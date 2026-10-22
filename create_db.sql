@@ -32,6 +32,9 @@ CREATE TABLE projects (
     parent_project_id BIGINT REFERENCES projects(id),
     name              TEXT NOT NULL,
     description       TEXT,
+    -- When the work starts and when it ends; the roadmap is sequenced by these.
+    start_at          TIMESTAMPTZ,
+    end_at            TIMESTAMPTZ,
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
