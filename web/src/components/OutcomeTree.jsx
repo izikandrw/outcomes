@@ -22,6 +22,8 @@ export default function OutcomeTree({
   onEdit,
   onEditProject,
   onAdd,
+  onDelete,
+  onDeleteProject,
 }) {
   const { nodes, edges, width, height } = layout(outcomes, projects);
   // { outcome, left, top } — anchored in viewport coordinates so the menu is
@@ -104,6 +106,7 @@ export default function OutcomeTree({
               project={node.data}
               teams={teams}
               onEdit={onEditProject}
+              onDelete={onDeleteProject}
               {...node}
             />
           ) : (
@@ -115,6 +118,7 @@ export default function OutcomeTree({
               targets={targets}
               measurements={measurements}
               onEdit={onEdit}
+              onDelete={onDelete}
               onOpenMenu={openMenu}
               {...node}
             />
@@ -149,7 +153,7 @@ export default function OutcomeTree({
   );
 }
 
-function OutcomeNode({ outcome, x, y, depth, teams, projects, targets, measurements, onEdit, onOpenMenu }) {
+function OutcomeNode({ outcome, x, y, depth, teams, projects, targets, measurements, onEdit, onDelete, onOpenMenu }) {
   const nameOf = (collection, id) => collection.find((item) => item.id === id)?.name ?? null;
   const lines = wrapLabel(outcome.name);
   const team = nameOf(teams, outcome.team_id);
@@ -223,13 +227,42 @@ function OutcomeNode({ outcome, x, y, depth, teams, projects, targets, measureme
           }v10`}
         />
       </g>
+      <DeleteButton x={x} y={y} label={outcome.name} onDelete={() => onDelete(outcome)} />
+    </g>
+  );
+}
+
+// Revealed on hover or keyboard focus, like the add button.
+function DeleteButton({ x, y, label, onDelete }) {
+  const cx = x + NODE_W / 2 - 4;
+  const cy = y + 4;
+  return (
+    <g
+      className="node-delete"
+      role="button"
+      tabIndex={0}
+      aria-label={`Delete ${label}`}
+      onClick={(event) => {
+        event.stopPropagation();
+        onDelete();
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          event.stopPropagation();
+          onDelete();
+        }
+      }}
+    >
+      <circle cx={cx} cy={cy} r="9" />
+      <path d={`M${cx - 3.5} ${cy - 3.5}l7 7M${cx + 3.5} ${cy - 3.5}l-7 7`} />
     </g>
   );
 }
 
 // A project is a leaf with no children of its own here, so it gets no
 // add-menu, but it opens the same edit modal an outcome does.
-function ProjectNode({ project, x, y, depth, teams, onEdit }) {
+function ProjectNode({ project, x, y, depth, teams, onEdit, onDelete }) {
   const team = teams.find((item) => item.id === project.team_id)?.name ?? null;
   // Reserve the last line for the team badge so it doesn't get squeezed out
   // by a long project name.
@@ -268,6 +301,7 @@ function ProjectNode({ project, x, y, depth, teams, onEdit }) {
           </tspan>
         ))}
       </text>
+      <DeleteButton x={x} y={y} label={project.name} onDelete={() => onDelete(project)} />
     </g>
   );
 }

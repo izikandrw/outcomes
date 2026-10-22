@@ -1,15 +1,27 @@
 // Thin wrapper over the outcomes API. Every resource below /accounts/:id is
-// account-scoped server-side, so each call takes the selected accountId.
-// In dev this is empty and Vite proxies /accounts to the local API; in prod
+// scoped server-side to the signed-in user's account, so each call takes that
+// accountId. In dev this is empty and Vite proxies /auth and /accounts to the local API; in prod
 // it's set to the deployed API's origin, since the frontend and API are on
 // different domains (Vercel + Render).
 const API_URL = import.meta.env.VITE_API_URL || '';
 
+const STORED_TOKEN = 'outcomes.token';
+export const getToken = () => localStorage.getItem(STORED_TOKEN);
+export const setToken = (token) =>
+  token ? localStorage.setItem(STORED_TOKEN, token) : localStorage.removeItem(STORED_TOKEN);
+
+// Fired when the API rejects our token, so the app can drop back to sign-in.
+export const UNAUTHORIZED_EVENT = 'outcomes:unauthorized';
+
 async function request(path, options = {}) {
-  const res = await fetch(`${API_URL}${path}`, {
-    headers: options.body ? { 'Content-Type': 'application/json' } : undefined,
-    ...options,
-  });
+  const token = getToken();
+  const headers = {
+    ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+
+  if (res.status === 401 && token) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
 
   if (res.status === 204) return null;
 
@@ -20,9 +32,23 @@ async function request(path, options = {}) {
   return body;
 }
 
-export const listAccounts = () => request('/accounts');
-export const createAccount = (name) =>
-  request('/accounts', { method: 'POST', body: JSON.stringify({ name }) });
+const json = (method, body) => ({ method, body: JSON.stringify(body) });
+
+export const getMe = () => request('/auth/me');
+export const login = (email, password) => request('/auth/login', json('POST', { email, password }));
+export const signup = (body) => request('/auth/signup', json('POST', body));
+export const getInvite = (token) => request(`/auth/invites/${token}`);
+export const acceptInvite = (token, password) =>
+  request(`/auth/invites/${token}/accept`, json('POST', { password }));
+
+export const listUsers = (accountId) => request(`/accounts/${accountId}/users`);
+export const deleteUser = (accountId, userId) =>
+  request(`/accounts/${accountId}/users/${userId}`, { method: 'DELETE' });
+export const listInvites = (accountId) => request(`/accounts/${accountId}/invites`);
+export const createInvite = (accountId, email, role) =>
+  request(`/accounts/${accountId}/invites`, json('POST', { email, role }));
+export const deleteInvite = (accountId, inviteId) =>
+  request(`/accounts/${accountId}/invites/${inviteId}`, { method: 'DELETE' });
 
 export const listTeams = (accountId) => request(`/accounts/${accountId}/teams`);
 export const createTeam = (accountId, name) =>

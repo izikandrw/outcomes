@@ -141,10 +141,10 @@ label {
   min-width: 0;
 }
 
-.account-bar label {
-  flex-direction: row;
-  align-items: center;
-  flex: 0 0 auto;
+.account-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
 }
 
 .label-text {
@@ -455,15 +455,19 @@ body.modal-open {
 }
 
 /* Hidden until the node is hovered or something inside it takes focus. */
-.node-add {
+.node-add,
+.node-delete {
   opacity: 0;
   cursor: pointer;
   transition: opacity 0.12s ease;
 }
 
 .tree-node:hover .node-add,
+.tree-node:hover .node-delete,
 .tree-node:focus-within .node-add,
-.node-add:focus-visible {
+.tree-node:focus-within .node-delete,
+.node-add:focus-visible,
+.node-delete:focus-visible {
   opacity: 1;
 }
 
@@ -493,6 +497,30 @@ body.modal-open {
 
 .node-add:focus-visible circle {
   stroke-width: 2.5;
+}
+
+.node-delete circle {
+  fill: var(--surface);
+  stroke: #c0392b;
+  stroke-width: 1.5;
+}
+
+.node-delete path {
+  stroke: #c0392b;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+}
+
+.node-delete:hover circle {
+  fill: #c0392b;
+}
+
+.node-delete:hover path {
+  stroke: #fff;
+}
+
+.node-delete:focus-visible {
+  outline: none;
 }
 
 /* Fixed rather than absolute so the scroll container can't clip it. */
@@ -898,4 +926,33 @@ button.small {
 
 .tag.warn {
   color: var(--danger, #c0392b);
+}
+
+.auth {
+  max-width: 420px;
+}
+
+.member-list {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.member-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.member-list small {
+  color: var(--muted);
+  margin-left: 6px;
+}
+
+.invite-link {
+  margin-top: 14px;
 }

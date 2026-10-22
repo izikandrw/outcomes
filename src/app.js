@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const authRouter = require('./routes/auth');
+const { requireAuth } = require('./middleware/requireAuth');
 const accountsRouter = require('./routes/accounts');
 
 const app = express();
@@ -10,7 +12,8 @@ app.use(express.json());
 
 app.get('/health', (req, res) => res.json({ ok: true }));
 
-app.use('/accounts', accountsRouter);
+app.use('/auth', authRouter);
+app.use('/accounts', requireAuth, accountsRouter);
 
 app.use((req, res) => {
   res.status(404).json({ error: 'not found' });
