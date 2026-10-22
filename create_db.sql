@@ -157,3 +157,30 @@ CREATE TABLE measurements (
 
 CREATE INDEX idx_measurements_account_id ON measurements(account_id);
 CREATE INDEX idx_measurements_target_id ON measurements(target_id);
+
+
+CREATE TABLE users (
+    id            BIGSERIAL PRIMARY KEY,
+    account_id    BIGINT NOT NULL REFERENCES accounts(id),
+    email         TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    role          TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member')),
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX idx_users_email ON users (lower(email));
+CREATE INDEX idx_users_account_id ON users(account_id);
+
+CREATE TABLE invites (
+    id          BIGSERIAL PRIMARY KEY,
+    account_id  BIGINT NOT NULL REFERENCES accounts(id),
+    email       TEXT NOT NULL,
+    role        TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member')),
+    token_hash  TEXT NOT NULL UNIQUE,
+    invited_by  BIGINT REFERENCES users(id),
+    expires_at  TIMESTAMPTZ NOT NULL,
+    accepted_at TIMESTAMPTZ,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_invites_account_id ON invites(account_id);

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as api from './api.js';
-import AccountBar from './components/AccountBar.jsx';
 import MeasurementForm from './components/MeasurementForm.jsx';
+import Members from './components/Members.jsx';
 import Modal from './components/Modal.jsx';
 import OutcomeForm from './components/OutcomeForm.jsx';
 import ParentOutcomeTag from './components/ParentOutcomeTag.jsx';
@@ -13,12 +13,10 @@ import ViewToggle from './components/ViewToggle.jsx';
 import { PlusIcon } from './components/icons.jsx';
 import { targetsForOutcome } from './lib/links.js';
 
-const STORED_ACCOUNT = 'outcomes.accountId';
 const STORED_VIEW = 'outcomes.view';
 
-export default function App() {
-  const [accounts, setAccounts] = useState([]);
-  const [accountId, setAccountId] = useState(() => localStorage.getItem(STORED_ACCOUNT) || null);
+export default function App({ user, account, onSignOut }) {
+  const accountId = account.id;
   const [teams, setTeams] = useState([]);
   const [projects, setProjects] = useState([]);
   const [outcomes, setOutcomes] = useState([]);
@@ -31,14 +29,6 @@ export default function App() {
   const [view, setView] = useState(() => localStorage.getItem(STORED_VIEW) || 'tree');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    api
-      .listAccounts()
-      .then(setAccounts)
-      .catch((err) => setError(`Could not reach the API: ${err.message}`))
-      .finally(() => setLoading(false));
-  }, []);
 
   const loadAccountData = useCallback(async (id) => {
     if (!id) {
@@ -74,19 +64,6 @@ export default function App() {
   useEffect(() => {
     loadAccountData(accountId);
   }, [accountId, loadAccountData]);
-
-  function selectAccount(id) {
-    setModal(null);
-    setAccountId(id);
-    if (id) localStorage.setItem(STORED_ACCOUNT, id);
-    else localStorage.removeItem(STORED_ACCOUNT);
-  }
-
-  async function addAccount(name) {
-    const account = await api.createAccount(name);
-    setAccounts((current) => [...current, account]);
-    selectAccount(String(account.id));
-  }
 
   const openCreate = () => setModal({ kind: 'outcome', outcome: null, parentId: null });
   const openEdit = (outcome) =>
@@ -205,19 +182,24 @@ export default function App() {
     <div className="app">
       <header>
         <h1>Outcomes</h1>
-        <AccountBar
-          accounts={accounts}
-          accountId={accountId}
-          onSelect={selectAccount}
-          onCreate={addAccount}
-        />
+        <div className="account-bar">
+          <span className="account-name">
+            {account.name} · {user.email}
+          </span>
+          {user.role === 'admin' && (
+            <button type="button" className="ghost small" onClick={() => setModal({ kind: 'members' })}>
+              Members
+            </button>
+          )}
+          <button type="button" className="ghost small" onClick={onSignOut}>
+            Sign out
+          </button>
+        </div>
       </header>
 
       {error && <p className="error banner">{error}</p>}
 
-      {!accountId ? (
-        <p className="empty">Select or create an account to start entering outcomes.</p>
-      ) : teams.length === 0 && !loading ? (
+      {teams.length === 0 && !loading ? (
         <NeedsTeam onCreate={addTeam} />
       ) : (
         <main>
@@ -278,7 +260,9 @@ export default function App() {
           }
           onClose={() => setModal(null)}
         >
-          {modal.kind === 'target' ? (
+          {modal.kind === 'members' ? (
+            <Members accountId={accountId} currentUserId={user.id} />
+          ) : modal.kind === 'target' ? (
             <TargetForm
               outcome={modal.parent}
               editing={modal.target}
@@ -320,6 +304,7 @@ export default function App() {
 }
 
 function modalTitle({ kind, outcome, parent, target, project }) {
+  if (kind === 'members') return 'Members';
   if (kind === 'target') return target ? `Edit target #${target.id}` : 'New target';
   if (kind === 'measurement') return 'New measurement';
   if (kind === 'project') return project ? `Edit project #${project.id}` : 'New project';
