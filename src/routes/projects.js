@@ -129,8 +129,11 @@ router.get('/:projectId/outcomes', async (req, res, next) => {
 });
 
 router.post('/', async (req, res, next) => {
-  const { name, description } = req.body;
+  const { name, description, start_at, end_at } = req.body;
   if (!name) return res.status(400).json({ error: 'name is required' });
+  if (start_at && end_at && new Date(end_at) < new Date(start_at)) {
+    return res.status(400).json({ error: 'end_at cannot be before start_at' });
+  }
 
   let client;
   try {
@@ -140,9 +143,17 @@ router.post('/', async (req, res, next) => {
     client = await pool.connect();
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `INSERT INTO projects (account_id, team_id, parent_project_id, name, description)
-       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-      [req.accountId, refs.teamId, refs.parentProjectId, name, description || null]
+      `INSERT INTO projects (account_id, team_id, parent_project_id, name, description, start_at, end_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+      [
+        req.accountId,
+        refs.teamId,
+        refs.parentProjectId,
+        name,
+        description || null,
+        start_at || null,
+        end_at || null,
+      ]
     );
     await replaceLinks(client, rows[0].id, req.accountId, refs.outcomeIds ?? []);
     await client.query('COMMIT');
@@ -157,8 +168,11 @@ router.post('/', async (req, res, next) => {
 });
 
 router.put('/:projectId', async (req, res, next) => {
-  const { name, description } = req.body;
+  const { name, description, start_at, end_at } = req.body;
   if (!name) return res.status(400).json({ error: 'name is required' });
+  if (start_at && end_at && new Date(end_at) < new Date(start_at)) {
+    return res.status(400).json({ error: 'end_at cannot be before start_at' });
+  }
 
   let client;
   try {
@@ -169,9 +183,18 @@ router.put('/:projectId', async (req, res, next) => {
     await client.query('BEGIN');
     const { rows } = await client.query(
       `UPDATE projects SET name = $1, description = $2, team_id = $3, parent_project_id = $4,
-         updated_at = now()
-       WHERE id = $5 AND account_id = $6 RETURNING id`,
-      [name, description || null, refs.teamId, refs.parentProjectId, req.params.projectId, req.accountId]
+         start_at = $5, end_at = $6, updated_at = now()
+       WHERE id = $7 AND account_id = $8 RETURNING id`,
+      [
+        name,
+        description || null,
+        refs.teamId,
+        refs.parentProjectId,
+        start_at || null,
+        end_at || null,
+        req.params.projectId,
+        req.accountId,
+      ]
     );
     if (rows.length === 0) {
       await client.query('ROLLBACK');

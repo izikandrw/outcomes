@@ -10,12 +10,15 @@ import TargetForm from './components/TargetForm.jsx';
 import OutcomeList from './components/OutcomeList.jsx';
 import OutcomeTree from './components/OutcomeTree.jsx';
 import PotentialIssues from './components/PotentialIssues.jsx';
+import Roadmap from './components/Roadmap.jsx';
+import TopNav from './components/TopNav.jsx';
 import ViewToggle from './components/ViewToggle.jsx';
 import { PlusIcon } from './components/icons.jsx';
 import { targetsForOutcome } from './lib/links.js';
 
 const STORED_ACCOUNT = 'outcomes.accountId';
 const STORED_VIEW = 'outcomes.view';
+const STORED_PAGE = 'outcomes.page';
 
 export default function App() {
   const [accounts, setAccounts] = useState([]);
@@ -30,6 +33,7 @@ export default function App() {
   // `parentId` (for kind 'outcome') the live value of the parent-outcome tag.
   const [modal, setModal] = useState(null);
   const [view, setView] = useState(() => localStorage.getItem(STORED_VIEW) || 'tree');
+  const [page, setPage] = useState(() => localStorage.getItem(STORED_PAGE) || 'outcomes');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -101,6 +105,11 @@ export default function App() {
     setModal({ kind: 'target', outcome: null, target, parent: outcome });
   const openEditProject = (project) => setModal({ kind: 'project', project, parent: null });
   const setModalParentId = (parentId) => setModal((current) => (current ? { ...current, parentId } : current));
+
+  function changePage(next) {
+    setPage(next);
+    localStorage.setItem(STORED_PAGE, next);
+  }
 
   function changeView(next) {
     setView(next);
@@ -206,6 +215,7 @@ export default function App() {
     <div className="app">
       <header>
         <h1>Outcomes</h1>
+        <TopNav page={page} onChange={changePage} />
         <AccountBar
           accounts={accounts}
           accountId={accountId}
@@ -222,6 +232,20 @@ export default function App() {
         <NeedsTeam onCreate={addTeam} />
       ) : (
         <main>
+          {page === 'roadmap' ? (
+            <section className="card" aria-label="Roadmap">
+              {loading ? (
+                <p className="empty">Loading…</p>
+              ) : (
+                <Roadmap
+                  projects={projects}
+                  outcomes={outcomes}
+                  teams={teams}
+                  onEditProject={openEditProject}
+                />
+              )}
+            </section>
+          ) : (
           <section className="card" aria-label="Outcomes">
             <div className="list-head">
               <ViewToggle view={view} onChange={changeView} />
@@ -261,6 +285,7 @@ export default function App() {
               <PotentialIssues outcomes={outcomes} projects={projects} teams={teams} onEdit={openEdit} />
             )}
           </section>
+          )}
         </main>
       )}
 
