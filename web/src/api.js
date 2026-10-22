@@ -36,6 +36,7 @@ const json = (method, body) => ({ method, body: JSON.stringify(body) });
 
 export const getMe = () => request('/auth/me');
 export const login = (email, password) => request('/auth/login', json('POST', { email, password }));
+export const devLogin = () => request('/auth/dev-login', { method: 'POST' });
 export const signup = (body) => request('/auth/signup', json('POST', body));
 export const getInvite = (token) => request(`/auth/invites/${token}`);
 export const acceptInvite = (token, password) =>

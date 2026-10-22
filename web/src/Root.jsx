@@ -10,14 +10,25 @@ const inviteToken = () => new URLSearchParams(window.location.search).get('invit
 
 export default function Root() {
   const [session, setSession] = useState(null);
-  const [checking, setChecking] = useState(Boolean(api.getToken()));
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    if (!api.getToken()) return;
-    api
-      .getMe()
-      .then(setSession)
-      .catch(() => api.setToken(null))
+    // In local dev, skip the sign-in screen when the API has DEV_AUTO_LOGIN on.
+    const devSignIn = () =>
+      import.meta.env.DEV && !inviteToken()
+        ? api.devLogin().then(({ token, user, account }) => {
+            api.setToken(token);
+            setSession({ user, account });
+          })
+        : null;
+    const start = api.getToken()
+      ? api.getMe().then(setSession).catch(() => {
+          api.setToken(null);
+          return devSignIn();
+        })
+      : devSignIn();
+    Promise.resolve(start)
+      .catch(() => {})
       .finally(() => setChecking(false));
   }, []);
 

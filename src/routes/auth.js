@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const pool = require('../db');
 const { hashPassword, verifyPassword, signToken, hashInviteToken } = require('../lib/auth');
 const { requireAuth } = require('../middleware/requireAuth');
@@ -121,6 +122,52 @@ router.post('/invites/:token/accept', async (req, res, next) => {
     next(err);
   } finally {
     client.release();
+  }
+});
+
+// Local development only: signs in as a fixed admin of an "outcomes" account,
+// creating both on first use. Off unless DEV_AUTO_LOGIN=true, and never in production.
+const DEV_EMAIL = 'isaac.stennett@gmail.com';
+const DEV_ACCOUNT = 'outcomes';
+
+router.post('/dev-login', async (req, res, next) => {
+  if (process.env.DEV_AUTO_LOGIN !== 'true' || process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ error: 'not found' });
+  }
+  try {
+    const existing = (
+      await pool.query(
+        `SELECT u.*, a.name AS account_name FROM users u JOIN accounts a ON a.id = u.account_id
+         WHERE lower(u.email) = $1`,
+        [DEV_EMAIL]
+      )
+    ).rows[0];
+    if (existing) {
+      return res.json(session(existing, { id: existing.account_id, name: existing.account_name }));
+    }
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const account =
+        (await client.query('SELECT * FROM accounts WHERE name = $1 ORDER BY id LIMIT 1', [DEV_ACCOUNT])).rows[0] ||
+        (await client.query('INSERT INTO accounts (name) VALUES ($1) RETURNING *', [DEV_ACCOUNT])).rows[0];
+      // Random password: this user is only reachable through dev-login.
+      const user = (
+        await client.query(
+          "INSERT INTO users (account_id, email, password_hash, role) VALUES ($1, $2, $3, 'admin') RETURNING *",
+          [account.id, DEV_EMAIL, hashPassword(crypto.randomBytes(24).toString('hex'))]
+        )
+      ).rows[0];
+      await client.query('COMMIT');
+      res.json(session(user, account));
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    next(err);
   }
 });
 
