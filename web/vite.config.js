@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     server: {
-      port: 5174,
+      port: Number(env.WEB_PORT) || 5174,
       proxy: {
         '/accounts': {
           target: env.API_URL || 'http://localhost:3001',

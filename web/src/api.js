@@ -1,7 +1,12 @@
 // Thin wrapper over the outcomes API. Every resource below /accounts/:id is
 // account-scoped server-side, so each call takes the selected accountId.
+// In dev this is empty and Vite proxies /accounts to the local API; in prod
+// it's set to the deployed API's origin, since the frontend and API are on
+// different domains (Vercel + Render).
+const API_URL = import.meta.env.VITE_API_URL || '';
+
 async function request(path, options = {}) {
-  const res = await fetch(path, {
+  const res = await fetch(`${API_URL}${path}`, {
     headers: options.body ? { 'Content-Type': 'application/json' } : undefined,
     ...options,
   });
@@ -28,6 +33,13 @@ export const listProjects = (accountId) => request(`/accounts/${accountId}/proje
 // project can be created already attached to the outcome it supports.
 export const createProject = (accountId, project) =>
   request(`/accounts/${accountId}/projects`, { method: 'POST', body: JSON.stringify(project) });
+export const updateProject = (accountId, projectId, project) =>
+  request(`/accounts/${accountId}/projects/${projectId}`, {
+    method: 'PUT',
+    body: JSON.stringify(project),
+  });
+export const deleteProject = (accountId, projectId) =>
+  request(`/accounts/${accountId}/projects/${projectId}`, { method: 'DELETE' });
 
 // Targets come back with latest_value, latest_measured_at and measurement_count
 // already joined on, so progress renders without loading the whole series.

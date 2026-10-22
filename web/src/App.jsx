@@ -99,6 +99,7 @@ export default function App() {
   // A target is always edited in the context of the outcome it quantifies.
   const openEditTarget = (target, outcome) =>
     setModal({ kind: 'target', outcome: null, target, parent: outcome });
+  const openEditProject = (project) => setModal({ kind: 'project', project, parent: null });
   const setModalParentId = (parentId) => setModal((current) => (current ? { ...current, parentId } : current));
 
   function changeView(next) {
@@ -164,9 +165,28 @@ export default function App() {
   }
 
   async function saveProject(project) {
-    const created = await api.createProject(accountId, project);
-    setProjects((current) => [...current, created]);
+    const editing = modal?.project;
+    if (editing) {
+      const updated = await api.updateProject(accountId, editing.id, project);
+      setProjects((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+    } else {
+      const created = await api.createProject(accountId, project);
+      setProjects((current) => [...current, created]);
+    }
     setModal(null);
+  }
+
+  async function removeProject(project) {
+    if (!window.confirm(`Delete project "${project.name}"?`)) return;
+    try {
+      await api.deleteProject(accountId, project.id);
+      setProjects((current) => current.filter((item) => item.id !== project.id));
+      setModal(null);
+      setError(null);
+    } catch (err) {
+      // 409 when a child project or outcome still references it.
+      setError(`Could not delete: ${err.message}`);
+    }
   }
 
   async function removeOutcome(outcome) {
@@ -222,6 +242,7 @@ export default function App() {
                 targets={targets}
                 measurements={measurements}
                 onEdit={openEdit}
+                onEditProject={openEditProject}
                 onAdd={openAdd}
               />
             ) : view === 'list' ? (
@@ -275,10 +296,12 @@ export default function App() {
             />
           ) : modal.kind === 'project' ? (
             <ProjectForm
+              editing={modal.project}
               outcome={modal.parent}
               teams={teams}
               onSubmit={saveProject}
               onCancel={() => setModal(null)}
+              onDelete={() => removeProject(modal.project)}
             />
           ) : (
             <OutcomeForm
@@ -297,10 +320,10 @@ export default function App() {
   );
 }
 
-function modalTitle({ kind, outcome, parent, target }) {
+function modalTitle({ kind, outcome, parent, target, project }) {
   if (kind === 'target') return target ? `Edit target #${target.id}` : 'New target';
   if (kind === 'measurement') return 'New measurement';
-  if (kind === 'project') return 'New project';
+  if (kind === 'project') return project ? `Edit project #${project.id}` : 'New project';
   if (outcome) return `Edit outcome #${outcome.id}`;
   return parent ? 'New child outcome' : 'New outcome';
 }
