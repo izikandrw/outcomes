@@ -956,3 +956,66 @@ button.small {
 .invite-link {
   margin-top: 14px;
 }
+
+/* Checkbox list for linking an insight to outcomes and projects. */
+.link-picker {
+  border: 1px solid var(--border, #ddd);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  max-height: 10rem;
+  overflow-y: auto;
+}
+
+.link-picker .check {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Insight count on an outcome or project; clicking it lists the insights. */
+button.tag.insight-badge {
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+button.tag.insight-badge.empty {
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.node-insights {
+  cursor: pointer;
+}
+
+.tree-node .node-insights rect {
+  fill: var(--surface);
+  stroke: var(--accent);
+  stroke-width: 1.25;
+}
+
+.tree-node .node-insights text {
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--accent);
+}
+
+.tree-node .node-insights.empty rect {
+  stroke: var(--border);
+  stroke-dasharray: 3 2;
+}
+
+.tree-node .node-insights.empty text {
+  fill: var(--muted);
+}
+
+.tree-node .node-insights:hover rect,
+.tree-node .node-insights:focus-visible rect {
+  fill: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+
+.node-insights:focus-visible {
+  outline: none;
+}

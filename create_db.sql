@@ -2,7 +2,7 @@
 -- targets (many) -> measurements (many)
 -- Projects hang off a team, may nest under a parent project, and link to any
 -- number of outcomes through project_outcomes.
--- Insights hang off a team and link to any number of outcomes and projects
+-- Insights optionally name a team and link to any number of outcomes and projects
 -- through insight_outcomes and insight_projects.
 -- All rows are segmented by account_id for multi-tenant isolation.
 
@@ -76,13 +76,15 @@ CREATE INDEX idx_project_outcomes_account_id ON project_outcomes(account_id);
 CREATE INDEX idx_project_outcomes_project_id ON project_outcomes(project_id);
 CREATE INDEX idx_project_outcomes_outcome_id ON project_outcomes(outcome_id);
 
--- An insight is a single sourced observation. team_id is the team that
--- recorded it; any team's outcomes and projects may still link to it.
+-- An insight is a single sourced observation. team_id is optional: the team
+-- that recorded it, if any. Any outcome or project may link to it.
 CREATE TABLE insights (
     id          BIGSERIAL PRIMARY KEY,
     account_id  BIGINT NOT NULL REFERENCES accounts(id),
-    team_id     BIGINT NOT NULL REFERENCES teams(id),
+    team_id     BIGINT REFERENCES teams(id),
     name        TEXT NOT NULL,
+    type        TEXT NOT NULL DEFAULT 'other'
+                CHECK (type IN ('support_ticket', 'session_recording', 'interview', 'funnel', 'experiment', 'other')),
     description TEXT,
     source      TEXT,
     observed_at TIMESTAMPTZ,

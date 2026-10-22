@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react';
-import { measurementsForOutcome, projectsForOutcome, targetsForOutcome } from '../lib/links.js';
+import {
+  insightsForOutcome,
+  insightsForProject,
+  measurementsForOutcome,
+  projectsForOutcome,
+  targetsForOutcome,
+} from '../lib/links.js';
 
 const NODE_W = 160;
 const NODE_H = 56;
@@ -19,8 +25,10 @@ export default function OutcomeTree({
   projects,
   targets,
   measurements,
+  insights,
   onEdit,
   onEditProject,
+  onShowInsights,
   onAdd,
   onDelete,
   onDeleteProject,
@@ -105,6 +113,8 @@ export default function OutcomeTree({
               key={`project-${node.data.id}`}
               project={node.data}
               teams={teams}
+              insightCount={insightsForProject(insights, node.data).length}
+              onShowInsights={onShowInsights}
               onEdit={onEditProject}
               onDelete={onDeleteProject}
               {...node}
@@ -117,6 +127,8 @@ export default function OutcomeTree({
               projects={projects}
               targets={targets}
               measurements={measurements}
+              insightCount={insightsForOutcome(insights, node.data).length}
+              onShowInsights={onShowInsights}
               onEdit={onEdit}
               onDelete={onDelete}
               onOpenMenu={openMenu}
@@ -147,13 +159,30 @@ export default function OutcomeTree({
           <button type="button" role="menuitem" onClick={() => choose('project')}>
             Project
           </button>
+          <button type="button" role="menuitem" onClick={() => choose('insight')}>
+            Insight
+          </button>
         </div>
       )}
     </div>
   );
 }
 
-function OutcomeNode({ outcome, x, y, depth, teams, projects, targets, measurements, onEdit, onDelete, onOpenMenu }) {
+function OutcomeNode({
+  outcome,
+  x,
+  y,
+  depth,
+  teams,
+  projects,
+  targets,
+  measurements,
+  insightCount,
+  onShowInsights,
+  onEdit,
+  onDelete,
+  onOpenMenu,
+}) {
   const nameOf = (collection, id) => collection.find((item) => item.id === id)?.name ?? null;
   const lines = wrapLabel(outcome.name);
   const team = nameOf(teams, outcome.team_id);
@@ -227,7 +256,38 @@ function OutcomeNode({ outcome, x, y, depth, teams, projects, targets, measureme
           }v10`}
         />
       </g>
+      <InsightPill x={x} y={y} count={insightCount} label={outcome.name} onOpen={() => onShowInsights(outcome, 'outcome')} />
       <DeleteButton x={x} y={y} label={outcome.name} onDelete={() => onDelete(outcome)} />
+    </g>
+  );
+}
+
+// Always visible, bottom-left of the node: how many insights back it up.
+function InsightPill({ x, y, count, label, onOpen }) {
+  const cx = x - NODE_W / 2 + 18;
+  const cy = y + NODE_H;
+  return (
+    <g
+      className={['node-insights', count === 0 && 'empty'].filter(Boolean).join(' ')}
+      role="button"
+      tabIndex={0}
+      aria-label={`${count} insight${count === 1 ? '' : 's'} for ${label}`}
+      onClick={(event) => {
+        event.stopPropagation();
+        onOpen();
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          event.stopPropagation();
+          onOpen();
+        }
+      }}
+    >
+      <rect x={cx - 16} y={cy - 9} width="32" height="18" rx="9" />
+      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
+        💡{count}
+      </text>
     </g>
   );
 }
@@ -262,7 +322,7 @@ function DeleteButton({ x, y, label, onDelete }) {
 
 // A project is a leaf with no children of its own here, so it gets no
 // add-menu, but it opens the same edit modal an outcome does.
-function ProjectNode({ project, x, y, depth, teams, onEdit, onDelete }) {
+function ProjectNode({ project, x, y, depth, teams, insightCount, onShowInsights, onEdit, onDelete }) {
   const team = teams.find((item) => item.id === project.team_id)?.name ?? null;
   // Reserve the last line for the team badge so it doesn't get squeezed out
   // by a long project name.
@@ -301,6 +361,7 @@ function ProjectNode({ project, x, y, depth, teams, onEdit, onDelete }) {
           </tspan>
         ))}
       </text>
+      <InsightPill x={x} y={y} count={insightCount} label={project.name} onOpen={() => onShowInsights(project, 'project')} />
       <DeleteButton x={x} y={y} label={project.name} onDelete={() => onDelete(project)} />
     </g>
   );

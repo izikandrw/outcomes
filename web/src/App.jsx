@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as api from './api.js';
+import InsightForm from './components/InsightForm.jsx';
+import EntityInsights from './components/EntityInsights.jsx';
+import InsightList from './components/InsightList.jsx';
 import MeasurementForm from './components/MeasurementForm.jsx';
 import Members from './components/Members.jsx';
 import Modal from './components/Modal.jsx';
@@ -16,7 +19,7 @@ import Roadmap from './components/Roadmap.jsx';
 import TopNav from './components/TopNav.jsx';
 import ViewToggle from './components/ViewToggle.jsx';
 import { PlusIcon } from './components/icons.jsx';
-import { targetsForOutcome } from './lib/links.js';
+import { insightsForOutcome, insightsForProject, targetsForOutcome } from './lib/links.js';
 
 const STORED_VIEW = 'outcomes.view';
 const STORED_PAGE = 'outcomes.page';
@@ -28,6 +31,7 @@ export default function App({ user, account, onSignOut }) {
   const [outcomes, setOutcomes] = useState([]);
   const [targets, setTargets] = useState([]);
   const [measurements, setMeasurements] = useState([]);
+  const [insights, setInsights] = useState([]);
   // null when closed, otherwise { kind, outcome, parent, parentId }: `outcome`
   // is the row being edited, `parent` the outcome a new child hangs off, and
   // `parentId` (for kind 'outcome') the live value of the parent-outcome tag.
@@ -44,22 +48,25 @@ export default function App({ user, account, onSignOut }) {
       setOutcomes([]);
       setTargets([]);
       setMeasurements([]);
+      setInsights([]);
       return;
     }
     setLoading(true);
     try {
-      const [nextTeams, nextProjects, nextOutcomes, nextTargets, nextMeasurements] = await Promise.all([
+      const [nextTeams, nextProjects, nextOutcomes, nextTargets, nextMeasurements, nextInsights] = await Promise.all([
         api.listTeams(id),
         api.listProjects(id),
         api.listOutcomes(id),
         api.listTargets(id),
         api.listMeasurements(id),
+        api.listInsights(id),
       ]);
       setTeams(nextTeams);
       setProjects(nextProjects);
       setOutcomes(nextOutcomes);
       setTargets(nextTargets);
       setMeasurements(nextMeasurements);
+      setInsights(nextInsights);
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -76,12 +83,14 @@ export default function App({ user, account, onSignOut }) {
   const openEdit = (outcome) =>
     setModal({ kind: 'outcome', outcome, parentId: outcome.parent_outcome_id ?? null });
   // From the tree's per-node add menu: kind is 'outcome' | 'target' |
-  // 'measurement' | 'project'.
+  // 'measurement' | 'project' | 'insight'.
   const openAdd = (parent, kind) =>
     setModal({ kind, outcome: null, parent, parentId: kind === 'outcome' ? parent.id : null });
   // A target is always edited in the context of the outcome it quantifies.
   const openEditTarget = (target, outcome) =>
     setModal({ kind: 'target', outcome: null, target, parent: outcome });
+  // entity is the outcome or project whose insights to list; kind says which.
+  const showInsights = (entity, kind) => setModal({ kind: 'entity-insights', entity, entityKind: kind });
   const openEditProject = (project) => setModal({ kind: 'project', project, parent: null });
   const setModalParentId = (parentId) => setModal((current) => (current ? { ...current, parentId } : current));
 
@@ -178,6 +187,31 @@ export default function App({ user, account, onSignOut }) {
     }
   }
 
+  async function saveInsight(insight) {
+    const editing = modal?.insight;
+    if (editing) {
+      const updated = await api.updateInsight(accountId, editing.id, insight);
+      setInsights((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+    } else {
+      const created = await api.createInsight(accountId, insight);
+      setInsights((current) => [...current, created]);
+    }
+    setModal(null);
+  }
+
+  async function removeInsight(insight) {
+    if (!window.confirm(`Delete insight "${insight.name}"?`)) return;
+    try {
+      await api.deleteInsight(accountId, insight.id);
+      setInsights((current) => current.filter((item) => item.id !== insight.id));
+      setModal(null);
+      setError(null);
+    } catch (err) {
+      setError(`Could not delete: ${err.message}`);
+      setModal(null);
+    }
+  }
+
   async function saveProject(project) {
     const editing = modal?.project;
     if (editing) {
@@ -257,6 +291,19 @@ export default function App({ user, account, onSignOut }) {
                 />
               )}
             </section>
+          ) : page === 'insights' ? (
+            <section className="card" aria-label="Insights">
+              {loading ? (
+                <p className="empty">Loading…</p>
+              ) : (
+                <InsightList
+                  insights={insights}
+                  onCreate={() => setModal({ kind: 'insight', insight: null })}
+                  onEdit={(insight) => setModal({ kind: 'insight', insight })}
+                  onDelete={removeInsight}
+                />
+              )}
+            </section>
           ) : page === 'roadmap' ? (
             <section className="card" aria-label="Roadmap">
               {loading ? (
@@ -266,7 +313,9 @@ export default function App({ user, account, onSignOut }) {
                   projects={projects}
                   outcomes={outcomes}
                   teams={teams}
+                  insights={insights}
                   onEditProject={openEditProject}
+                  onShowInsights={showInsights}
                 />
               )}
             </section>
@@ -290,6 +339,8 @@ export default function App({ user, account, onSignOut }) {
                 projects={projects}
                 targets={targets}
                 measurements={measurements}
+                insights={insights}
+                onShowInsights={showInsights}
                 onEdit={openEdit}
                 onEditProject={openEditProject}
                 onAdd={openAdd}
@@ -302,6 +353,8 @@ export default function App({ user, account, onSignOut }) {
                 teams={teams}
                 projects={projects}
                 targets={targets}
+                insights={insights}
+                onShowInsights={showInsights}
                 onEdit={openEdit}
                 onDelete={removeOutcome}
                 onAddTarget={(outcome) => openAdd(outcome, 'target')}
@@ -333,6 +386,37 @@ export default function App({ user, account, onSignOut }) {
         >
           {modal.kind === 'members' ? (
             <Members accountId={accountId} currentUserId={user.id} />
+          ) : modal.kind === 'entity-insights' ? (
+            <EntityInsights
+              entity={modal.entity}
+              insights={
+                modal.entityKind === 'project'
+                  ? insightsForProject(insights, modal.entity)
+                  : insightsForOutcome(insights, modal.entity)
+              }
+              onOpen={(insight) => setModal({ kind: 'insight', insight })}
+              onAdd={() =>
+                setModal({
+                  kind: 'insight',
+                  insight: null,
+                  parent: modal.entityKind === 'outcome' ? modal.entity : null,
+                  parentProject: modal.entityKind === 'project' ? modal.entity : null,
+                })
+              }
+            />
+          ) : modal.kind === 'insight' ? (
+            <InsightForm
+              key={modal.insight?.id ?? 'new'}
+              editing={modal.insight}
+              outcome={modal.parent}
+              project={modal.parentProject}
+              teams={teams}
+              outcomes={outcomes}
+              projects={projects}
+              onSubmit={saveInsight}
+              onCancel={() => setModal(null)}
+              onDelete={() => removeInsight(modal.insight)}
+            />
           ) : modal.kind === 'team' ? (
             <TeamForm
               key={modal.team?.id ?? 'new'}
@@ -383,8 +467,10 @@ export default function App({ user, account, onSignOut }) {
   );
 }
 
-function modalTitle({ kind, outcome, parent, target, project, team }) {
+function modalTitle({ kind, outcome, parent, target, project, team, insight, entity }) {
   if (kind === 'members') return 'Members';
+  if (kind === 'entity-insights') return `Insights · ${entity.name}`;
+  if (kind === 'insight') return insight ? `Edit insight #${insight.id}` : 'New insight';
   if (kind === 'team') return team ? `Edit team #${team.id}` : 'New team';
   if (kind === 'target') return target ? `Edit target #${target.id}` : 'New target';
   if (kind === 'measurement') return 'New measurement';

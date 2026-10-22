@@ -7,6 +7,7 @@ const teamsRouter = require('./teams');
 const projectsRouter = require('./projects');
 const outcomesRouter = require('./outcomes');
 const targetsRouter = require('./targets');
+const insightsRouter = require('./insights');
 const measurementsRouter = require('./measurements');
 
 const router = express.Router();
@@ -41,6 +42,7 @@ router.use('/:accountId/teams', accountScope, teamsRouter);
 router.use('/:accountId/projects', accountScope, projectsRouter);
 router.use('/:accountId/outcomes', accountScope, outcomesRouter);
 router.use('/:accountId/targets', accountScope, targetsRouter);
+router.use('/:accountId/insights', accountScope, insightsRouter);
 router.use('/:accountId/measurements', accountScope, measurementsRouter);
 
 module.exports = router;
