@@ -29,6 +29,17 @@ const STORED_VIEW = 'outcomes.view';
 const STORED_PAGE = 'outcomes.page';
 const STORED_TEAM = 'outcomes.team';
 
+// The fields a project PUT replaces; parent_project_id is sent explicitly so a
+// partial update never clears it.
+const projectPayload = (project) => ({
+  name: project.name,
+  description: project.description,
+  team_id: project.team_id,
+  start_at: project.start_at,
+  end_at: project.end_at,
+  parent_project_id: project.parent_project_id,
+});
+
 export default function App({ user, account, onSignOut }) {
   const accountId = account.id;
   const [teams, setTeams] = useState([]);
@@ -333,6 +344,54 @@ export default function App({ user, account, onSignOut }) {
     }
   }
 
+  // Breaks the link a map line draws: a child outcome loses its parent, a
+  // project loses its parent project or one driven outcome.
+  async function unlink({ from, to }) {
+    const same = (a, b) => String(a) === String(b);
+    try {
+      if (to.kind === 'outcome') {
+        const child = outcomes.find((item) => same(item.id, to.id));
+        const updated = await api.updateOutcome(accountId, child.id, {
+          name: child.name,
+          description: child.description,
+          team_id: child.team_id,
+          project_id: child.project_id,
+          parent_outcome_id: null,
+        });
+        setOutcomes((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      } else if (from.kind === 'project') {
+        const child = projects.find((item) => same(item.id, to.id));
+        const updated = await api.updateProject(accountId, child.id, {
+          ...projectPayload(child),
+          parent_project_id: null,
+        });
+        setProjects((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      } else {
+        const project = projects.find((item) => same(item.id, to.id));
+        const outcome = outcomes.find((item) => same(item.id, from.id));
+        const updated = await api.updateProject(accountId, project.id, {
+          ...projectPayload(project),
+          outcome_ids: (project.outcome_ids ?? []).filter((id) => !same(id, outcome.id)).map(Number),
+        });
+        setProjects((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+        // The older single-column link would otherwise keep the line drawn.
+        if (same(outcome.project_id, project.id)) {
+          const cleared = await api.updateOutcome(accountId, outcome.id, {
+            name: outcome.name,
+            description: outcome.description,
+            team_id: outcome.team_id,
+            project_id: null,
+            parent_outcome_id: outcome.parent_outcome_id,
+          });
+          setOutcomes((current) => current.map((item) => (item.id === cleared.id ? cleared : item)));
+        }
+      }
+      setError(null);
+    } catch (err) {
+      setError(`Could not remove link: ${err.message}`);
+    }
+  }
+
   async function removeOutcome(outcome) {
     if (!(await askConfirm('Delete outcome?', `“${outcome.name}” will be permanently deleted.`))) return;
     try {
@@ -463,6 +522,7 @@ export default function App({ user, account, onSignOut }) {
                 onEditProject={openEditProject}
                 onAdd={openAdd}
                 onAddChildProject={openAddChildProject}
+                onUnlink={unlink}
                 onOpenTeam={openTeam}
               />
             ) : view === 'list' ? (

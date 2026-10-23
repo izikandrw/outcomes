@@ -18,7 +18,9 @@ import TeamBadges from './TeamBadges.jsx';
 import { groupByRule, issuesFor, validateTree } from '../lib/validation.js';
 
 export const NODE_W = 160;
-export const NODE_H = 56;
+export const NODE_H = 68;
+// Nodes with an insight pill straddle their bottom edge; lift the label to clear it.
+const LABEL_LIFT = 4;
 export const H_GAP = 24; // between sibling subtrees
 export const V_GAP = 54; // between a node's bottom edge and its children's top edge
 export const LEVEL_H = NODE_H + V_GAP;
@@ -43,6 +45,7 @@ export default function OutcomeTree({
   onShowInsights,
   onAdd,
   onAddChildProject,
+  onUnlink,
   onOpenTeam,
 }) {
   const { nodes, edges, width, height } = layout(outcomes, projects, impacts);
@@ -51,8 +54,10 @@ export default function OutcomeTree({
   // { entity, kind, left, top } — kind is 'outcome' or 'impact'. Anchored in
   // viewport coordinates so the menu is never clipped by the scroll container.
   const [menu, setMenu] = useState(null);
-  // Node keys (`outcome-1`) at either end of the hovered relationship line.
-  const [hoverEnds, setHoverEnds] = useState(null);
+  // The relationship line under the pointer; its two end nodes glow and it
+  // shows a button to break the link.
+  const [hoverEdge, setHoverEdge] = useState(null);
+  const hoverEnds = hoverEdge?.ends;
 
   useEffect(() => {
     if (!menu) return undefined;
@@ -141,8 +146,8 @@ export default function OutcomeTree({
         {edges.map((edge) => (
           <g
             key={edge.key}
-            onMouseEnter={() => setHoverEnds(edge.ends)}
-            onMouseLeave={() => setHoverEnds(null)}
+            onMouseEnter={() => setHoverEdge(edge)}
+            onMouseLeave={() => setHoverEdge(null)}
           >
             <path
               className={['tree-edge', edge.kind !== 'outcome' && edge.kind].filter(Boolean).join(' ')}
@@ -158,6 +163,35 @@ export default function OutcomeTree({
             />
             {/* Wider invisible stroke so the thin line is easy to hover. */}
             <path className="tree-edge-hit" d={edge.d} fill="none" />
+            {/* A target can't exist without its outcome, so that link has no break button. */}
+            {hoverEdge?.key === edge.key && edge.kind !== 'target' && (
+              <g
+                className="edge-unlink"
+                role="button"
+                tabIndex={0}
+                aria-label="Remove link"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setHoverEdge(null);
+                  onUnlink(edge);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setHoverEdge(null);
+                    onUnlink(edge);
+                  }
+                }}
+              >
+                <title>Remove link</title>
+                <circle cx={edge.button.x} cy={edge.button.y} r="9" />
+                <path
+                  d={`M${edge.button.x - 3.5} ${edge.button.y - 3.5}l7 7M${edge.button.x + 3.5} ${
+                    edge.button.y - 3.5
+                  }l-7 7`}
+                />
+              </g>
+            )}
           </g>
         ))}
 
@@ -329,7 +363,7 @@ function OutcomeNode({
           .join('\n')}
       </title>
       <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={NODE_H} rx="10" />
-      <NodeText x={x} y={y} lines={lines} targetLine={targetLine} />
+      <NodeText x={x} y={y} lines={lines} targetLine={targetLine} lift={LABEL_LIFT} />
 
       {/* Revealed on hover or keyboard focus; opens the add menu. */}
       <g
@@ -525,7 +559,7 @@ function ProjectNode({
           .join('\n')}
       </title>
       <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={NODE_H} rx="10" />
-      <text x={x} y={y + NODE_H / 2} textAnchor="middle" dominantBaseline="middle">
+      <text x={x} y={y + NODE_H / 2 - LABEL_LIFT} textAnchor="middle" dominantBaseline="middle">
         {lines.map((line, index) => (
           <tspan
             key={index}
@@ -588,10 +622,10 @@ function nodeLabel(name, quantified) {
   return { lines: wrapLabel(name, MAX_CHARS, MAX_LINES - 1), targetLine };
 }
 
-function NodeText({ x, y, lines, targetLine }) {
+function NodeText({ x, y, lines, targetLine, lift = 0 }) {
   const all = targetLine ? [...lines, targetLine] : lines;
   return (
-    <text x={x} y={y + NODE_H / 2} textAnchor="middle" dominantBaseline="middle">
+    <text x={x} y={y + NODE_H / 2 - lift} textAnchor="middle" dominantBaseline="middle">
       {all.map((line, index) => (
         <tspan
           key={index}
@@ -719,6 +753,9 @@ function layout(outcomes, projects, impacts) {
         d: elbowPath(x, y + NODE_H, child.x, child.y - 3),
         kind: child.kind,
         ends: [`${item.kind}-${entity.id}`, `${child.kind}-${child.id}`],
+        from: { kind: item.kind, id: entity.id },
+        to: { kind: child.kind, id: child.id },
+        button: { x: child.x, y: y + NODE_H + V_GAP / 2 + V_GAP / 4 },
       });
     }
 
@@ -764,6 +801,9 @@ function layout(outcomes, projects, impacts) {
         d: crossLinkPath(from, to),
         kind: 'project',
         ends: [`outcome-${outcome.id}`, `project-${project.id}`],
+        from: { kind: 'outcome', id: outcome.id },
+        to: { kind: 'project', id: project.id },
+        button: crossLinkButton(from, to),
       });
     }
   }
@@ -793,6 +833,18 @@ export function elbowPath(x1, y1, x2, y2) {
 // source, so on overlapping rows it would cut a line straight through the
 // boxes in between. When rows overlap, dip a few pixels under both boxes
 // instead so the connector never crosses node interiors.
+// A point on the last vertical run into the project, clear of the shared
+// horizontal run so each cross-link gets its own button.
+function crossLinkButton(from, to) {
+  const rowsOverlap = from.y < to.y + NODE_H && to.y < from.y + NODE_H;
+  if (rowsOverlap) {
+    const dipY = Math.max(from.y, to.y) + NODE_H + 10;
+    return { x: to.x, y: (dipY + to.y + NODE_H) / 2 + 1 };
+  }
+  if (from.y < to.y) return { x: to.x, y: to.y - V_GAP / 4 };
+  return { x: to.x, y: to.y + NODE_H + V_GAP / 4 };
+}
+
 function crossLinkPath(from, to) {
   const rowsOverlap = from.y < to.y + NODE_H && to.y < from.y + NODE_H;
   if (rowsOverlap) {
