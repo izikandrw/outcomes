@@ -7,6 +7,7 @@ import {
   measurementsForOutcome,
   projectsForOutcome,
   targetsForOutcome,
+  formatValue,
 } from '../lib/links.js';
 
 const NODE_W = 160;
@@ -30,13 +31,15 @@ export default function OutcomeTree({
   insights,
   onEdit,
   onEditProject,
+  onEditTarget,
   onShowInsights,
   onAdd,
   onDelete,
   onDeleteProject,
+  onDeleteTarget,
   onAddChildProject,
 }) {
-  const { nodes, edges, width, height } = layout(outcomes, projects);
+  const { nodes, edges, width, height } = layout(outcomes, projects, targets);
   // { outcome, left, top } — anchored in viewport coordinates so the menu is
   // never clipped by the scroll container.
   const [menu, setMenu] = useState(null);
@@ -98,20 +101,45 @@ export default function OutcomeTree({
           >
             <path className="tree-arrowhead project" d="M0 1.5 L7 4 L0 6.5 z" />
           </marker>
+          <marker
+            id="tree-arrow-target"
+            viewBox="0 0 8 8"
+            refX="7"
+            refY="4"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path className="tree-arrowhead target" d="M0 1.5 L7 4 L0 6.5 z" />
+          </marker>
         </defs>
 
         {edges.map((edge) => (
           <path
             key={edge.key}
-            className={['tree-edge', edge.kind === 'project' && 'project'].filter(Boolean).join(' ')}
+            className={['tree-edge', edge.kind !== 'outcome' && edge.kind].filter(Boolean).join(' ')}
             d={edge.d}
             fill="none"
-            markerEnd={edge.kind === 'project' ? 'url(#tree-arrow-project)' : 'url(#tree-arrow)'}
+            markerEnd={
+              edge.kind === 'project'
+                ? 'url(#tree-arrow-project)'
+                : edge.kind === 'target'
+                  ? 'url(#tree-arrow-target)'
+                  : 'url(#tree-arrow)'
+            }
           />
         ))}
 
         {nodes.map((node) =>
-          node.type === 'project' ? (
+          node.type === 'target' ? (
+            <TargetNode
+              key={`target-${node.data.id}`}
+              target={node.data}
+              onEdit={onEditTarget}
+              onDelete={onDeleteTarget}
+              {...node}
+            />
+          ) : node.type === 'project' ? (
             <ProjectNode
               key={`project-${node.data.id}`}
               project={node.data}
@@ -335,6 +363,58 @@ function DeleteButton({ x, y, label, onDelete }) {
   );
 }
 
+// A leaf: the outcome stated as numbers. Click edits it in the target form.
+function TargetNode({ target, parentOutcome, x, y, depth, onEdit, onDelete }) {
+  const lines = wrapLabel(target.name, MAX_CHARS, MAX_LINES - 1);
+  const [rangeLine] = wrapLabel(
+    `${formatValue(target.baseline_value)} → ${formatValue(target.target_value)} ${target.unit}`,
+    MAX_CHARS,
+    1
+  );
+  const all = [...lines, rangeLine];
+
+  return (
+    <g
+      className="tree-node target"
+      role="treeitem"
+      aria-level={depth + 1}
+      tabIndex={0}
+      onClick={() => onEdit(target, parentOutcome)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onEdit(target, parentOutcome);
+        }
+      }}
+    >
+      <title>
+        {[
+          target.name,
+          `${target.baseline_value} → ${target.target_value} ${target.unit}`,
+          target.latest_value != null && `Latest: ${target.latest_value} ${target.unit}`,
+          target.description,
+        ]
+          .filter(Boolean)
+          .join('\n')}
+      </title>
+      <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={NODE_H} rx="10" />
+      <text x={x} y={y + NODE_H / 2} textAnchor="middle" dominantBaseline="middle">
+        {all.map((line, index) => (
+          <tspan
+            key={index}
+            className={index === all.length - 1 ? 'tree-node-team' : undefined}
+            x={x}
+            dy={index === 0 ? -((all.length - 1) * LINE_H) / 2 : LINE_H}
+          >
+            {line}
+          </tspan>
+        ))}
+      </text>
+      <DeleteButton x={x} y={y} label={target.name} onDelete={() => onDelete(target)} />
+    </g>
+  );
+}
+
 // Opens the same edit modal an outcome does; its hover "+" adds a child
 // project directly, since that is the only thing that can hang under one.
 function ProjectNode({
@@ -424,7 +504,7 @@ function ProjectNode({
 // project when it has one. A project linked to more than one outcome is still
 // drawn once — the other outcomes it drives get a dashed cross-edge to that
 // same node instead of a duplicate.
-function layout(outcomes, projects) {
+function layout(outcomes, projects, targets) {
   const byParent = new Map();
   for (const outcome of outcomes) {
     const key = outcome.parent_outcome_id ?? null;
@@ -468,7 +548,9 @@ function layout(outcomes, projects) {
     const entity = item.data;
 
     let children;
-    if (item.kind === 'project') {
+    if (item.kind === 'target') {
+      children = [];
+    } else if (item.kind === 'project') {
       placedProjects.add(entity.id);
       children = (projectsByParent.get(String(entity.id)) ?? [])
         .filter((child) => !placedProjects.has(child.id))
@@ -482,6 +564,11 @@ function layout(outcomes, projects) {
       children = [
         ...childOutcomes.map((child) => ({ kind: 'outcome', data: child })),
         ...childProjects.map((project) => ({ kind: 'project', data: project })),
+        ...targetsForOutcome(targets, entity).map((target) => ({
+          kind: 'target',
+          data: target,
+          outcome: entity,
+        })),
       ];
     }
 
@@ -503,7 +590,7 @@ function layout(outcomes, projects) {
       x = (childPositions[0].x + childPositions[childPositions.length - 1].x) / 2;
     }
 
-    nodes.push({ type: item.kind, data: entity, x, y, depth });
+    nodes.push({ type: item.kind, data: entity, parentOutcome: item.outcome, x, y, depth });
     for (const child of childPositions) {
       edges.push({
         key: `${item.kind}-${entity.id}-${child.kind}-${child.id}`,

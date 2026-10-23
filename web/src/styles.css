@@ -6,6 +6,7 @@
   --muted: #6b7280;
   --accent: #2f5bea;
   --project: #1a9c6b;
+  --target: #b7791f;
   --danger: #c0392b;
   color-scheme: light dark;
 }
@@ -19,6 +20,7 @@
     --muted: #9aa1ad;
     --accent: #6f8cff;
     --project: #4bcf9a;
+    --target: #e0a84a;
     --danger: #ef6a5c;
   }
 }
@@ -811,6 +813,33 @@ button.small {
 
 .tree-arrowhead.project {
   fill: color-mix(in srgb, var(--project) 55%, transparent);
+}
+
+.tree-node.target rect {
+  fill: color-mix(in srgb, var(--target) 12%, var(--surface));
+  stroke: color-mix(in srgb, var(--target) 45%, transparent);
+}
+
+.tree-node.target text {
+  fill: var(--target);
+}
+
+.tree-node.target:hover rect {
+  stroke: color-mix(in srgb, var(--target) 65%, transparent);
+  stroke-width: 1.5;
+}
+
+.tree-node.target .tree-node-team {
+  fill: color-mix(in srgb, var(--target) 70%, var(--muted));
+}
+
+.tree-edge.target {
+  stroke: color-mix(in srgb, var(--target) 55%, transparent);
+  stroke-dasharray: 5 4;
+}
+
+.tree-arrowhead.target {
+  fill: color-mix(in srgb, var(--target) 55%, transparent);
 }
 
 .issues {

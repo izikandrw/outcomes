@@ -358,9 +358,11 @@ export default function App({ user, account, onSignOut }) {
                 onShowInsights={showInsights}
                 onEdit={openEdit}
                 onEditProject={openEditProject}
+                onEditTarget={openEditTarget}
                 onAdd={openAdd}
                 onDelete={removeOutcome}
                 onDeleteProject={removeProject}
+                onDeleteTarget={removeTarget}
                 onAddChildProject={openAddChildProject}
               />
             ) : view === 'list' ? (
