@@ -1205,3 +1205,59 @@ button.danger-solid {
 button.danger-solid:hover {
   filter: brightness(1.08);
 }
+
+.logo-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.logo-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo-preview {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.logo-pick {
+  cursor: pointer;
+}
+
+.team-initial circle {
+  fill: var(--accent, #4f46e5);
+}
+
+.tree-node .team-initial text {
+  fill: #fff;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.team-initial-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--accent, #4f46e5);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* On the filled root node the initial badge inverts so it stays visible. */
+.tree-node.root .team-initial circle {
+  fill: #fff;
+}
+
+.tree-node.root .team-initial text {
+  fill: var(--accent);
+}
+
+.tree-node.root .tree-node-team {
+  fill: rgb(255 255 255 / 0.8);
+}

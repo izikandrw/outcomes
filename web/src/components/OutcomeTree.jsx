@@ -10,14 +10,14 @@ import {
   formatValue,
 } from '../lib/links.js';
 
-const NODE_W = 160;
-const NODE_H = 56;
-const H_GAP = 24; // between sibling subtrees
-const V_GAP = 54; // between a node's bottom edge and its children's top edge
-const LEVEL_H = NODE_H + V_GAP;
-const PAD = 20;
-const LINE_H = 15;
-const MAX_CHARS = 21;
+export const NODE_W = 160;
+export const NODE_H = 56;
+export const H_GAP = 24; // between sibling subtrees
+export const V_GAP = 54; // between a node's bottom edge and its children's top edge
+export const LEVEL_H = NODE_H + V_GAP;
+export const PAD = 20;
+export const LINE_H = 15;
+export const MAX_CHARS = 21;
 const MAX_LINES = 3;
 
 // Top-down node-link diagram: each node is centred over the block its children
@@ -609,7 +609,7 @@ function layout(outcomes, projects, targets) {
 // only in the empty gap between rows, then drops straight into the child.
 // A straight diagonal here would cross through whichever sibling sits between
 // the parent's centred x (averaged over all its children) and this one.
-function elbowPath(x1, y1, x2, y2) {
+export function elbowPath(x1, y1, x2, y2) {
   if (x1 === x2) return `M${x1} ${y1} V${y2}`;
   const midY = (y1 + y2) / 2;
   return `M${x1} ${y1} V${midY} H${x2} V${y2}`;
@@ -634,7 +634,7 @@ function crossLinkPath(from, to) {
 
 // SVG has no text wrapping, so lines are split on an approximate character
 // budget for the node width and the overflow is clipped with an ellipsis.
-function wrapLabel(text, maxChars = MAX_CHARS, maxLines = MAX_LINES) {
+export function wrapLabel(text, maxChars = MAX_CHARS, maxLines = MAX_LINES) {
   // A single word wider than the box can't be wrapped on a space, so it is
   // hard-broken rather than left to spill outside the node.
   const words = String(text ?? '')

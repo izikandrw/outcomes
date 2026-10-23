@@ -13,7 +13,7 @@ import ParentOutcomeTag from './components/ParentOutcomeTag.jsx';
 import ProjectForm from './components/ProjectForm.jsx';
 import TargetForm from './components/TargetForm.jsx';
 import TeamForm from './components/TeamForm.jsx';
-import TeamList from './components/TeamList.jsx';
+import TeamTree from './components/TeamTree.jsx';
 import OutcomeList from './components/OutcomeList.jsx';
 import OutcomeTree from './components/OutcomeTree.jsx';
 import PotentialIssues from './components/PotentialIssues.jsx';
@@ -308,13 +308,13 @@ export default function App({ user, account, onSignOut }) {
               {loading ? (
                 <p className="empty">Loading…</p>
               ) : (
-                <TeamList
+                <TeamTree
                   teams={teams}
                   outcomes={outcomes}
                   projects={projects}
                   onCreate={() => setModal({ kind: 'team', team: null })}
                   onEdit={(team) => setModal({ kind: 'team', team })}
-                  onDelete={removeTeam}
+                  onAddChild={(parent) => setModal({ kind: 'team', team: null, parent })}
                 />
               )}
             </section>
@@ -450,6 +450,7 @@ export default function App({ user, account, onSignOut }) {
             <TeamForm
               key={modal.team?.id ?? 'new'}
               editing={modal.team}
+              parent={modal.parent}
               teams={teams}
               onSubmit={saveTeam}
               onCancel={() => setModal(null)}
