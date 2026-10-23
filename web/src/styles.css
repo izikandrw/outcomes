@@ -1639,3 +1639,34 @@ button.team-chip.link:hover {
 .targets-section .target-actions {
   opacity: 1;
 }
+
+.edge-unlink {
+  cursor: pointer;
+}
+
+.edge-unlink circle {
+  fill: var(--surface);
+  stroke: var(--muted);
+  stroke-width: 1.5;
+}
+
+.edge-unlink path {
+  stroke: var(--muted);
+  stroke-width: 1.75;
+  stroke-linecap: round;
+}
+
+.edge-unlink:hover circle,
+.edge-unlink:focus-visible circle {
+  fill: #c0392b;
+  stroke: #c0392b;
+}
+
+.edge-unlink:hover path,
+.edge-unlink:focus-visible path {
+  stroke: #fff;
+}
+
+.edge-unlink:focus-visible {
+  outline: none;
+}
