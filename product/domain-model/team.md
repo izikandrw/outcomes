@@ -6,6 +6,8 @@ A team is the unit of accountability. Outcomes and projects both hang off a team
 
 Teams can be infinitely nested. A parent team is usually a group, department or division; its children are the teams doing the work. Nesting exists so a parent's outcomes can be read as the roll-up of its children's.
 
+A team can have a logo, so it is recognisable at a glance on the team map.
+
 Teams outlive the work. Projects finish and outcomes are achieved; the team persists and picks up the next one.
 
 # Relationships

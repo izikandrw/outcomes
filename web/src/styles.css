@@ -6,6 +6,7 @@
   --muted: #6b7280;
   --accent: #2f5bea;
   --project: #1a9c6b;
+  --target: #b7791f;
   --danger: #c0392b;
   color-scheme: light dark;
 }
@@ -19,6 +20,7 @@
     --muted: #9aa1ad;
     --accent: #6f8cff;
     --project: #4bcf9a;
+    --target: #e0a84a;
     --danger: #ef6a5c;
   }
 }
@@ -274,6 +276,10 @@ button.with-icon {
   background: var(--surface);
   color: var(--text);
   box-shadow: 0 18px 50px rgb(0 0 0 / 0.25);
+}
+
+.modal.wide {
+  width: min(860px, calc(100vw - 32px));
 }
 
 .modal::backdrop {
@@ -809,6 +815,33 @@ button.small {
   fill: color-mix(in srgb, var(--project) 55%, transparent);
 }
 
+.tree-node.target rect {
+  fill: color-mix(in srgb, var(--target) 12%, var(--surface));
+  stroke: color-mix(in srgb, var(--target) 45%, transparent);
+}
+
+.tree-node.target text {
+  fill: var(--target);
+}
+
+.tree-node.target:hover rect {
+  stroke: color-mix(in srgb, var(--target) 65%, transparent);
+  stroke-width: 1.5;
+}
+
+.tree-node.target .tree-node-team {
+  fill: color-mix(in srgb, var(--target) 70%, var(--muted));
+}
+
+.tree-edge.target {
+  stroke: color-mix(in srgb, var(--target) 55%, transparent);
+  stroke-dasharray: 5 4;
+}
+
+.tree-arrowhead.target {
+  fill: color-mix(in srgb, var(--target) 55%, transparent);
+}
+
 .issues {
   display: flex;
   flex-direction: column;
@@ -955,4 +988,276 @@ button.small {
 
 .invite-link {
   margin-top: 14px;
+}
+
+/* Checkbox list for linking an insight to outcomes and projects. */
+.link-picker {
+  border: 1px solid var(--border, #ddd);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  max-height: 10rem;
+  overflow-y: auto;
+}
+
+.link-picker .check {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Insight count on an outcome or project; clicking it lists the insights. */
+button.tag.insight-badge {
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+button.tag.insight-badge.empty {
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.node-insights {
+  cursor: pointer;
+}
+
+.tree-node .node-insights rect {
+  fill: var(--surface);
+  stroke: var(--accent);
+  stroke-width: 1.25;
+}
+
+.tree-node .node-insights text {
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--accent);
+}
+
+.tree-node .node-insights.empty rect {
+  stroke: var(--border);
+  stroke-dasharray: 3 2;
+}
+
+.tree-node .node-insights.empty text {
+  fill: var(--muted);
+}
+
+.tree-node .node-insights:hover rect,
+.tree-node .node-insights:focus-visible rect {
+  fill: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+
+.node-insights:focus-visible {
+  outline: none;
+}
+
+.account-menu {
+  position: relative;
+}
+
+.account-menu-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.account-menu-user {
+  padding: 6px 10px 8px;
+  font-size: 13px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  margin-bottom: 4px;
+}
+
+.account-menu-panel button {
+  text-align: left;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  color: inherit;
+  padding: 8px 10px;
+}
+
+.account-menu-panel button:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.insight-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.insight-table th,
+.insight-table td {
+  padding: 0.6rem 0.75rem 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.insight-table th {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.insight-table td:first-child {
+  white-space: normal;
+}
+
+.insight-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.insight-table .hint {
+  margin: 0.15rem 0 0;
+}
+
+/* Inline-editable cells look like plain text until hovered or focused. */
+.insight-table .cell-input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.25rem 0.35rem;
+  margin: -0.25rem 0 -0.25rem -0.35rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+}
+
+.insight-table .cell-input.bold {
+  font-weight: 600;
+}
+
+.insight-table .cell-input.num {
+  text-align: right;
+}
+
+.insight-table .cell-input:hover {
+  border-color: var(--border);
+}
+
+.insight-table .cell-input:focus {
+  border-color: var(--accent, #2f5be7);
+  background: var(--surface, #fff);
+  outline: none;
+}
+
+.insight-table td:first-child {
+  min-width: 10rem;
+}
+
+/* Fixed widths so selects, amounts and dates aren't clipped. */
+.insight-table td:nth-child(2) .cell-input { min-width: 7.5rem; }
+.insight-table td:nth-child(3) .cell-input { min-width: 6.5rem; }
+.insight-table td:nth-child(4) .cell-input { min-width: 5.5rem; }
+.insight-table td:nth-child(5) .cell-input { min-width: 8rem; }
+.insight-table td:last-child { padding-right: 0; }
+
+.entity-insights {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Spare width goes to the name column rather than being spread between the rest. */
+.insight-table th:first-child {
+  width: 100%;
+}
+
+.modal.confirm {
+  width: min(400px, calc(100vw - 32px));
+}
+
+.modal.confirm h2 {
+  margin: 0;
+}
+
+.confirm-message {
+  margin: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+button.danger-solid {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+button.danger-solid:hover {
+  filter: brightness(1.08);
+}
+
+.logo-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.logo-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo-preview {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.logo-pick {
+  cursor: pointer;
+}
+
+.team-initial circle {
+  fill: var(--accent, #4f46e5);
+}
+
+.tree-node .team-initial text {
+  fill: #fff;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.team-initial-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--accent, #4f46e5);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* On the filled root node the initial badge inverts so it stays visible. */
+.tree-node.root .team-initial circle {
+  fill: #fff;
+}
+
+.tree-node.root .team-initial text {
+  fill: var(--accent);
+}
+
+.tree-node.root .tree-node-team {
+  fill: rgb(255 255 255 / 0.8);
 }

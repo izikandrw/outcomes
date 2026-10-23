@@ -1,4 +1,12 @@
-import { formatValue, progressOf, projectsForOutcome, targetsForOutcome } from '../lib/links.js';
+import {
+  formatValue,
+  insightsForOutcome,
+  progressOf,
+  projectsForOutcome,
+  targetsForOutcome,
+  totalDollarImpact,
+} from '../lib/links.js';
+import InsightBadge from './InsightBadge.jsx';
 import { PencilIcon, PlusIcon, TrashIcon } from './icons.jsx';
 
 // Flat list of every outcome. Nesting is shown by the tree view instead, so a
@@ -10,8 +18,10 @@ export default function OutcomeList({
   teams,
   projects,
   targets,
+  insights,
   onEdit,
   onDelete,
+  onShowInsights,
   onAddTarget,
   onEditTarget,
   onDeleteTarget,
@@ -33,6 +43,12 @@ export default function OutcomeList({
                   <span className="tag">
                     {nameOf(teams, outcome.team_id) ?? `team ${outcome.team_id}`}
                   </span>
+                  <InsightBadge
+                    count={insightsForOutcome(insights, outcome).length}
+                    dollars={totalDollarImpact(insightsForOutcome(insights, outcome))}
+                    label={outcome.name}
+                    onClick={() => onShowInsights(outcome, 'outcome')}
+                  />
                   {linked.map((project) => (
                     <span className="tag project" key={project.id}>
                       {project.name}

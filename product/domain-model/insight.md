@@ -1,6 +1,6 @@
 # Definition
 
-Specific evidence that an outcome should be pursued or a project should be built.
+Specific evidence that something (e.g. an outcome or a project) should be pursued.
 
 An insight is a single observation with a source — a support ticket, a session recording, an interview quote, a funnel drop-off, an experiment result. It is specific enough that someone else could go back and check it.
 
@@ -8,12 +8,16 @@ An insight is not a conclusion. "Users churn because onboarding is slow" is an i
 
 Insights are reusable. The same observation can justify several outcomes and several projects, and it stays on the record after the work it justified is finished.
 
+Insights have a type.
+
+Insights can carry a dollar impact: the estimated amount of money the observation represents, such as revenue at risk or cost incurred. It is optional, since not every observation can be priced.
+
+Insights can have an impact area: the part of the business the impact lands on — acquisition, activation, retention, expansion, cost, or other. It is a single value, since the dollar impact is a single number and splitting it across areas would be a guess. It is optional.
+
 # Relationships
 
 Insights can be connected to one or more outcomes, as evidence that the outcome is worth pursuing.
 
 Insights can be connected to one or more projects, as evidence that the project should be built.
-
-Insights can be connected to one team — the team that recorded it. Any team can link to an insight regardless of who recorded it.
 
 Insights do not nest. Unlike outcomes, projects and teams, an insight is a leaf: it is either evidence or it isn't.

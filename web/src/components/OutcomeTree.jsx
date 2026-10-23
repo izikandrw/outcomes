@@ -1,14 +1,23 @@
 import { useEffect, useState } from 'react';
-import { measurementsForOutcome, projectsForOutcome, targetsForOutcome } from '../lib/links.js';
+import {
+  insightsForOutcome,
+  insightsForProject,
+  totalDollarImpact,
+  formatDollars,
+  measurementsForOutcome,
+  projectsForOutcome,
+  targetsForOutcome,
+  formatValue,
+} from '../lib/links.js';
 
-const NODE_W = 160;
-const NODE_H = 56;
-const H_GAP = 24; // between sibling subtrees
-const V_GAP = 54; // between a node's bottom edge and its children's top edge
-const LEVEL_H = NODE_H + V_GAP;
-const PAD = 20;
-const LINE_H = 15;
-const MAX_CHARS = 21;
+export const NODE_W = 160;
+export const NODE_H = 56;
+export const H_GAP = 24; // between sibling subtrees
+export const V_GAP = 54; // between a node's bottom edge and its children's top edge
+export const LEVEL_H = NODE_H + V_GAP;
+export const PAD = 20;
+export const LINE_H = 15;
+export const MAX_CHARS = 21;
 const MAX_LINES = 3;
 
 // Top-down node-link diagram: each node is centred over the block its children
@@ -19,13 +28,15 @@ export default function OutcomeTree({
   projects,
   targets,
   measurements,
+  insights,
   onEdit,
   onEditProject,
+  onEditTarget,
+  onShowInsights,
   onAdd,
-  onDelete,
-  onDeleteProject,
+  onAddChildProject,
 }) {
-  const { nodes, edges, width, height } = layout(outcomes, projects);
+  const { nodes, edges, width, height } = layout(outcomes, projects, targets);
   // { outcome, left, top } — anchored in viewport coordinates so the menu is
   // never clipped by the scroll container.
   const [menu, setMenu] = useState(null);
@@ -87,26 +98,53 @@ export default function OutcomeTree({
           >
             <path className="tree-arrowhead project" d="M0 1.5 L7 4 L0 6.5 z" />
           </marker>
+          <marker
+            id="tree-arrow-target"
+            viewBox="0 0 8 8"
+            refX="7"
+            refY="4"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path className="tree-arrowhead target" d="M0 1.5 L7 4 L0 6.5 z" />
+          </marker>
         </defs>
 
         {edges.map((edge) => (
           <path
             key={edge.key}
-            className={['tree-edge', edge.kind === 'project' && 'project'].filter(Boolean).join(' ')}
+            className={['tree-edge', edge.kind !== 'outcome' && edge.kind].filter(Boolean).join(' ')}
             d={edge.d}
             fill="none"
-            markerEnd={edge.kind === 'project' ? 'url(#tree-arrow-project)' : 'url(#tree-arrow)'}
+            markerEnd={
+              edge.kind === 'project'
+                ? 'url(#tree-arrow-project)'
+                : edge.kind === 'target'
+                  ? 'url(#tree-arrow-target)'
+                  : 'url(#tree-arrow)'
+            }
           />
         ))}
 
         {nodes.map((node) =>
-          node.type === 'project' ? (
+          node.type === 'target' ? (
+            <TargetNode
+              key={`target-${node.data.id}`}
+              target={node.data}
+              onEdit={onEditTarget}
+              {...node}
+            />
+          ) : node.type === 'project' ? (
             <ProjectNode
               key={`project-${node.data.id}`}
               project={node.data}
               teams={teams}
+              insightCount={insightsForProject(insights, node.data).length}
+              insightDollars={totalDollarImpact(insightsForProject(insights, node.data))}
+              onShowInsights={onShowInsights}
               onEdit={onEditProject}
-              onDelete={onDeleteProject}
+              onAddChild={onAddChildProject}
               {...node}
             />
           ) : (
@@ -117,8 +155,10 @@ export default function OutcomeTree({
               projects={projects}
               targets={targets}
               measurements={measurements}
+              insightCount={insightsForOutcome(insights, node.data).length}
+              insightDollars={totalDollarImpact(insightsForOutcome(insights, node.data))}
+              onShowInsights={onShowInsights}
               onEdit={onEdit}
-              onDelete={onDelete}
               onOpenMenu={openMenu}
               {...node}
             />
@@ -147,13 +187,30 @@ export default function OutcomeTree({
           <button type="button" role="menuitem" onClick={() => choose('project')}>
             Project
           </button>
+          <button type="button" role="menuitem" onClick={() => choose('insight')}>
+            Insight
+          </button>
         </div>
       )}
     </div>
   );
 }
 
-function OutcomeNode({ outcome, x, y, depth, teams, projects, targets, measurements, onEdit, onDelete, onOpenMenu }) {
+function OutcomeNode({
+  outcome,
+  x,
+  y,
+  depth,
+  teams,
+  projects,
+  targets,
+  measurements,
+  insightCount,
+  insightDollars,
+  onShowInsights,
+  onEdit,
+  onOpenMenu,
+}) {
   const nameOf = (collection, id) => collection.find((item) => item.id === id)?.name ?? null;
   const lines = wrapLabel(outcome.name);
   const team = nameOf(teams, outcome.team_id);
@@ -227,42 +284,114 @@ function OutcomeNode({ outcome, x, y, depth, teams, projects, targets, measureme
           }v10`}
         />
       </g>
-      <DeleteButton x={x} y={y} label={outcome.name} onDelete={() => onDelete(outcome)} />
+      <InsightPill x={x} y={y} count={insightCount} dollars={insightDollars} label={outcome.name} onOpen={() => onShowInsights(outcome, 'outcome')} />
     </g>
   );
 }
 
-// Revealed on hover or keyboard focus, like the add button.
-function DeleteButton({ x, y, label, onDelete }) {
-  const cx = x + NODE_W / 2 - 4;
-  const cy = y + 4;
+// Always visible, bottom-left of the node: how many insights back it up.
+function InsightPill({ x, y, count, dollars, label, onOpen }) {
+  const cx = x - NODE_W / 2 + 18;
+  const cy = y + NODE_H;
   return (
     <g
-      className="node-delete"
+      className={['node-insights', count === 0 && 'empty'].filter(Boolean).join(' ')}
       role="button"
       tabIndex={0}
-      aria-label={`Delete ${label}`}
+      aria-label={`${count} insight${count === 1 ? '' : 's'} for ${label}`}
       onClick={(event) => {
         event.stopPropagation();
-        onDelete();
+        onOpen();
       }}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           event.stopPropagation();
-          onDelete();
+          onOpen();
         }
       }}
     >
-      <circle cx={cx} cy={cy} r="9" />
-      <path d={`M${cx - 3.5} ${cy - 3.5}l7 7M${cx + 3.5} ${cy - 3.5}l-7 7`} />
+      <rect x={cx - 16} y={cy - 9} width="32" height="18" rx="9" />
+      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
+        💡{count}
+      </text>
+      {dollars != null && (
+        <>
+          <rect x={cx + 22} y={cy - 9} width={formatDollars(dollars).length * 7 + 12} height="18" rx="9" />
+          <text x={cx + 28 + (formatDollars(dollars).length * 7) / 2} y={cy} textAnchor="middle" dominantBaseline="central">
+            {formatDollars(dollars)}
+          </text>
+        </>
+      )}
     </g>
   );
 }
 
-// A project is a leaf with no children of its own here, so it gets no
-// add-menu, but it opens the same edit modal an outcome does.
-function ProjectNode({ project, x, y, depth, teams, onEdit, onDelete }) {
+// A leaf: the outcome stated as numbers. Click edits it in the target form.
+function TargetNode({ target, parentOutcome, x, y, depth, onEdit }) {
+  const lines = wrapLabel(target.name, MAX_CHARS, MAX_LINES - 1);
+  const [rangeLine] = wrapLabel(
+    `${formatValue(target.baseline_value)} → ${formatValue(target.target_value)} ${target.unit}`,
+    MAX_CHARS,
+    1
+  );
+  const all = [...lines, rangeLine];
+
+  return (
+    <g
+      className="tree-node target"
+      role="treeitem"
+      aria-level={depth + 1}
+      tabIndex={0}
+      onClick={() => onEdit(target, parentOutcome)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onEdit(target, parentOutcome);
+        }
+      }}
+    >
+      <title>
+        {[
+          target.name,
+          `${target.baseline_value} → ${target.target_value} ${target.unit}`,
+          target.latest_value != null && `Latest: ${target.latest_value} ${target.unit}`,
+          target.description,
+        ]
+          .filter(Boolean)
+          .join('\n')}
+      </title>
+      <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={NODE_H} rx="10" />
+      <text x={x} y={y + NODE_H / 2} textAnchor="middle" dominantBaseline="middle">
+        {all.map((line, index) => (
+          <tspan
+            key={index}
+            className={index === all.length - 1 ? 'tree-node-team' : undefined}
+            x={x}
+            dy={index === 0 ? -((all.length - 1) * LINE_H) / 2 : LINE_H}
+          >
+            {line}
+          </tspan>
+        ))}
+      </text>
+    </g>
+  );
+}
+
+// Opens the same edit modal an outcome does; its hover "+" adds a child
+// project directly, since that is the only thing that can hang under one.
+function ProjectNode({
+  project,
+  x,
+  y,
+  depth,
+  teams,
+  insightCount,
+  insightDollars,
+  onShowInsights,
+  onEdit,
+  onAddChild,
+}) {
   const team = teams.find((item) => item.id === project.team_id)?.name ?? null;
   // Reserve the last line for the team badge so it doesn't get squeezed out
   // by a long project name.
@@ -301,16 +430,42 @@ function ProjectNode({ project, x, y, depth, teams, onEdit, onDelete }) {
           </tspan>
         ))}
       </text>
-      <DeleteButton x={x} y={y} label={project.name} onDelete={() => onDelete(project)} />
+
+      <g
+        className="node-add"
+        role="button"
+        tabIndex={0}
+        aria-label={`Add child project to ${project.name}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          onAddChild(project);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            event.stopPropagation();
+            onAddChild(project);
+          }
+        }}
+      >
+        <circle cx={x + NODE_W / 2} cy={y + NODE_H / 2} r="11" />
+        <path
+          d={`M${x + NODE_W / 2 - 5} ${y + NODE_H / 2}h10M${x + NODE_W / 2} ${
+            y + NODE_H / 2 - 5
+          }v10`}
+        />
+      </g>
+      <InsightPill x={x} y={y} count={insightCount} dollars={insightDollars} label={project.name} onOpen={() => onShowInsights(project, 'project')} />
     </g>
   );
 }
 
-// Places outcomes as a node-link tree, then hangs each project as a leaf
-// under the first outcome (in list order) it drives. A project linked to more
-// than one outcome is still drawn once — the other outcomes it drives get a
-// dashed cross-edge to that same node instead of a duplicate.
-function layout(outcomes, projects) {
+// Places outcomes as a node-link tree, then hangs each project as a node
+// under the first outcome (in list order) it drives, or under its parent
+// project when it has one. A project linked to more than one outcome is still
+// drawn once — the other outcomes it drives get a dashed cross-edge to that
+// same node instead of a duplicate.
+function layout(outcomes, projects, targets) {
   const byParent = new Map();
   for (const outcome of outcomes) {
     const key = outcome.parent_outcome_id ?? null;
@@ -318,11 +473,24 @@ function layout(outcomes, projects) {
     byParent.get(key).push(outcome);
   }
 
+  // A project whose parent isn't in the set is drawn as if it had none.
+  const presentProjects = new Set(projects.map((project) => String(project.id)));
+  const nestedUnder = (project) =>
+    project.parent_project_id != null && presentProjects.has(String(project.parent_project_id));
+
+  const projectsByParent = new Map(); // project.id -> child project[]
+  for (const project of projects) {
+    if (!nestedUnder(project)) continue;
+    const key = String(project.parent_project_id);
+    if (!projectsByParent.has(key)) projectsByParent.set(key, []);
+    projectsByParent.get(key).push(project);
+  }
+
   const primaryOutcomeOf = new Map(); // project.id -> outcome.id it's drawn under
   const projectsByOutcome = new Map(); // outcome.id -> project[] drawn under it
   for (const outcome of outcomes) {
     for (const project of projectsForOutcome(projects, outcome)) {
-      if (primaryOutcomeOf.has(project.id)) continue;
+      if (nestedUnder(project) || primaryOutcomeOf.has(project.id)) continue;
       primaryOutcomeOf.set(project.id, outcome.id);
       if (!projectsByOutcome.has(outcome.id)) projectsByOutcome.set(outcome.id, []);
       projectsByOutcome.get(outcome.id).push(project);
@@ -332,26 +500,38 @@ function layout(outcomes, projects) {
   const nodes = [];
   const edges = [];
   const placed = new Set(); // guards against a parent cycle the API doesn't reject
+  const placedProjects = new Set();
   let maxDepth = 0;
 
   function place(item, depth, left) {
     maxDepth = Math.max(maxDepth, depth);
     const y = PAD + depth * LEVEL_H;
+    const entity = item.data;
 
-    if (item.kind === 'project') {
-      const x = left + NODE_W / 2;
-      nodes.push({ type: 'project', data: item.data, x, y, depth });
-      return { id: item.data.id, x, y, right: left + NODE_W };
+    let children;
+    if (item.kind === 'target') {
+      children = [];
+    } else if (item.kind === 'project') {
+      placedProjects.add(entity.id);
+      children = (projectsByParent.get(String(entity.id)) ?? [])
+        .filter((child) => !placedProjects.has(child.id))
+        .map((child) => ({ kind: 'project', data: child }));
+    } else {
+      placed.add(entity.id);
+      const childOutcomes = (byParent.get(entity.id) ?? []).filter((child) => !placed.has(child.id));
+      const childProjects = (projectsByOutcome.get(entity.id) ?? []).filter(
+        (child) => !placedProjects.has(child.id)
+      );
+      children = [
+        ...childOutcomes.map((child) => ({ kind: 'outcome', data: child })),
+        ...childProjects.map((project) => ({ kind: 'project', data: project })),
+        ...targetsForOutcome(targets, entity).map((target) => ({
+          kind: 'target',
+          data: target,
+          outcome: entity,
+        })),
+      ];
     }
-
-    const outcome = item.data;
-    placed.add(outcome.id);
-    const childOutcomes = (byParent.get(outcome.id) ?? []).filter((child) => !placed.has(child.id));
-    const childProjects = projectsByOutcome.get(outcome.id) ?? [];
-    const children = [
-      ...childOutcomes.map((child) => ({ kind: 'outcome', data: child })),
-      ...childProjects.map((project) => ({ kind: 'project', data: project })),
-    ];
 
     let x;
     let right;
@@ -371,16 +551,16 @@ function layout(outcomes, projects) {
       x = (childPositions[0].x + childPositions[childPositions.length - 1].x) / 2;
     }
 
-    nodes.push({ type: 'outcome', data: outcome, x, y, depth });
+    nodes.push({ type: item.kind, data: entity, parentOutcome: item.outcome, x, y, depth });
     for (const child of childPositions) {
       edges.push({
-        key: `${outcome.id}-${child.kind}-${child.id}`,
+        key: `${item.kind}-${entity.id}-${child.kind}-${child.id}`,
         d: elbowPath(x, y + NODE_H, child.x, child.y - 3),
         kind: child.kind,
       });
     }
 
-    return { id: outcome.id, x, y, right };
+    return { id: entity.id, x, y, right };
   }
 
   // An outcome whose parent isn't in the set (filtered out, or a stale id) is
@@ -429,7 +609,7 @@ function layout(outcomes, projects) {
 // only in the empty gap between rows, then drops straight into the child.
 // A straight diagonal here would cross through whichever sibling sits between
 // the parent's centred x (averaged over all its children) and this one.
-function elbowPath(x1, y1, x2, y2) {
+export function elbowPath(x1, y1, x2, y2) {
   if (x1 === x2) return `M${x1} ${y1} V${y2}`;
   const midY = (y1 + y2) / 2;
   return `M${x1} ${y1} V${midY} H${x2} V${y2}`;
@@ -454,7 +634,7 @@ function crossLinkPath(from, to) {
 
 // SVG has no text wrapping, so lines are split on an approximate character
 // budget for the node width and the overflow is clipped with an ellipsis.
-function wrapLabel(text, maxChars = MAX_CHARS, maxLines = MAX_LINES) {
+export function wrapLabel(text, maxChars = MAX_CHARS, maxLines = MAX_LINES) {
   // A single word wider than the box can't be wrapped on a space, so it is
   // hard-broken rather than left to spill outside the node.
   const words = String(text ?? '')

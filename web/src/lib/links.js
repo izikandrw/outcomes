@@ -65,3 +65,52 @@ export function formatValue(value) {
   if (!Number.isFinite(number)) return String(value);
   return String(Number(number.toFixed(2)));
 }
+
+// Insights are evidence attached to an outcome or a project; the join ids ride
+// along on each insight as outcome_ids / project_ids.
+export function insightsForOutcome(insights, outcome) {
+  return insights.filter((insight) => (insight.outcome_ids ?? []).some((id) => same(id, outcome.id)));
+}
+
+export function insightsForProject(insights, project) {
+  return insights.filter((insight) => (insight.project_ids ?? []).some((id) => same(id, project.id)));
+}
+
+// Sum of the dollar impact across a set of insights; null when none is priced.
+export function totalDollarImpact(insights) {
+  const priced = insights.filter((insight) => insight.dollar_impact != null);
+  return priced.length === 0 ? null : priced.reduce((sum, insight) => sum + Number(insight.dollar_impact), 0);
+}
+
+export const INSIGHT_TYPES = [
+  { id: 'support_ticket', label: 'Support ticket' },
+  { id: 'session_recording', label: 'Session recording' },
+  { id: 'interview', label: 'Interview' },
+  { id: 'funnel', label: 'Funnel' },
+  { id: 'experiment', label: 'Experiment' },
+  { id: 'other', label: 'Other' },
+];
+
+export const insightTypeLabel = (type) =>
+  INSIGHT_TYPES.find((entry) => entry.id === type)?.label ?? type;
+
+export const IMPACT_AREAS = [
+  { id: 'acquisition', label: 'Acquisition' },
+  { id: 'activation', label: 'Activation' },
+  { id: 'retention', label: 'Retention' },
+  { id: 'expansion', label: 'Expansion' },
+  { id: 'cost', label: 'Cost' },
+  { id: 'other', label: 'Other' },
+];
+
+export const impactAreaLabel = (area) =>
+  IMPACT_AREAS.find((entry) => entry.id === area)?.label ?? area;
+
+// Whole dollars when the amount is whole, cents otherwise. NUMERIC columns
+// arrive as strings, so this takes either.
+export const formatDollars = (value) =>
+  Number(value).toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: Number.isInteger(Number(value)) ? 0 : 2,
+  });

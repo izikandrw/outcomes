@@ -19,6 +19,7 @@ export default function OutcomeForm({
   projects,
   onSubmit,
   onCancel,
+  onDelete,
 }) {
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState(null);
@@ -132,6 +133,11 @@ export default function OutcomeForm({
       {error && <p className="error">{error}</p>}
 
       <div className="actions form-actions">
+        {editing && (
+          <button type="button" className="ghost danger" style={{ marginRight: 'auto' }} onClick={onDelete}>
+            Delete
+          </button>
+        )}
         <button type="button" className="ghost" onClick={onCancel}>
           Cancel
         </button>

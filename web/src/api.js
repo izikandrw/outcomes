@@ -102,3 +102,15 @@ export const updateOutcome = (accountId, outcomeId, outcome) =>
   });
 export const deleteOutcome = (accountId, outcomeId) =>
   request(`/accounts/${accountId}/outcomes/${outcomeId}`, { method: 'DELETE' });
+
+// Insights come back with outcome_ids and project_ids already joined on.
+export const listInsights = (accountId) => request(`/accounts/${accountId}/insights`);
+export const createInsight = (accountId, insight) =>
+  request(`/accounts/${accountId}/insights`, { method: 'POST', body: JSON.stringify(insight) });
+export const updateInsight = (accountId, insightId, insight) =>
+  request(`/accounts/${accountId}/insights/${insightId}`, {
+    method: 'PUT',
+    body: JSON.stringify(insight),
+  });
+export const deleteInsight = (accountId, insightId) =>
+  request(`/accounts/${accountId}/insights/${insightId}`, { method: 'DELETE' });
