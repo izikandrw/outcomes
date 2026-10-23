@@ -2,9 +2,15 @@ import { groupByRule, validateTree } from '../lib/validation.js';
 
 // Lists every node that breaks a delivery rule (see lib/validation.js), one
 // section per rule, using the same emoji the tree badges them with.
-export default function PotentialIssues({ outcomes, projects, teams, insights = [], onEdit, onEditProject }) {
+export default function PotentialIssues({ impacts = [], outcomes, projects, teams, insights = [], onEdit, onEditImpact, onEditProject }) {
   const nameOf = (collection, id) => collection.find((item) => item.id === id)?.name ?? null;
-  const groups = groupByRule(validateTree({ outcomes, projects, insights }), { outcomes, projects });
+  const groups = groupByRule(validateTree({ outcomes, projects, insights, impacts }), {
+    impacts,
+    outcomes,
+    projects,
+  });
+
+  const editorFor = (kind) => ({ impact: onEditImpact, outcome: onEdit, project: onEditProject })[kind];
 
   if (groups.every((group) => group.items.length === 0)) {
     return <p className="empty">No potential issues — the tree passes every delivery rule.</p>;
@@ -27,7 +33,7 @@ export default function PotentialIssues({ outcomes, projects, teams, insights = 
                   <button
                     type="button"
                     className="issue-row issue-row-button"
-                    onClick={() => (rule.appliesTo === 'project' ? onEditProject(item) : onEdit(item))}
+                    onClick={() => editorFor(rule.appliesTo)(item)}
                   >
                     <span>{item.name}</span>
                     <span className="tag">{nameOf(teams, item.team_id) ?? `team ${item.team_id}`}</span>

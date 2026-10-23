@@ -18,6 +18,7 @@ import TeamForm from './components/TeamForm.jsx';
 import TeamHome from './components/TeamHome.jsx';
 import TeamTree from './components/TeamTree.jsx';
 import OutcomeList from './components/OutcomeList.jsx';
+import IssueExplainer from './components/IssueExplainer.jsx';
 import OutcomeTree from './components/OutcomeTree.jsx';
 import PotentialIssues from './components/PotentialIssues.jsx';
 import Roadmap from './components/Roadmap.jsx';
@@ -146,6 +147,7 @@ export default function App({ user, account, onSignOut }) {
     setModal({ kind: 'measurement', target, parent, parentKind, returnTo: target });
   };
   // entity is the outcome or project whose insights to list; kind says which.
+  const showIssue = (rule, entity) => setModal({ kind: 'issue', rule, entity });
   const showInsights = (entity, kind) => setModal({ kind: 'entity-insights', entity, entityKind: kind });
   const openEditProject = (project) => setModal({ kind: 'project', project, parent: null });
   const openAddChildProject = (parentProject) =>
@@ -540,6 +542,7 @@ export default function App({ user, account, onSignOut }) {
                 onAddChildProject={openAddChildProject}
                 onUnlink={unlink}
                 onOpenTeam={openTeam}
+                onShowIssue={showIssue}
               />
             ) : view === 'list' ? (
               <OutcomeList
@@ -559,11 +562,13 @@ export default function App({ user, account, onSignOut }) {
               />
             ) : (
               <PotentialIssues
+                impacts={impacts}
                 outcomes={outcomes}
                 projects={projects}
                 teams={teams}
                 insights={insights}
                 onEdit={openEdit}
+                onEditImpact={openEditImpact}
                 onEditProject={openEditProject}
               />
             )}
@@ -588,7 +593,9 @@ export default function App({ user, account, onSignOut }) {
           }
           onClose={() => setModal(null)}
         >
-          {modal.kind === 'members' ? (
+          {modal.kind === 'issue' ? (
+            <IssueExplainer rule={modal.rule} entity={modal.entity} />
+          ) : modal.kind === 'members' ? (
             <Members accountId={accountId} currentUserId={user.id} />
           ) : modal.kind === 'entity-insights' ? (
             <EntityInsights
@@ -720,8 +727,9 @@ export default function App({ user, account, onSignOut }) {
   );
 }
 
-function modalTitle({ kind, outcome, parent, target, project, team, insight, impact, entity }) {
+function modalTitle({ kind, rule, outcome, parent, target, project, team, insight, impact, entity }) {
   if (kind === 'members') return 'Members';
+  if (kind === 'issue') return `${rule.emoji} ${rule.title}`;
   if (kind === 'impact') return impact ? `Edit impact #${impact.id}` : parent ? 'New child impact' : 'New impact';
   if (kind === 'entity-insights') return `Insights · ${entity.name}`;
   if (kind === 'insight') return insight ? `Edit insight #${insight.id}` : 'New insight';

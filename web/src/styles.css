@@ -1537,7 +1537,7 @@ button.team-chip.link:hover {
 }
 
 .node-issue {
-  cursor: help;
+  cursor: pointer;
 }
 
 .validation-panel {
@@ -1556,7 +1556,7 @@ button.team-chip.link:hover {
   border: 1px solid var(--danger);
   border-radius: 8px;
   background: color-mix(in srgb, var(--danger) 8%, var(--surface));
-  cursor: help;
+  cursor: pointer;
 }
 
 .validation-stat.ok {
@@ -1830,4 +1830,18 @@ button.team-chip.link:hover {
   display: block;
   margin-top: 6px;
   font-size: 13px;
+}
+
+.issue-explainer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.issue-explainer p {
+  margin: 0;
+}
+
+.issue-explainer .issue-subject {
+  font-weight: 600;
 }

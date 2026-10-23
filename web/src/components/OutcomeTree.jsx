@@ -48,10 +48,11 @@ export default function OutcomeTree({
   onAddChildProject,
   onUnlink,
   onOpenTeam,
+  onShowIssue,
 }) {
   const { nodes, edges, width, height } = layout(outcomes, projects, impacts);
-  const validation = validateTree({ outcomes, projects, insights });
-  const counts = groupByRule(validation, { outcomes, projects });
+  const validation = validateTree({ outcomes, projects, insights, impacts });
+  const counts = groupByRule(validation, { impacts, outcomes, projects });
   // { entity, kind, left, top } — kind is 'outcome' or 'impact'. Anchored in
   // viewport coordinates so the menu is never clipped by the scroll container.
   const [menu, setMenu] = useState(null);
@@ -205,10 +206,12 @@ export default function OutcomeTree({
             <ImpactNode
               key={`impact-${node.data.id}`}
               impact={node.data}
+              issues={issuesFor(validation, 'impact', node.data)}
               targets={targets}
               onEdit={onEditImpact}
               onViewTarget={onViewTarget}
               onOpenMenu={openMenu}
+              onShowIssue={onShowIssue}
               {...node}
             />
           ) : node.type === 'project' ? (
@@ -218,6 +221,7 @@ export default function OutcomeTree({
               teams={teams}
               teamEntries={teamsOnProject(projects, node.data)}
               onOpenTeam={onOpenTeam}
+              onShowIssue={onShowIssue}
               insightCount={insightsForProject(insights, node.data).length}
               insightDollars={totalDollarImpact(insightsForProject(insights, node.data))}
               issues={issuesFor(validation, 'project', node.data)}
@@ -236,6 +240,7 @@ export default function OutcomeTree({
               measurements={measurements}
               teamEntries={teamsOnOutcome(outcomes, projects, node.data)}
               onOpenTeam={onOpenTeam}
+              onShowIssue={onShowIssue}
               insightCount={insightsForOutcome(insights, node.data).length}
               insightDollars={totalDollarImpact(insightsForOutcome(insights, node.data))}
               issues={issuesFor(validation, 'outcome', node.data)}
@@ -310,6 +315,7 @@ function OutcomeNode({
   measurements,
   teamEntries,
   onOpenTeam,
+  onShowIssue,
   insightCount,
   insightDollars,
   issues,
@@ -398,7 +404,7 @@ function OutcomeNode({
           }v10`}
         />
       </g>
-      <IssueBadges x={x} y={y} issues={issues} />
+      <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, outcome)} />
       <TeamBadges x={x} y={y} width={NODE_W} entries={teamEntries} teams={teams} idPrefix={`outcome-${outcome.id}`} onOpen={onOpenTeam} />
       <InsightPill x={x} y={y} count={insightCount} dollars={insightDollars} label={outcome.name} onOpen={() => onShowInsights(outcome, 'outcome')} />
     </g>
@@ -407,13 +413,13 @@ function OutcomeNode({
 
 // The business result at the top of the tree. Click edits it; the hover "+"
 // adds a child impact, an outcome driving it, or a target measuring it.
-function ImpactNode({ impact, x, y, depth, targets, onEdit, onViewTarget, onOpenMenu }) {
+function ImpactNode({ impact, x, y, depth, targets, issues, onShowIssue, onEdit, onViewTarget, onOpenMenu }) {
   const quantified = targetsForImpact(targets, impact);
   const { lines, targetLine } = nodeLabel(impact.name, quantified);
 
   return (
     <g
-      className="tree-node impact"
+      className={['tree-node impact', issues.length > 0 && 'has-issue'].filter(Boolean).join(' ')}
       role="treeitem"
       aria-level={depth + 1}
       tabIndex={0}
@@ -434,6 +440,7 @@ function ImpactNode({ impact, x, y, depth, targets, onEdit, onViewTarget, onOpen
                 .join(', ')}`
             : 'No target yet',
           impact.description,
+          ...issues.map((rule) => `${rule.emoji} ${rule.title}: ${rule.description}`),
         ]
           .filter(Boolean)
           .join('\n')}
@@ -446,6 +453,7 @@ function ImpactNode({ impact, x, y, depth, targets, onEdit, onViewTarget, onOpen
         targetLine={targetLine}
         onTargetClick={() => onViewTarget(quantified[0])}
       />
+      <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, impact)} />
 
       <g
         className="node-add"
@@ -473,10 +481,28 @@ function ImpactNode({ impact, x, y, depth, targets, onEdit, onViewTarget, onOpen
 }
 
 // Straddles the node's top edge, top-left: one emoji per delivery rule the node
-// breaks. Hovering a badge explains which rule and why (native SVG tooltip).
-function IssueBadges({ x, y, issues }) {
+// breaks. Hovering shows the rule (native SVG tooltip); clicking opens a modal
+// explaining the problem.
+function IssueBadges({ x, y, issues, onOpen }) {
   return issues.map((rule, index) => (
-    <g key={rule.id} className="node-issue" role="img" aria-label={`${rule.title}: ${rule.description}`}>
+    <g
+      key={rule.id}
+      className="node-issue"
+      role="button"
+      tabIndex={0}
+      aria-label={`${rule.title}: ${rule.description}`}
+      onClick={(event) => {
+        event.stopPropagation();
+        onOpen(rule);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          event.stopPropagation();
+          onOpen(rule);
+        }
+      }}
+    >
       <title>{`${rule.title}\n${rule.description}`}</title>
       <circle cx={x - NODE_W / 2 + 12 + index * 24} cy={y} r="11" />
       <text x={x - NODE_W / 2 + 12 + index * 24} y={y} textAnchor="middle" dominantBaseline="central">
@@ -534,6 +560,7 @@ function ProjectNode({
   teams,
   teamEntries,
   onOpenTeam,
+  onShowIssue,
   insightCount,
   insightDollars,
   issues,
@@ -622,7 +649,7 @@ function ProjectNode({
           }v10`}
         />
       </g>
-      <IssueBadges x={x} y={y} issues={issues} />
+      <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, project)} />
       <TeamBadges x={x} y={y} width={NODE_W} entries={teamEntries} teams={teams} idPrefix={`project-${project.id}`} onOpen={onOpenTeam} />
       <InsightPill x={x} y={y} count={insightCount} dollars={insightDollars} label={project.name} onOpen={() => onShowInsights(project, 'project')} />
     </g>
