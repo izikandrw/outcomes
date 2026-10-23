@@ -32,6 +32,7 @@ export default function OutcomeTree({
   onEdit,
   onEditProject,
   onEditTarget,
+  onAddMeasurement,
   onShowInsights,
   onAdd,
   onAddChildProject,
@@ -133,6 +134,7 @@ export default function OutcomeTree({
               key={`target-${node.data.id}`}
               target={node.data}
               onEdit={onEditTarget}
+              onAddMeasurement={onAddMeasurement}
               {...node}
             />
           ) : node.type === 'project' ? (
@@ -180,9 +182,6 @@ export default function OutcomeTree({
           </button>
           <button type="button" role="menuitem" onClick={() => choose('target')}>
             Target
-          </button>
-          <button type="button" role="menuitem" onClick={() => choose('measurement')}>
-            Measurement
           </button>
           <button type="button" role="menuitem" onClick={() => choose('project')}>
             Project
@@ -328,7 +327,7 @@ function InsightPill({ x, y, count, dollars, label, onOpen }) {
 }
 
 // A leaf: the outcome stated as numbers. Click edits it in the target form.
-function TargetNode({ target, parentOutcome, x, y, depth, onEdit }) {
+function TargetNode({ target, parentOutcome, x, y, depth, onEdit, onAddMeasurement }) {
   const lines = wrapLabel(target.name, MAX_CHARS, MAX_LINES - 1);
   const [rangeLine] = wrapLabel(
     `${formatValue(target.baseline_value)} → ${formatValue(target.target_value)} ${target.unit}`,
@@ -374,6 +373,31 @@ function TargetNode({ target, parentOutcome, x, y, depth, onEdit }) {
           </tspan>
         ))}
       </text>
+
+      <g
+        className="node-add"
+        role="button"
+        tabIndex={0}
+        aria-label={`Add measurement to ${target.name}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          onAddMeasurement(target, parentOutcome);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            event.stopPropagation();
+            onAddMeasurement(target, parentOutcome);
+          }
+        }}
+      >
+        <circle cx={x + NODE_W / 2} cy={y + NODE_H / 2} r="11" />
+        <path
+          d={`M${x + NODE_W / 2 - 5} ${y + NODE_H / 2}h10M${x + NODE_W / 2} ${
+            y + NODE_H / 2 - 5
+          }v10`}
+        />
+      </g>
     </g>
   );
 }

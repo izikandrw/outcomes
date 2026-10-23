@@ -87,12 +87,15 @@ export default function App({ user, account, onSignOut }) {
   const openEdit = (outcome) =>
     setModal({ kind: 'outcome', outcome, parentId: outcome.parent_outcome_id ?? null });
   // From the tree's per-node add menu: kind is 'outcome' | 'target' |
-  // 'measurement' | 'project' | 'insight'.
+  // 'project' | 'insight'.
   const openAdd = (parent, kind) =>
     setModal({ kind, outcome: null, parent, parentId: kind === 'outcome' ? parent.id : null });
   // A target is always edited in the context of the outcome it quantifies.
   const openEditTarget = (target, outcome) =>
     setModal({ kind: 'target', outcome: null, target, parent: outcome });
+  // A measurement is added against one specific target, from that target's node.
+  const openAddMeasurement = (target, outcome) =>
+    setModal({ kind: 'measurement', outcome: null, parent: outcome, target });
   // entity is the outcome or project whose insights to list; kind says which.
   const showInsights = (entity, kind) => setModal({ kind: 'entity-insights', entity, entityKind: kind });
   const openEditProject = (project) => setModal({ kind: 'project', project, parent: null });
@@ -371,6 +374,7 @@ export default function App({ user, account, onSignOut }) {
                 onEdit={openEdit}
                 onEditProject={openEditProject}
                 onEditTarget={openEditTarget}
+                onAddMeasurement={openAddMeasurement}
                 onAdd={openAdd}
                 onAddChildProject={openAddChildProject}
               />
@@ -467,7 +471,7 @@ export default function App({ user, account, onSignOut }) {
           ) : modal.kind === 'measurement' ? (
             <MeasurementForm
               outcome={modal.parent}
-              targets={targetsForOutcome(targets, modal.parent)}
+              targets={modal.target ? [modal.target] : targetsForOutcome(targets, modal.parent)}
               onSubmit={saveMeasurement}
               onCancel={() => setModal(null)}
               onAddTarget={() => openAdd(modal.parent, 'target')}
