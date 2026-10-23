@@ -16,4 +16,4 @@ Measurements are connected to exactly one target. A reading with no target has n
 
 Measurements do not nest and do not connect to each other. A series is just the readings on one target, ordered by time.
 
-Measurements are not connected to outcomes, teams or projects directly. They inherit all three through their target.
+Measurements are not connected to outcomes, impacts, teams or projects directly. They inherit them through their target, which belongs to either an outcome or an impact.

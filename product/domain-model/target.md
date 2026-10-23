@@ -16,10 +16,10 @@ A target is not a project. It says how far the behavior has to move, never what 
 
 # Relationships
 
-Targets are connected to exactly one outcome. A number with no behavior behind it is a metric, not a target.
+Targets are connected to exactly one parent: either one outcome or one impact, never both. A number with no behavior or business result behind it is a metric, not a target.
 
-Targets do not nest and do not connect to each other. An outcome that needs breaking down is broken into outcomes; its targets stay flat.
+Targets do not nest and do not connect to each other. An outcome or impact that needs breaking down is broken into outcomes or impacts; its targets stay flat. A parent impact's target is its own number, not the sum of its children's.
 
 Targets can be connected to one or more measurements. Those measurements are the readings taken against the target, and their order over time is its progress.
 
-Targets are not connected to teams or projects directly. They inherit both through their outcome.
+Targets are not connected to teams or projects directly. A target on an outcome inherits both through that outcome; a target on an impact reaches them through the outcomes linked to that impact.
