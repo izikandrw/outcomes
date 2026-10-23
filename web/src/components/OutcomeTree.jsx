@@ -41,6 +41,8 @@ export default function OutcomeTree({
   // { outcome, left, top } — anchored in viewport coordinates so the menu is
   // never clipped by the scroll container.
   const [menu, setMenu] = useState(null);
+  // Node keys (`outcome-1`) at either end of the hovered relationship line.
+  const [hoverEnds, setHoverEnds] = useState(null);
 
   useEffect(() => {
     if (!menu) return undefined;
@@ -113,23 +115,34 @@ export default function OutcomeTree({
         </defs>
 
         {edges.map((edge) => (
-          <path
+          <g
             key={edge.key}
-            className={['tree-edge', edge.kind !== 'outcome' && edge.kind].filter(Boolean).join(' ')}
-            d={edge.d}
-            fill="none"
-            markerEnd={
-              edge.kind === 'project'
-                ? 'url(#tree-arrow-project)'
-                : edge.kind === 'target'
-                  ? 'url(#tree-arrow-target)'
-                  : 'url(#tree-arrow)'
-            }
-          />
+            onMouseEnter={() => setHoverEnds(edge.ends)}
+            onMouseLeave={() => setHoverEnds(null)}
+          >
+            <path
+              className={['tree-edge', edge.kind !== 'outcome' && edge.kind].filter(Boolean).join(' ')}
+              d={edge.d}
+              fill="none"
+              markerEnd={
+                edge.kind === 'project'
+                  ? 'url(#tree-arrow-project)'
+                  : edge.kind === 'target'
+                    ? 'url(#tree-arrow-target)'
+                    : 'url(#tree-arrow)'
+              }
+            />
+            {/* Wider invisible stroke so the thin line is easy to hover. */}
+            <path className="tree-edge-hit" d={edge.d} fill="none" />
+          </g>
         ))}
 
-        {nodes.map((node) =>
-          node.type === 'target' ? (
+        {nodes.map((node) => (
+          <g
+            key={`${node.type}-${node.data.id}`}
+            className={hoverEnds?.includes(`${node.type}-${node.data.id}`) ? 'edge-hover' : undefined}
+          >
+          {node.type === 'target' ? (
             <TargetNode
               key={`target-${node.data.id}`}
               target={node.data}
@@ -164,8 +177,9 @@ export default function OutcomeTree({
               onOpenMenu={openMenu}
               {...node}
             />
-          )
-        )}
+          )}
+          </g>
+        ))}
       </svg>
 
       {menu && (
@@ -581,6 +595,7 @@ function layout(outcomes, projects, targets) {
         key: `${item.kind}-${entity.id}-${child.kind}-${child.id}`,
         d: elbowPath(x, y + NODE_H, child.x, child.y - 3),
         kind: child.kind,
+        ends: [`${item.kind}-${entity.id}`, `${child.kind}-${child.id}`],
       });
     }
 
@@ -617,6 +632,7 @@ function layout(outcomes, projects, targets) {
         key: `${outcome.id}-project-${project.id}-cross`,
         d: crossLinkPath(from, to),
         kind: 'project',
+        ends: [`outcome-${outcome.id}`, `project-${project.id}`],
       });
     }
   }
