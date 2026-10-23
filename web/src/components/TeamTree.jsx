@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import {
   NODE_H,
   H_GAP,
@@ -18,15 +19,44 @@ const NAME_CHARS = 20;
 
 // Team hierarchy drawn like the outcome map: parents above, children below,
 // each parent centred over its children. Hover "+" adds a team beneath one.
-export default function TeamTree({ teams, outcomes, projects, onCreate, onEdit, onAddChild }) {
+export default function TeamTree({ teams, outcomes, projects, onCreate, onEdit, onAddChild, onOpenOutcome, onOpenProject }) {
   const { nodes, edges, width, height } = layout(teams);
   const countFor = (collection, team) => collection.filter((item) => item.team_id === team.id).length;
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  // { team, kind, items, left, top } — fixed to the viewport so the scroll
+  // container can't clip it.
+  const [popup, setPopup] = useState(null);
+
+  useEffect(() => {
+    if (!popup) return undefined;
+    const close = () => setPopup(null);
+    const onKey = (event) => {
+      if (event.key === 'Escape') close();
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('resize', close);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('pointerdown', close);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', close);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('pointerdown', close);
+    };
+  }, [popup]);
+
+  function openPopup(event, team, kind, collection) {
+    event.stopPropagation();
+    const items = collection.filter((item) => item.team_id === team.id);
+    if (items.length === 0) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    setPopup({ team, kind, items, left: rect.left, top: rect.bottom + 6 });
+  }
 
   return (
     <>
       <div className="list-head">
-        <span className="id">{plural(teams.length, 'team')}</span>
+        <span />
         <button type="button" className="with-icon" onClick={onCreate}>
           <PlusIcon />
           New team
@@ -55,7 +85,9 @@ export default function TeamTree({ teams, outcomes, projects, onCreate, onEdit, 
           {nodes.map(({ team, x, y, depth }) => {
             const lines = wrapLabel(team.name, NAME_CHARS, 2);
             const textX = x - NODE_W / 2 + LOGO_INSET + LOGO_BOX + 10;
-            const counts = `${plural(countFor(outcomes, team), 'outcome')} · ${plural(countFor(projects, team), 'project')}`;
+            const outcomeCount = plural(countFor(outcomes, team), 'outcome');
+            const projectCount = plural(countFor(projects, team), 'project');
+            const counts = `${outcomeCount} · ${projectCount}`;
             const all = [...lines, counts];
             const open = () => onEdit(team);
             return (
@@ -100,7 +132,25 @@ export default function TeamTree({ teams, outcomes, projects, onCreate, onEdit, 
                       x={textX}
                       dy={index === 0 ? -((all.length - 1) * LINE_H) / 2 : LINE_H}
                     >
-                      {line}
+                      {index === all.length - 1 ? (
+                        <>
+                          <tspan
+                            className="count-link"
+                            onClick={(event) => openPopup(event, team, 'outcomes', outcomes)}
+                          >
+                            {outcomeCount}
+                          </tspan>
+                          {' · '}
+                          <tspan
+                            className="count-link"
+                            onClick={(event) => openPopup(event, team, 'projects', projects)}
+                          >
+                            {projectCount}
+                          </tspan>
+                        </>
+                      ) : (
+                        line
+                      )}
                     </tspan>
                   ))}
                 </text>
@@ -132,6 +182,32 @@ export default function TeamTree({ teams, outcomes, projects, onCreate, onEdit, 
           })}
         </svg>
       </div>
+
+      {popup && (
+        <div
+          className="node-menu"
+          style={{ left: popup.left, top: popup.top }}
+          role="dialog"
+          aria-label={`${popup.team.name} ${popup.kind}`}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <ul className="node-menu-list">
+            {popup.items.map((item) => (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPopup(null);
+                    (popup.kind === 'outcomes' ? onOpenOutcome : onOpenProject)(item);
+                  }}
+                >
+                  {item.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </>
   );
 }

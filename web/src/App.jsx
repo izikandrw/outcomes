@@ -318,6 +318,8 @@ export default function App({ user, account, onSignOut }) {
                   onCreate={() => setModal({ kind: 'team', team: null })}
                   onEdit={(team) => setModal({ kind: 'team', team })}
                   onAddChild={(parent) => setModal({ kind: 'team', team: null, parent })}
+                  onOpenOutcome={openEdit}
+                  onOpenProject={openEditProject}
                 />
               )}
             </section>

@@ -1261,3 +1261,28 @@ button.danger-solid:hover {
 .tree-node.root .tree-node-team {
   fill: rgb(255 255 255 / 0.8);
 }
+
+.count-link {
+  cursor: pointer;
+}
+
+.count-link:hover {
+  text-decoration: underline;
+}
+
+.node-menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.node-menu-list button {
+  display: block;
+  width: 100%;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
