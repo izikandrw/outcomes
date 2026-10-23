@@ -34,9 +34,6 @@ export default function OutcomeTree({
   onEditTarget,
   onShowInsights,
   onAdd,
-  onDelete,
-  onDeleteProject,
-  onDeleteTarget,
   onAddChildProject,
 }) {
   const { nodes, edges, width, height } = layout(outcomes, projects, targets);
@@ -136,7 +133,6 @@ export default function OutcomeTree({
               key={`target-${node.data.id}`}
               target={node.data}
               onEdit={onEditTarget}
-              onDelete={onDeleteTarget}
               {...node}
             />
           ) : node.type === 'project' ? (
@@ -148,7 +144,6 @@ export default function OutcomeTree({
               insightDollars={totalDollarImpact(insightsForProject(insights, node.data))}
               onShowInsights={onShowInsights}
               onEdit={onEditProject}
-              onDelete={onDeleteProject}
               onAddChild={onAddChildProject}
               {...node}
             />
@@ -164,7 +159,6 @@ export default function OutcomeTree({
               insightDollars={totalDollarImpact(insightsForOutcome(insights, node.data))}
               onShowInsights={onShowInsights}
               onEdit={onEdit}
-              onDelete={onDelete}
               onOpenMenu={openMenu}
               {...node}
             />
@@ -215,7 +209,6 @@ function OutcomeNode({
   insightDollars,
   onShowInsights,
   onEdit,
-  onDelete,
   onOpenMenu,
 }) {
   const nameOf = (collection, id) => collection.find((item) => item.id === id)?.name ?? null;
@@ -292,7 +285,6 @@ function OutcomeNode({
         />
       </g>
       <InsightPill x={x} y={y} count={insightCount} dollars={insightDollars} label={outcome.name} onOpen={() => onShowInsights(outcome, 'outcome')} />
-      <DeleteButton x={x} y={y} label={outcome.name} onDelete={() => onDelete(outcome)} />
     </g>
   );
 }
@@ -335,36 +327,8 @@ function InsightPill({ x, y, count, dollars, label, onOpen }) {
   );
 }
 
-// Revealed on hover or keyboard focus, like the add button.
-function DeleteButton({ x, y, label, onDelete }) {
-  const cx = x + NODE_W / 2 - 4;
-  const cy = y + 4;
-  return (
-    <g
-      className="node-delete"
-      role="button"
-      tabIndex={0}
-      aria-label={`Delete ${label}`}
-      onClick={(event) => {
-        event.stopPropagation();
-        onDelete();
-      }}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          event.stopPropagation();
-          onDelete();
-        }
-      }}
-    >
-      <circle cx={cx} cy={cy} r="9" />
-      <path d={`M${cx - 3.5} ${cy - 3.5}l7 7M${cx + 3.5} ${cy - 3.5}l-7 7`} />
-    </g>
-  );
-}
-
 // A leaf: the outcome stated as numbers. Click edits it in the target form.
-function TargetNode({ target, parentOutcome, x, y, depth, onEdit, onDelete }) {
+function TargetNode({ target, parentOutcome, x, y, depth, onEdit }) {
   const lines = wrapLabel(target.name, MAX_CHARS, MAX_LINES - 1);
   const [rangeLine] = wrapLabel(
     `${formatValue(target.baseline_value)} → ${formatValue(target.target_value)} ${target.unit}`,
@@ -410,7 +374,6 @@ function TargetNode({ target, parentOutcome, x, y, depth, onEdit, onDelete }) {
           </tspan>
         ))}
       </text>
-      <DeleteButton x={x} y={y} label={target.name} onDelete={() => onDelete(target)} />
     </g>
   );
 }
@@ -427,7 +390,6 @@ function ProjectNode({
   insightDollars,
   onShowInsights,
   onEdit,
-  onDelete,
   onAddChild,
 }) {
   const team = teams.find((item) => item.id === project.team_id)?.name ?? null;
@@ -494,7 +456,6 @@ function ProjectNode({
         />
       </g>
       <InsightPill x={x} y={y} count={insightCount} dollars={insightDollars} label={project.name} onOpen={() => onShowInsights(project, 'project')} />
-      <DeleteButton x={x} y={y} label={project.name} onDelete={() => onDelete(project)} />
     </g>
   );
 }

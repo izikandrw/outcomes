@@ -14,7 +14,7 @@ const EMPTY = {
 // A target is the outcome stated as numbers. The API requires a unit and both
 // numbers, so all three are enforced here rather than being left to the 400.
 // `editing` is null when creating, or the target being changed.
-export default function TargetForm({ outcome, editing, onSubmit, onCancel }) {
+export default function TargetForm({ outcome, editing, onSubmit, onCancel, onDelete }) {
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -173,6 +173,11 @@ export default function TargetForm({ outcome, editing, onSubmit, onCancel }) {
       {error && <p className="error">{error}</p>}
 
       <div className="actions form-actions">
+        {editing && (
+          <button type="button" className="ghost danger" style={{ marginRight: 'auto' }} onClick={onDelete}>
+            Delete
+          </button>
+        )}
         <button type="button" className="ghost" onClick={onCancel}>
           Cancel
         </button>

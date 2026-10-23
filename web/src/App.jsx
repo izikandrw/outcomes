@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as api from './api.js';
 import InsightForm from './components/InsightForm.jsx';
+import ConfirmDialog from './components/ConfirmDialog.jsx';
 import AccountMenu from './components/AccountMenu.jsx';
 import EntityInsights from './components/EntityInsights.jsx';
 import InsightList from './components/InsightList.jsx';
@@ -37,6 +38,8 @@ export default function App({ user, account, onSignOut }) {
   // is the row being edited, `parent` the outcome a new child hangs off, and
   // `parentId` (for kind 'outcome') the live value of the parent-outcome tag.
   const [modal, setModal] = useState(null);
+  // { title, message, resolve } while a delete confirmation is showing.
+  const [confirmation, setConfirmation] = useState(null);
   const [view, setView] = useState(() => localStorage.getItem(STORED_VIEW) || 'list');
   const [page, setPage] = useState(() => localStorage.getItem(STORED_PAGE) || 'outcomes');
   const [error, setError] = useState(null);
@@ -124,8 +127,16 @@ export default function App({ user, account, onSignOut }) {
     setModal(null);
   }
 
+  const askConfirm = (title, message) =>
+    new Promise((resolve) => setConfirmation({ title, message, resolve }));
+
+  function settleConfirm(answer) {
+    confirmation.resolve(answer);
+    setConfirmation(null);
+  }
+
   async function removeTeam(team) {
-    if (!window.confirm(`Delete team "${team.name}"?`)) return;
+    if (!(await askConfirm('Delete team?', `“${team.name}” will be permanently deleted.`))) return;
     try {
       await api.deleteTeam(accountId, team.id);
       setTeams((current) => current.filter((item) => item.id !== team.id));
@@ -179,10 +190,11 @@ export default function App({ user, account, onSignOut }) {
   }
 
   async function removeTarget(target) {
-    if (!window.confirm(`Delete target "${target.name}"?`)) return;
+    if (!(await askConfirm('Delete target?', `“${target.name}” will be permanently deleted.`))) return;
     try {
       await api.deleteTarget(accountId, target.id);
       setTargets((current) => current.filter((item) => item.id !== target.id));
+      if (modal?.target?.id === target.id) setModal(null);
       setError(null);
     } catch (err) {
       // 409 when readings still point at it.
@@ -222,7 +234,7 @@ export default function App({ user, account, onSignOut }) {
   }
 
   async function removeInsight(insight) {
-    if (!window.confirm(`Delete insight "${insight.name}"?`)) return;
+    if (!(await askConfirm('Delete insight?', `“${insight.name}” will be permanently deleted.`))) return;
     try {
       await api.deleteInsight(accountId, insight.id);
       setInsights((current) => current.filter((item) => item.id !== insight.id));
@@ -247,7 +259,7 @@ export default function App({ user, account, onSignOut }) {
   }
 
   async function removeProject(project) {
-    if (!window.confirm(`Delete project "${project.name}"?`)) return;
+    if (!(await askConfirm('Delete project?', `“${project.name}” will be permanently deleted.`))) return;
     try {
       await api.deleteProject(accountId, project.id);
       setProjects((current) => current.filter((item) => item.id !== project.id));
@@ -260,7 +272,7 @@ export default function App({ user, account, onSignOut }) {
   }
 
   async function removeOutcome(outcome) {
-    if (!window.confirm(`Delete "${outcome.name}"?`)) return;
+    if (!(await askConfirm('Delete outcome?', `“${outcome.name}” will be permanently deleted.`))) return;
     try {
       await api.deleteOutcome(accountId, outcome.id);
       setOutcomes((current) => current.filter((item) => item.id !== outcome.id));
@@ -360,9 +372,6 @@ export default function App({ user, account, onSignOut }) {
                 onEditProject={openEditProject}
                 onEditTarget={openEditTarget}
                 onAdd={openAdd}
-                onDelete={removeOutcome}
-                onDeleteProject={removeProject}
-                onDeleteTarget={removeTarget}
                 onAddChildProject={openAddChildProject}
               />
             ) : view === 'list' ? (
@@ -452,6 +461,7 @@ export default function App({ user, account, onSignOut }) {
               editing={modal.target}
               onSubmit={saveTarget}
               onCancel={() => setModal(null)}
+              onDelete={() => removeTarget(modal.target)}
             />
           ) : modal.kind === 'measurement' ? (
             <MeasurementForm
@@ -480,9 +490,19 @@ export default function App({ user, account, onSignOut }) {
               projects={projects}
               onSubmit={saveOutcome}
               onCancel={() => setModal(null)}
+              onDelete={() => removeOutcome(modal.outcome)}
             />
           )}
         </Modal>
+      )}
+
+      {confirmation && (
+        <ConfirmDialog
+          title={confirmation.title}
+          message={confirmation.message}
+          onConfirm={() => settleConfirm(true)}
+          onCancel={() => settleConfirm(false)}
+        />
       )}
     </div>
   );
