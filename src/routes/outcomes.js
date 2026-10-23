@@ -18,7 +18,7 @@ const SELECT_OUTCOME = `
 `;
 
 async function validateRefs(req, res) {
-  const { team_id, project_id, parent_outcome_id } = req.body;
+  const { team_id, project_id, parent_outcome_id, impact_id } = req.body;
   if (!team_id) {
     res.status(400).json({ error: 'team_id is required' });
     return false;
@@ -34,6 +34,18 @@ async function validateRefs(req, res) {
   if (parent_outcome_id && !(await belongsToAccount('outcomes', parent_outcome_id, req.accountId))) {
     res.status(400).json({ error: 'parent_outcome_id not found in this account' });
     return false;
+  }
+  if (impact_id) {
+    // Child outcomes inherit their impact from their top-level ancestor, so the
+    // link is only stored once, on the top-level outcome.
+    if (parent_outcome_id) {
+      res.status(400).json({ error: 'impact_id can only be set on a top-level outcome' });
+      return false;
+    }
+    if (!(await belongsToAccount('impacts', impact_id, req.accountId))) {
+      res.status(400).json({ error: 'impact_id not found in this account' });
+      return false;
+    }
   }
   return true;
 }
@@ -64,14 +76,22 @@ router.get('/:outcomeId', async (req, res, next) => {
 });
 
 router.post('/', async (req, res, next) => {
-  const { name, description, team_id, project_id, parent_outcome_id } = req.body;
+  const { name, description, team_id, project_id, parent_outcome_id, impact_id } = req.body;
   if (!name) return res.status(400).json({ error: 'name is required' });
   try {
     if (!(await validateRefs(req, res))) return;
     const { rows } = await pool.query(
-      `INSERT INTO outcomes (account_id, team_id, project_id, parent_outcome_id, name, description)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [req.accountId, team_id, project_id || null, parent_outcome_id || null, name, description || null]
+      `INSERT INTO outcomes (account_id, team_id, project_id, parent_outcome_id, impact_id, name, description)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [
+        req.accountId,
+        team_id,
+        project_id || null,
+        parent_outcome_id || null,
+        impact_id || null,
+        name,
+        description || null,
+      ]
     );
     res.status(201).json({ ...rows[0], project_ids: [] });
   } catch (err) {
@@ -80,15 +100,24 @@ router.post('/', async (req, res, next) => {
 });
 
 router.put('/:outcomeId', async (req, res, next) => {
-  const { name, description, team_id, project_id, parent_outcome_id } = req.body;
+  const { name, description, team_id, project_id, parent_outcome_id, impact_id } = req.body;
   if (!name) return res.status(400).json({ error: 'name is required' });
   try {
     if (!(await validateRefs(req, res))) return;
     const { rows } = await pool.query(
       `UPDATE outcomes SET name = $1, description = $2, team_id = $3, project_id = $4,
-         parent_outcome_id = $5, updated_at = now()
-       WHERE id = $6 AND account_id = $7 RETURNING *`,
-      [name, description || null, team_id, project_id || null, parent_outcome_id || null, req.params.outcomeId, req.accountId]
+         parent_outcome_id = $5, impact_id = $6, updated_at = now()
+       WHERE id = $7 AND account_id = $8 RETURNING *`,
+      [
+        name,
+        description || null,
+        team_id,
+        project_id || null,
+        parent_outcome_id || null,
+        impact_id || null,
+        req.params.outcomeId,
+        req.accountId,
+      ]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'outcome not found' });
     const { rows: linked } = await pool.query(

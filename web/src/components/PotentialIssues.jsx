@@ -1,63 +1,44 @@
-import { outcomeHasChildren, outcomesForProject } from '../lib/links.js';
+import { groupByRule, validateTree } from '../lib/validation.js';
 
-// Surfaces the two shapes of dead end in the tree: a project that can't name
-// the outcome it drives, and an outcome with nothing under it — no child
-// outcome narrowing it further, and no project doing the work.
-export default function PotentialIssues({ outcomes, projects, teams, onEdit }) {
+// Lists every node that breaks a delivery rule (see lib/validation.js), one
+// section per rule, using the same emoji the tree badges them with.
+export default function PotentialIssues({ outcomes, projects, teams, insights = [], onEdit, onEditProject }) {
   const nameOf = (collection, id) => collection.find((item) => item.id === id)?.name ?? null;
-  const orphanProjects = projects.filter((project) => outcomesForProject(outcomes, project).length === 0);
-  const childlessOutcomes = outcomes.filter((outcome) => !outcomeHasChildren(outcomes, projects, outcome));
+  const groups = groupByRule(validateTree({ outcomes, projects, insights }), { outcomes, projects });
 
-  if (orphanProjects.length === 0 && childlessOutcomes.length === 0) {
-    return (
-      <p className="empty">
-        No potential issues — every project is tied to an outcome, and every outcome has a child
-        outcome or project under it.
-      </p>
-    );
+  if (groups.every((group) => group.items.length === 0)) {
+    return <p className="empty">No potential issues — the tree passes every delivery rule.</p>;
   }
 
   return (
     <div className="issues">
-      <section className="issue-section">
-        <h2>Projects without an outcome ({orphanProjects.length})</h2>
-        {orphanProjects.length === 0 ? (
-          <p className="empty">Every project is tied to at least one outcome.</p>
-        ) : (
-          <ul className="issue-list">
-            {orphanProjects.map((project) => (
-              <li key={project.id} className="issue-row">
-                <span className="tag project">{project.name}</span>
-                <span className="tag">
-                  {nameOf(teams, project.team_id) ?? `team ${project.team_id}`}
-                </span>
-                <span className="id">#{project.id}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="issue-section">
-        <h2>Outcomes with no children ({childlessOutcomes.length})</h2>
-        {childlessOutcomes.length === 0 ? (
-          <p className="empty">Every outcome has a child outcome or project under it.</p>
-        ) : (
-          <ul className="issue-list">
-            {childlessOutcomes.map((outcome) => (
-              <li key={outcome.id}>
-                <button type="button" className="issue-row issue-row-button" onClick={() => onEdit(outcome)}>
-                  <span>{outcome.name}</span>
-                  <span className="tag">
-                    {nameOf(teams, outcome.team_id) ?? `team ${outcome.team_id}`}
-                  </span>
-                  <span className="id">#{outcome.id}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {groups.map(({ rule, items }) => (
+        <section key={rule.id} className="issue-section">
+          <h2>
+            {rule.emoji} {rule.title} ({items.length})
+          </h2>
+          <p className="issue-rule">{rule.description}</p>
+          {items.length === 0 ? (
+            <p className="empty">None.</p>
+          ) : (
+            <ul className="issue-list">
+              {items.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    className="issue-row issue-row-button"
+                    onClick={() => (rule.appliesTo === 'project' ? onEditProject(item) : onEdit(item))}
+                  >
+                    <span>{item.name}</span>
+                    <span className="tag">{nameOf(teams, item.team_id) ?? `team ${item.team_id}`}</span>
+                    <span className="id">#{item.id}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ))}
     </div>
   );
 }

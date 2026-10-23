@@ -5,6 +5,7 @@ const usersRouter = require('./users');
 const accountScope = require('../middleware/accountScope');
 const teamsRouter = require('./teams');
 const projectsRouter = require('./projects');
+const impactsRouter = require('./impacts');
 const outcomesRouter = require('./outcomes');
 const targetsRouter = require('./targets');
 const insightsRouter = require('./insights');
@@ -40,6 +41,7 @@ router.put('/:accountId', accountScope, requireAdmin, async (req, res, next) => 
 router.use('/:accountId', accountScope, usersRouter);
 router.use('/:accountId/teams', accountScope, teamsRouter);
 router.use('/:accountId/projects', accountScope, projectsRouter);
+router.use('/:accountId/impacts', accountScope, impactsRouter);
 router.use('/:accountId/outcomes', accountScope, outcomesRouter);
 router.use('/:accountId/targets', accountScope, targetsRouter);
 router.use('/:accountId/insights', accountScope, insightsRouter);

@@ -64,8 +64,15 @@ export function registerOutcomeTools(server) {
     async ({ outcome_id, ...changes }) => {
       const path = `/outcomes/${encodeURIComponent(outcome_id)}`;
       const current = await api(path);
-      const { name, description, team_id, project_id, parent_outcome_id } = { ...current, ...changes };
-      return text(await api(path, { method: 'PUT', body: { name, description, team_id, project_id, parent_outcome_id } }));
+      const { name, description, team_id, project_id, parent_outcome_id, impact_id } = { ...current, ...changes };
+      // The PUT replaces the record, so carry the impact link through. Only a
+      // top-level outcome may have one; nesting an outcome drops it.
+      return text(
+        await api(path, {
+          method: 'PUT',
+          body: { name, description, team_id, project_id, parent_outcome_id, impact_id: parent_outcome_id ? null : impact_id },
+        })
+      );
     }
   );
 

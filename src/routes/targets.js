@@ -25,13 +25,18 @@ const SELECT_TARGET = `
 // A target is only a target once it has a unit and both numbers, so all four
 // are required on write rather than being allowed to fill in later.
 async function validateBody(req, res) {
-  const { outcome_id, name, unit, baseline_value, target_value } = req.body;
+  const { outcome_id, impact_id, name, unit, baseline_value, target_value } = req.body;
   if (!name) {
     res.status(400).json({ error: 'name is required' });
     return false;
   }
-  if (!outcome_id) {
-    res.status(400).json({ error: 'outcome_id is required' });
+  // A target belongs to exactly one parent: an outcome or an impact.
+  if (!outcome_id && !impact_id) {
+    res.status(400).json({ error: 'outcome_id or impact_id is required' });
+    return false;
+  }
+  if (outcome_id && impact_id) {
+    res.status(400).json({ error: 'a target belongs to an outcome or an impact, not both' });
     return false;
   }
   if (!unit) {
@@ -48,8 +53,12 @@ async function validateBody(req, res) {
       return false;
     }
   }
-  if (!(await belongsToAccount('outcomes', outcome_id, req.accountId))) {
+  if (outcome_id && !(await belongsToAccount('outcomes', outcome_id, req.accountId))) {
     res.status(400).json({ error: 'outcome_id not found in this account' });
+    return false;
+  }
+  if (impact_id && !(await belongsToAccount('impacts', impact_id, req.accountId))) {
+    res.status(400).json({ error: 'impact_id not found in this account' });
     return false;
   }
   return true;
@@ -80,17 +89,18 @@ router.get('/:targetId', async (req, res, next) => {
 });
 
 router.post('/', async (req, res, next) => {
-  const { outcome_id, name, description, unit, baseline_value, target_value, baseline_at, due_at } =
+  const { outcome_id, impact_id, name, description, unit, baseline_value, target_value, baseline_at, due_at } =
     req.body;
   try {
     if (!(await validateBody(req, res))) return;
     const { rows } = await pool.query(
-      `INSERT INTO targets (account_id, outcome_id, name, description, unit,
+      `INSERT INTO targets (account_id, outcome_id, impact_id, name, description, unit,
          baseline_value, target_value, baseline_at, due_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8, now()), $9) RETURNING *`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE($9, now()), $10) RETURNING *`,
       [
         req.accountId,
-        outcome_id,
+        outcome_id || null,
+        impact_id || null,
         name,
         description || null,
         unit,
@@ -107,17 +117,18 @@ router.post('/', async (req, res, next) => {
 });
 
 router.put('/:targetId', async (req, res, next) => {
-  const { outcome_id, name, description, unit, baseline_value, target_value, baseline_at, due_at } =
+  const { outcome_id, impact_id, name, description, unit, baseline_value, target_value, baseline_at, due_at } =
     req.body;
   try {
     if (!(await validateBody(req, res))) return;
     const { rowCount } = await pool.query(
-      `UPDATE targets SET outcome_id = $1, name = $2, description = $3, unit = $4,
-         baseline_value = $5, target_value = $6, baseline_at = COALESCE($7, baseline_at),
-         due_at = $8, updated_at = now()
-       WHERE id = $9 AND account_id = $10`,
+      `UPDATE targets SET outcome_id = $1, impact_id = $2, name = $3, description = $4, unit = $5,
+         baseline_value = $6, target_value = $7, baseline_at = COALESCE($8, baseline_at),
+         due_at = $9, updated_at = now()
+       WHERE id = $10 AND account_id = $11`,
       [
-        outcome_id,
+        outcome_id || null,
+        impact_id || null,
         name,
         description || null,
         unit,

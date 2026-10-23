@@ -11,10 +11,12 @@ const EMPTY = {
   due_at: '',
 };
 
-// A target is the outcome stated as numbers. The API requires a unit and both
-// numbers, so all three are enforced here rather than being left to the 400.
+// A target is an outcome (or an impact) stated as numbers. The API requires a
+// unit and both numbers, so all three are enforced here rather than being left
+// to the 400. `outcome` is the entity being quantified and `parentKind` says
+// whether it is an 'outcome' (default) or an 'impact'.
 // `editing` is null when creating, or the target being changed.
-export default function TargetForm({ outcome, editing, onSubmit, onCancel, onDelete }) {
+export default function TargetForm({ outcome, parentKind = 'outcome', editing, onSubmit, onCancel, onDelete }) {
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -59,7 +61,7 @@ export default function TargetForm({ outcome, editing, onSubmit, onCancel, onDel
     setError(null);
     try {
       await onSubmit({
-        outcome_id: Number(outcome.id),
+        [parentKind === 'impact' ? 'impact_id' : 'outcome_id']: Number(outcome.id),
         name: form.name.trim(),
         description: form.description.trim() || null,
         unit: form.unit.trim(),

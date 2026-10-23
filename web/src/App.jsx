@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as api from './api.js';
+import ImpactForm from './components/ImpactForm.jsx';
 import InsightForm from './components/InsightForm.jsx';
 import ConfirmDialog from './components/ConfirmDialog.jsx';
 import AccountMenu from './components/AccountMenu.jsx';
@@ -21,7 +22,7 @@ import Roadmap from './components/Roadmap.jsx';
 import TopNav from './components/TopNav.jsx';
 import ViewToggle from './components/ViewToggle.jsx';
 import { PlusIcon } from './components/icons.jsx';
-import { insightsForOutcome, insightsForProject, targetsForOutcome } from './lib/links.js';
+import { insightsForOutcome, insightsForProject, targetsFor } from './lib/links.js';
 
 const STORED_VIEW = 'outcomes.view';
 const STORED_PAGE = 'outcomes.page';
@@ -30,6 +31,7 @@ export default function App({ user, account, onSignOut }) {
   const accountId = account.id;
   const [teams, setTeams] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [impacts, setImpacts] = useState([]);
   const [outcomes, setOutcomes] = useState([]);
   const [targets, setTargets] = useState([]);
   const [measurements, setMeasurements] = useState([]);
@@ -49,6 +51,7 @@ export default function App({ user, account, onSignOut }) {
     if (!id) {
       setTeams([]);
       setProjects([]);
+      setImpacts([]);
       setOutcomes([]);
       setTargets([]);
       setMeasurements([]);
@@ -57,9 +60,18 @@ export default function App({ user, account, onSignOut }) {
     }
     setLoading(true);
     try {
-      const [nextTeams, nextProjects, nextOutcomes, nextTargets, nextMeasurements, nextInsights] = await Promise.all([
+      const [
+        nextTeams,
+        nextProjects,
+        nextImpacts,
+        nextOutcomes,
+        nextTargets,
+        nextMeasurements,
+        nextInsights,
+      ] = await Promise.all([
         api.listTeams(id),
         api.listProjects(id),
+        api.listImpacts(id),
         api.listOutcomes(id),
         api.listTargets(id),
         api.listMeasurements(id),
@@ -67,6 +79,7 @@ export default function App({ user, account, onSignOut }) {
       ]);
       setTeams(nextTeams);
       setProjects(nextProjects);
+      setImpacts(nextImpacts);
       setOutcomes(nextOutcomes);
       setTargets(nextTargets);
       setMeasurements(nextMeasurements);
@@ -86,16 +99,25 @@ export default function App({ user, account, onSignOut }) {
   const openCreate = () => setModal({ kind: 'outcome', outcome: null, parentId: null });
   const openEdit = (outcome) =>
     setModal({ kind: 'outcome', outcome, parentId: outcome.parent_outcome_id ?? null });
+  const openCreateImpact = () => setModal({ kind: 'impact', impact: null, parent: null });
+  const openEditImpact = (impact) => setModal({ kind: 'impact', impact, parent: null });
   // From the tree's per-node add menu: kind is 'outcome' | 'target' |
-  // 'project' | 'insight'.
-  const openAdd = (parent, kind) =>
-    setModal({ kind, outcome: null, parent, parentId: kind === 'outcome' ? parent.id : null });
-  // A target is always edited in the context of the outcome it quantifies.
-  const openEditTarget = (target, outcome) =>
-    setModal({ kind: 'target', outcome: null, target, parent: outcome });
+  // 'project' | 'insight' | 'impact', and parentKind says whether the node it
+  // was opened from is an 'outcome' (default) or an 'impact'.
+  const openAdd = (parent, kind, parentKind = 'outcome') => {
+    if (kind === 'impact') return setModal({ kind: 'impact', impact: null, parent });
+    // An outcome added under an impact is top-level and carries the link.
+    if (kind === 'outcome' && parentKind === 'impact') {
+      return setModal({ kind: 'outcome', outcome: null, parent: null, parentId: null, impactId: parent.id });
+    }
+    setModal({ kind, outcome: null, parent, parentKind, parentId: kind === 'outcome' ? parent.id : null });
+  };
+  // A target is always edited in the context of the outcome or impact it quantifies.
+  const openEditTarget = (target, parent, parentKind = 'outcome') =>
+    setModal({ kind: 'target', outcome: null, target, parent, parentKind });
   // A measurement is added against one specific target, from that target's node.
-  const openAddMeasurement = (target, outcome) =>
-    setModal({ kind: 'measurement', outcome: null, parent: outcome, target });
+  const openAddMeasurement = (target, parent, parentKind = 'outcome') =>
+    setModal({ kind: 'measurement', outcome: null, parent, parentKind, target });
   // entity is the outcome or project whose insights to list; kind says which.
   const showInsights = (entity, kind) => setModal({ kind: 'entity-insights', entity, entityKind: kind });
   const openEditProject = (project) => setModal({ kind: 'project', project, parent: null });
@@ -164,6 +186,32 @@ export default function App({ user, account, onSignOut }) {
       setOutcomes((current) => [...current, created]);
     }
     setModal(null);
+  }
+
+  async function saveImpact(impact) {
+    const editing = modal?.impact;
+    if (editing) {
+      const updated = await api.updateImpact(accountId, editing.id, impact);
+      setImpacts((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+    } else {
+      const created = await api.createImpact(accountId, impact);
+      setImpacts((current) => [...current, created]);
+    }
+    setModal(null);
+  }
+
+  async function removeImpact(impact) {
+    if (!(await askConfirm('Delete impact?', `“${impact.name}” will be permanently deleted.`))) return;
+    try {
+      await api.deleteImpact(accountId, impact.id);
+      setImpacts((current) => current.filter((item) => item.id !== impact.id));
+      setModal(null);
+      setError(null);
+    } catch (err) {
+      // 409 when a child impact, outcome or target still points at it.
+      setError(`Could not delete: ${err.message}`);
+      setModal(null);
+    }
   }
 
   async function saveTarget(target) {
@@ -355,17 +403,26 @@ export default function App({ user, account, onSignOut }) {
           <section className="card" aria-label={page === 'map' ? 'Map' : 'Outcomes'}>
             <div className="list-head">
               {page === 'map' ? <span /> : <ViewToggle view={view === 'issues' ? 'issues' : 'list'} onChange={changeView} />}
-              <button type="button" className="with-icon" onClick={openCreate}>
-                <PlusIcon />
-                New outcome
-              </button>
+              <div className="actions">
+                {page === 'map' && (
+                  <button type="button" className="with-icon ghost" onClick={openCreateImpact}>
+                    <PlusIcon />
+                    New impact
+                  </button>
+                )}
+                <button type="button" className="with-icon" onClick={openCreate}>
+                  <PlusIcon />
+                  New outcome
+                </button>
+              </div>
             </div>
             {loading ? (
               <p className="empty">Loading…</p>
-            ) : outcomes.length === 0 ? (
+            ) : outcomes.length === 0 && !(page === 'map' && impacts.length > 0) ? (
               <EmptyOutcomes onCreate={openCreate} />
             ) : page === 'map' ? (
               <OutcomeTree
+                impacts={impacts}
                 outcomes={outcomes}
                 teams={teams}
                 projects={projects}
@@ -374,6 +431,7 @@ export default function App({ user, account, onSignOut }) {
                 insights={insights}
                 onShowInsights={showInsights}
                 onEdit={openEdit}
+                onEditImpact={openEditImpact}
                 onEditProject={openEditProject}
                 onEditTarget={openEditTarget}
                 onAddMeasurement={openAddMeasurement}
@@ -395,7 +453,14 @@ export default function App({ user, account, onSignOut }) {
                 onDeleteTarget={removeTarget}
               />
             ) : (
-              <PotentialIssues outcomes={outcomes} projects={projects} teams={teams} onEdit={openEdit} />
+              <PotentialIssues
+                outcomes={outcomes}
+                projects={projects}
+                teams={teams}
+                insights={insights}
+                onEdit={openEdit}
+                onEditProject={openEditProject}
+              />
             )}
           </section>
           )}
@@ -452,6 +517,16 @@ export default function App({ user, account, onSignOut }) {
               onCancel={() => setModal(null)}
               onDelete={() => removeInsight(modal.insight)}
             />
+          ) : modal.kind === 'impact' ? (
+            <ImpactForm
+              key={modal.impact?.id ?? 'new'}
+              editing={modal.impact}
+              parent={modal.parent}
+              impacts={impacts}
+              onSubmit={saveImpact}
+              onCancel={() => setModal(null)}
+              onDelete={() => removeImpact(modal.impact)}
+            />
           ) : modal.kind === 'team' ? (
             <TeamForm
               key={modal.team?.id ?? 'new'}
@@ -465,6 +540,7 @@ export default function App({ user, account, onSignOut }) {
           ) : modal.kind === 'target' ? (
             <TargetForm
               outcome={modal.parent}
+              parentKind={modal.parentKind}
               editing={modal.target}
               onSubmit={saveTarget}
               onCancel={() => setModal(null)}
@@ -473,10 +549,12 @@ export default function App({ user, account, onSignOut }) {
           ) : modal.kind === 'measurement' ? (
             <MeasurementForm
               outcome={modal.parent}
-              targets={modal.target ? [modal.target] : targetsForOutcome(targets, modal.parent)}
+              targets={
+                modal.target ? [modal.target] : targetsFor(targets, modal.parent, modal.parentKind)
+              }
               onSubmit={saveMeasurement}
               onCancel={() => setModal(null)}
-              onAddTarget={() => openAdd(modal.parent, 'target')}
+              onAddTarget={() => openAdd(modal.parent, 'target', modal.parentKind)}
             />
           ) : modal.kind === 'project' ? (
             <ProjectForm
@@ -495,6 +573,8 @@ export default function App({ user, account, onSignOut }) {
               parentOutcomeId={modal.parentId}
               teams={teams}
               projects={projects}
+              impacts={impacts}
+              impactId={modal.impactId}
               onSubmit={saveOutcome}
               onCancel={() => setModal(null)}
               onDelete={() => removeOutcome(modal.outcome)}
@@ -515,8 +595,9 @@ export default function App({ user, account, onSignOut }) {
   );
 }
 
-function modalTitle({ kind, outcome, parent, target, project, team, insight, entity }) {
+function modalTitle({ kind, outcome, parent, target, project, team, insight, impact, entity }) {
   if (kind === 'members') return 'Members';
+  if (kind === 'impact') return impact ? `Edit impact #${impact.id}` : parent ? 'New child impact' : 'New impact';
   if (kind === 'entity-insights') return `Insights · ${entity.name}`;
   if (kind === 'insight') return insight ? `Edit insight #${insight.id}` : 'New insight';
   if (kind === 'team') return team ? `Edit team #${team.id}` : 'New team';

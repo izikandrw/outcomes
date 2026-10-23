@@ -7,6 +7,7 @@
   --accent: #2f5bea;
   --project: #1a9c6b;
   --target: #b7791f;
+  --impact: #7c3aed;
   --danger: #c0392b;
   color-scheme: light dark;
 }
@@ -21,6 +22,7 @@
     --accent: #6f8cff;
     --project: #4bcf9a;
     --target: #e0a84a;
+  --impact: #a78bfa;
     --danger: #ef6a5c;
   }
 }
@@ -842,6 +844,30 @@ button.small {
   fill: color-mix(in srgb, var(--target) 55%, transparent);
 }
 
+/* Impacts sit above the outcomes that drive them: the business result the
+   whole tree below is meant to move. */
+.tree-node.impact rect {
+  fill: color-mix(in srgb, var(--impact) 14%, var(--surface));
+  stroke: color-mix(in srgb, var(--impact) 55%, transparent);
+}
+
+.tree-node.impact text {
+  fill: var(--impact);
+}
+
+.tree-node.impact:hover rect {
+  stroke: var(--impact);
+  stroke-width: 2;
+}
+
+.tree-edge.impact {
+  stroke: color-mix(in srgb, var(--impact) 55%, transparent);
+}
+
+.tree-arrowhead.impact {
+  fill: color-mix(in srgb, var(--impact) 55%, transparent);
+}
+
 .issues {
   display: flex;
   flex-direction: column;
@@ -1285,4 +1311,68 @@ button.danger-solid:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Delivery-rule badges: warn-colored outline plus an emoji per broken rule. */
+.tree-node.has-issue rect {
+  stroke: var(--danger);
+}
+
+.tree-node .node-issue circle {
+  fill: var(--surface);
+  stroke: var(--danger);
+  stroke-width: 1.25;
+}
+
+.tree-node .node-issue text {
+  font-size: 13px;
+}
+
+.node-issue {
+  cursor: help;
+}
+
+.validation-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+
+.validation-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 130px;
+  padding: 8px 12px;
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+  cursor: help;
+}
+
+.validation-stat.ok {
+  border-color: var(--border);
+  background: var(--surface);
+}
+
+.validation-count {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--danger);
+}
+
+.validation-stat.ok .validation-count {
+  color: var(--muted);
+}
+
+.validation-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.issue-rule {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 13px;
 }

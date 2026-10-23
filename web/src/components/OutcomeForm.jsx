@@ -5,11 +5,13 @@ const EMPTY = {
   description: '',
   team_id: '',
   project_id: '',
+  impact_id: '',
 };
 
 // Rendered inside the modal, which supplies the heading and close control —
 // the parent outcome is set via the clickable tag in the modal header, so
-// this form only owns the remaining fields.
+// this form only owns the remaining fields. Only a top-level outcome (no
+// parent) links to an impact; children inherit it from their ancestor.
 // `editing` is null when creating, or the outcome being changed.
 export default function OutcomeForm({
   editing,
@@ -17,6 +19,8 @@ export default function OutcomeForm({
   parentOutcomeId,
   teams,
   projects,
+  impacts = [],
+  impactId,
   onSubmit,
   onCancel,
   onDelete,
@@ -32,16 +36,18 @@ export default function OutcomeForm({
         description: editing.description ?? '',
         team_id: editing.team_id ?? '',
         project_id: editing.project_id ?? '',
+        impact_id: editing.impact_id ?? '',
       });
     } else {
       // Adding a child from the tree: inherit the parent's team.
       setForm((current) => ({
         ...EMPTY,
         team_id: parent?.team_id ? String(parent.team_id) : current.team_id,
+        impact_id: impactId ? String(impactId) : '',
       }));
     }
     setError(null);
-  }, [editing, parent]);
+  }, [editing, parent, impactId]);
 
   // Default to the only team so the common single-team case needs no picking.
   useEffect(() => {
@@ -68,6 +74,7 @@ export default function OutcomeForm({
         team_id: Number(form.team_id),
         project_id: form.project_id ? Number(form.project_id) : null,
         parent_outcome_id: parentOutcomeId ? Number(parentOutcomeId) : null,
+        impact_id: !parentOutcomeId && form.impact_id ? Number(form.impact_id) : null,
       });
       if (!editing) setForm((current) => ({ ...EMPTY, team_id: current.team_id }));
     } catch (err) {
@@ -129,6 +136,21 @@ export default function OutcomeForm({
           </select>
         </label>
       </div>
+
+      {!parentOutcomeId && impacts.length > 0 && (
+        <label>
+          Impact
+          <select value={form.impact_id} onChange={(event) => update('impact_id', event.target.value)}>
+            <option value="">None</option>
+            {impacts.map((impact) => (
+              <option key={impact.id} value={impact.id}>
+                {impact.name}
+              </option>
+            ))}
+          </select>
+          <span className="hint">The business result this outcome is meant to drive.</span>
+        </label>
+      )}
 
       {error && <p className="error">{error}</p>}
 

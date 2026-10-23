@@ -92,6 +92,17 @@ export const createMeasurement = (accountId, measurement) =>
     body: JSON.stringify(measurement),
   });
 
+export const listImpacts = (accountId) => request(`/accounts/${accountId}/impacts`);
+export const createImpact = (accountId, impact) =>
+  request(`/accounts/${accountId}/impacts`, { method: 'POST', body: JSON.stringify(impact) });
+export const updateImpact = (accountId, impactId, impact) =>
+  request(`/accounts/${accountId}/impacts/${impactId}`, {
+    method: 'PUT',
+    body: JSON.stringify(impact),
+  });
+export const deleteImpact = (accountId, impactId) =>
+  request(`/accounts/${accountId}/impacts/${impactId}`, { method: 'DELETE' });
+
 export const listOutcomes = (accountId) => request(`/accounts/${accountId}/outcomes`);
 export const createOutcome = (accountId, outcome) =>
   request(`/accounts/${accountId}/outcomes`, { method: 'POST', body: JSON.stringify(outcome) });

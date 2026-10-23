@@ -44,12 +44,28 @@ CREATE INDEX idx_projects_account_id ON projects(account_id);
 CREATE INDEX idx_projects_team_id ON projects(team_id);
 CREATE INDEX idx_projects_parent_project_id ON projects(parent_project_id);
 
+-- An impact is the business result we wish to make. Impacts nest, and a
+-- top-level outcome may link to one (outcomes.impact_id).
+CREATE TABLE impacts (
+    id               BIGSERIAL PRIMARY KEY,
+    account_id       BIGINT NOT NULL REFERENCES accounts(id),
+    parent_impact_id BIGINT REFERENCES impacts(id),
+    name             TEXT NOT NULL,
+    description      TEXT,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_impacts_account_id ON impacts(account_id);
+CREATE INDEX idx_impacts_parent_impact_id ON impacts(parent_impact_id);
+
 CREATE TABLE outcomes (
     id                BIGSERIAL PRIMARY KEY,
     account_id        BIGINT NOT NULL REFERENCES accounts(id),
     team_id           BIGINT NOT NULL REFERENCES teams(id),
     project_id        BIGINT REFERENCES projects(id),
     parent_outcome_id BIGINT REFERENCES outcomes(id),
+    impact_id         BIGINT REFERENCES impacts(id),
     name              TEXT NOT NULL,
     description       TEXT,
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -60,6 +76,7 @@ CREATE INDEX idx_outcomes_account_id ON outcomes(account_id);
 CREATE INDEX idx_outcomes_team_id ON outcomes(team_id);
 CREATE INDEX idx_outcomes_project_id ON outcomes(project_id);
 CREATE INDEX idx_outcomes_parent_outcome_id ON outcomes(parent_outcome_id);
+CREATE INDEX idx_outcomes_impact_id ON outcomes(impact_id);
 
 -- Many-to-many: a project can support several outcomes, and an outcome can be
 -- supported by several projects. Separate from outcomes.project_id, which stays
@@ -136,7 +153,8 @@ CREATE INDEX idx_insight_projects_project_id ON insight_projects(project_id);
 CREATE TABLE targets (
     id             BIGSERIAL PRIMARY KEY,
     account_id     BIGINT NOT NULL REFERENCES accounts(id),
-    outcome_id     BIGINT NOT NULL REFERENCES outcomes(id),
+    outcome_id     BIGINT REFERENCES outcomes(id),
+    impact_id      BIGINT REFERENCES impacts(id),
     name           TEXT NOT NULL,
     description    TEXT,
     unit           TEXT NOT NULL,
@@ -147,11 +165,14 @@ CREATE TABLE targets (
     baseline_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     due_at         TIMESTAMPTZ,
     created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- A target belongs to exactly one parent: an outcome or an impact.
+    CONSTRAINT targets_one_parent CHECK ((outcome_id IS NULL) <> (impact_id IS NULL))
 );
 
 CREATE INDEX idx_targets_account_id ON targets(account_id);
 CREATE INDEX idx_targets_outcome_id ON targets(outcome_id);
+CREATE INDEX idx_targets_impact_id ON targets(impact_id);
 
 -- Readings hang off a target, not an outcome. The unit lives on the target, so
 -- every reading in one series is guaranteed to be counting the same thing.

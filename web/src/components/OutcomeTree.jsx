@@ -5,10 +5,13 @@ import {
   totalDollarImpact,
   formatDollars,
   measurementsForOutcome,
+  outcomesForImpact,
   projectsForOutcome,
+  targetsForImpact,
   targetsForOutcome,
   formatValue,
 } from '../lib/links.js';
+import { groupByRule, issuesFor, validateTree } from '../lib/validation.js';
 
 export const NODE_W = 160;
 export const NODE_H = 56;
@@ -23,6 +26,7 @@ const MAX_LINES = 3;
 // Top-down node-link diagram: each node is centred over the block its children
 // occupy, so sibling subtrees never overlap however wide they fan out.
 export default function OutcomeTree({
+  impacts = [],
   outcomes,
   teams,
   projects,
@@ -30,6 +34,7 @@ export default function OutcomeTree({
   measurements,
   insights,
   onEdit,
+  onEditImpact,
   onEditProject,
   onEditTarget,
   onAddMeasurement,
@@ -37,9 +42,11 @@ export default function OutcomeTree({
   onAdd,
   onAddChildProject,
 }) {
-  const { nodes, edges, width, height } = layout(outcomes, projects, targets);
-  // { outcome, left, top } — anchored in viewport coordinates so the menu is
-  // never clipped by the scroll container.
+  const { nodes, edges, width, height } = layout(outcomes, projects, targets, impacts);
+  const validation = validateTree({ outcomes, projects, insights });
+  const counts = groupByRule(validation, { outcomes, projects });
+  // { entity, kind, left, top } — kind is 'outcome' or 'impact'. Anchored in
+  // viewport coordinates so the menu is never clipped by the scroll container.
   const [menu, setMenu] = useState(null);
 
   useEffect(() => {
@@ -61,20 +68,34 @@ export default function OutcomeTree({
     };
   }, [menu]);
 
-  function openMenu(event, outcome) {
+  function openMenu(event, entity, kind = 'outcome') {
     event.stopPropagation();
     const rect = event.currentTarget.getBoundingClientRect();
-    setMenu({ outcome, left: rect.right + 6, top: rect.top });
+    setMenu({ entity, kind, left: rect.right + 6, top: rect.top });
   }
 
   function choose(kind) {
-    const { outcome } = menu;
+    const { entity, kind: parentKind } = menu;
     setMenu(null);
-    onAdd(outcome, kind);
+    onAdd(entity, kind, parentKind);
   }
 
   return (
     <div className="tree-scroll">
+      <section className="validation-panel" aria-label="Validation">
+        {counts.map(({ rule, items }) => (
+          <div
+            key={rule.id}
+            className={['validation-stat', items.length === 0 && 'ok'].filter(Boolean).join(' ')}
+            title={rule.description}
+          >
+            <span className="validation-count">
+              {rule.emoji} {items.length}
+            </span>
+            <span className="validation-label">{rule.title}</span>
+          </div>
+        ))}
+      </section>
       <svg className="tree" width={width} height={height} role="tree" aria-label="Outcome tree">
         <defs>
           <marker
@@ -87,6 +108,17 @@ export default function OutcomeTree({
             orient="auto-start-reverse"
           >
             <path className="tree-arrowhead" d="M0 1.5 L7 4 L0 6.5 z" />
+          </marker>
+          <marker
+            id="tree-arrow-impact"
+            viewBox="0 0 8 8"
+            refX="7"
+            refY="4"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto-start-reverse"
+          >
+            <path className="tree-arrowhead impact" d="M0 1.5 L7 4 L0 6.5 z" />
           </marker>
           <marker
             id="tree-arrow-project"
@@ -123,7 +155,9 @@ export default function OutcomeTree({
                 ? 'url(#tree-arrow-project)'
                 : edge.kind === 'target'
                   ? 'url(#tree-arrow-target)'
-                  : 'url(#tree-arrow)'
+                  : edge.kind === 'impact'
+                    ? 'url(#tree-arrow-impact)'
+                    : 'url(#tree-arrow)'
             }
           />
         ))}
@@ -137,6 +171,15 @@ export default function OutcomeTree({
               onAddMeasurement={onAddMeasurement}
               {...node}
             />
+          ) : node.type === 'impact' ? (
+            <ImpactNode
+              key={`impact-${node.data.id}`}
+              impact={node.data}
+              targets={targets}
+              onEdit={onEditImpact}
+              onOpenMenu={openMenu}
+              {...node}
+            />
           ) : node.type === 'project' ? (
             <ProjectNode
               key={`project-${node.data.id}`}
@@ -144,6 +187,7 @@ export default function OutcomeTree({
               teams={teams}
               insightCount={insightsForProject(insights, node.data).length}
               insightDollars={totalDollarImpact(insightsForProject(insights, node.data))}
+              issues={issuesFor(validation, 'project', node.data)}
               onShowInsights={onShowInsights}
               onEdit={onEditProject}
               onAddChild={onAddChildProject}
@@ -159,6 +203,7 @@ export default function OutcomeTree({
               measurements={measurements}
               insightCount={insightsForOutcome(insights, node.data).length}
               insightDollars={totalDollarImpact(insightsForOutcome(insights, node.data))}
+              issues={issuesFor(validation, 'outcome', node.data)}
               onShowInsights={onShowInsights}
               onEdit={onEdit}
               onOpenMenu={openMenu}
@@ -173,22 +218,38 @@ export default function OutcomeTree({
           className="node-menu"
           style={{ left: menu.left, top: menu.top }}
           role="menu"
-          aria-label={`Add to ${menu.outcome.name}`}
+          aria-label={`Add to ${menu.entity.name}`}
           onPointerDown={(event) => event.stopPropagation()}
         >
-          <p className="node-menu-head">Add to “{menu.outcome.name}”</p>
-          <button type="button" role="menuitem" onClick={() => choose('outcome')}>
-            🌱 Child outcome
-          </button>
-          <button type="button" role="menuitem" onClick={() => choose('target')}>
-            🎯 Target
-          </button>
-          <button type="button" role="menuitem" onClick={() => choose('project')}>
-            🚀 Project
-          </button>
-          <button type="button" role="menuitem" onClick={() => choose('insight')}>
-            💡 Insight
-          </button>
+          <p className="node-menu-head">Add to “{menu.entity.name}”</p>
+          {menu.kind === 'impact' ? (
+            <>
+              <button type="button" role="menuitem" onClick={() => choose('impact')}>
+                🏔️ Child impact
+              </button>
+              <button type="button" role="menuitem" onClick={() => choose('outcome')}>
+                🌱 Outcome
+              </button>
+              <button type="button" role="menuitem" onClick={() => choose('target')}>
+                🎯 Target
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" role="menuitem" onClick={() => choose('outcome')}>
+                🌱 Child outcome
+              </button>
+              <button type="button" role="menuitem" onClick={() => choose('target')}>
+                🎯 Target
+              </button>
+              <button type="button" role="menuitem" onClick={() => choose('project')}>
+                🚀 Project
+              </button>
+              <button type="button" role="menuitem" onClick={() => choose('insight')}>
+                💡 Insight
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -206,6 +267,7 @@ function OutcomeNode({
   measurements,
   insightCount,
   insightDollars,
+  issues,
   onShowInsights,
   onEdit,
   onOpenMenu,
@@ -218,7 +280,12 @@ function OutcomeNode({
   const readings = measurementsForOutcome(measurements, targets, outcome);
   // An outcome with no target can't be settled by evidence, so it is
   // drawn differently rather than looking finished.
-  const className = ['tree-node', depth === 0 && 'root', quantified.length === 0 && 'unquantified']
+  const className = [
+    'tree-node',
+    outcome.parent_outcome_id == null && 'root',
+    quantified.length === 0 && 'unquantified',
+    issues.length > 0 && 'has-issue',
+  ]
     .filter(Boolean)
     .join(' ');
 
@@ -247,6 +314,7 @@ function OutcomeNode({
                 .join(', ')}`
             : 'No target yet',
           readings.length > 0 && `Measurements: ${readings.length}`,
+          ...issues.map((rule) => `${rule.emoji} ${rule.title}: ${rule.description}`),
           outcome.description,
         ]
           .filter(Boolean)
@@ -283,9 +351,91 @@ function OutcomeNode({
           }v10`}
         />
       </g>
+      <IssueBadges x={x} y={y} issues={issues} />
       <InsightPill x={x} y={y} count={insightCount} dollars={insightDollars} label={outcome.name} onOpen={() => onShowInsights(outcome, 'outcome')} />
     </g>
   );
+}
+
+// The business result at the top of the tree. Click edits it; the hover "+"
+// adds a child impact, an outcome driving it, or a target measuring it.
+function ImpactNode({ impact, x, y, depth, targets, onEdit, onOpenMenu }) {
+  const lines = wrapLabel(impact.name);
+  const quantified = targetsForImpact(targets, impact);
+
+  return (
+    <g
+      className="tree-node impact"
+      role="treeitem"
+      aria-level={depth + 1}
+      tabIndex={0}
+      onClick={() => onEdit(impact)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onEdit(impact);
+        }
+      }}
+    >
+      <title>
+        {[
+          impact.name,
+          quantified.length > 0
+            ? `Targets: ${quantified
+                .map((item) => `${item.name} (${item.baseline_value} → ${item.target_value} ${item.unit})`)
+                .join(', ')}`
+            : 'No target yet',
+          impact.description,
+        ]
+          .filter(Boolean)
+          .join('\n')}
+      </title>
+      <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={NODE_H} rx="10" />
+      <text x={x} y={y + NODE_H / 2} textAnchor="middle" dominantBaseline="middle">
+        {lines.map((line, index) => (
+          <tspan key={index} x={x} dy={index === 0 ? -((lines.length - 1) * LINE_H) / 2 : LINE_H}>
+            {line}
+          </tspan>
+        ))}
+      </text>
+
+      <g
+        className="node-add"
+        role="button"
+        tabIndex={0}
+        aria-label={`Add to ${impact.name}`}
+        onClick={(event) => onOpenMenu(event, impact, 'impact')}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            event.stopPropagation();
+            onOpenMenu(event, impact, 'impact');
+          }
+        }}
+      >
+        <circle cx={x + NODE_W / 2} cy={y + NODE_H / 2} r="11" />
+        <path
+          d={`M${x + NODE_W / 2 - 5} ${y + NODE_H / 2}h10M${x + NODE_W / 2} ${
+            y + NODE_H / 2 - 5
+          }v10`}
+        />
+      </g>
+    </g>
+  );
+}
+
+// Straddles the node's top edge, top-left: one emoji per delivery rule the node
+// breaks. Hovering a badge explains which rule and why (native SVG tooltip).
+function IssueBadges({ x, y, issues }) {
+  return issues.map((rule, index) => (
+    <g key={rule.id} className="node-issue" role="img" aria-label={`${rule.title}: ${rule.description}`}>
+      <title>{`${rule.title}\n${rule.description}`}</title>
+      <circle cx={x - NODE_W / 2 + 12 + index * 24} cy={y} r="11" />
+      <text x={x - NODE_W / 2 + 12 + index * 24} y={y} textAnchor="middle" dominantBaseline="central">
+        {rule.emoji}
+      </text>
+    </g>
+  ));
 }
 
 // Always visible, bottom-left of the node: how many insights back it up.
@@ -327,7 +477,7 @@ function InsightPill({ x, y, count, dollars, label, onOpen }) {
 }
 
 // A leaf: the outcome stated as numbers. Click edits it in the target form.
-function TargetNode({ target, parentOutcome, x, y, depth, onEdit, onAddMeasurement }) {
+function TargetNode({ target, parent, parentKind, x, y, depth, onEdit, onAddMeasurement }) {
   const lines = wrapLabel(target.name, MAX_CHARS, MAX_LINES - 1);
   const [rangeLine] = wrapLabel(
     `${formatValue(target.baseline_value)} → ${formatValue(target.target_value)} ${target.unit}`,
@@ -342,11 +492,11 @@ function TargetNode({ target, parentOutcome, x, y, depth, onEdit, onAddMeasureme
       role="treeitem"
       aria-level={depth + 1}
       tabIndex={0}
-      onClick={() => onEdit(target, parentOutcome)}
+      onClick={() => onEdit(target, parent, parentKind)}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
-          onEdit(target, parentOutcome);
+          onEdit(target, parent, parentKind);
         }
       }}
     >
@@ -381,13 +531,13 @@ function TargetNode({ target, parentOutcome, x, y, depth, onEdit, onAddMeasureme
         aria-label={`Add measurement to ${target.name}`}
         onClick={(event) => {
           event.stopPropagation();
-          onAddMeasurement(target, parentOutcome);
+          onAddMeasurement(target, parent, parentKind);
         }}
         onKeyDown={(event) => {
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
             event.stopPropagation();
-            onAddMeasurement(target, parentOutcome);
+            onAddMeasurement(target, parent, parentKind);
           }
         }}
       >
@@ -412,6 +562,7 @@ function ProjectNode({
   teams,
   insightCount,
   insightDollars,
+  issues,
   onShowInsights,
   onEdit,
   onAddChild,
@@ -426,7 +577,7 @@ function ProjectNode({
 
   return (
     <g
-      className="tree-node project"
+      className={['tree-node project', issues.length > 0 && 'has-issue'].filter(Boolean).join(' ')}
       role="treeitem"
       aria-level={depth + 1}
       tabIndex={0}
@@ -439,7 +590,14 @@ function ProjectNode({
       }}
     >
       <title>
-        {[project.name, team && `Team: ${team}`, project.description].filter(Boolean).join('\n')}
+        {[
+          project.name,
+          team && `Team: ${team}`,
+          ...issues.map((rule) => `${rule.emoji} ${rule.title}: ${rule.description}`),
+          project.description,
+        ]
+          .filter(Boolean)
+          .join('\n')}
       </title>
       <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={NODE_H} rx="10" />
       <text x={x} y={y + NODE_H / 2} textAnchor="middle" dominantBaseline="middle">
@@ -479,17 +637,18 @@ function ProjectNode({
           }v10`}
         />
       </g>
+      <IssueBadges x={x} y={y} issues={issues} />
       <InsightPill x={x} y={y} count={insightCount} dollars={insightDollars} label={project.name} onOpen={() => onShowInsights(project, 'project')} />
     </g>
   );
 }
 
-// Places outcomes as a node-link tree, then hangs each project as a node
+// Places impacts at the top, then outcomes as a node-link tree, then hangs each project as a node
 // under the first outcome (in list order) it drives, or under its parent
 // project when it has one. A project linked to more than one outcome is still
 // drawn once — the other outcomes it drives get a dashed cross-edge to that
 // same node instead of a duplicate.
-function layout(outcomes, projects, targets) {
+function layout(outcomes, projects, targets, impacts) {
   const byParent = new Map();
   for (const outcome of outcomes) {
     const key = outcome.parent_outcome_id ?? null;
@@ -521,8 +680,18 @@ function layout(outcomes, projects, targets) {
     }
   }
 
+  const impactsByParent = new Map(); // impact.id -> child impact[]
+  const presentImpacts = new Set(impacts.map((impact) => String(impact.id)));
+  for (const impact of impacts) {
+    if (impact.parent_impact_id == null || !presentImpacts.has(String(impact.parent_impact_id))) continue;
+    const key = String(impact.parent_impact_id);
+    if (!impactsByParent.has(key)) impactsByParent.set(key, []);
+    impactsByParent.get(key).push(impact);
+  }
+
   const nodes = [];
   const edges = [];
+  const placedImpacts = new Set();
   const placed = new Set(); // guards against a parent cycle the API doesn't reject
   const placedProjects = new Set();
   let maxDepth = 0;
@@ -535,6 +704,24 @@ function layout(outcomes, projects, targets) {
     let children;
     if (item.kind === 'target') {
       children = [];
+    } else if (item.kind === 'impact') {
+      placedImpacts.add(entity.id);
+      children = [
+        ...(impactsByParent.get(String(entity.id)) ?? [])
+          .filter((child) => !placedImpacts.has(child.id))
+          .map((child) => ({ kind: 'impact', data: child })),
+        // Only top-level outcomes hang off an impact; their children follow
+        // them down the outcome tree.
+        ...outcomesForImpact(outcomes, entity)
+          .filter((child) => child.parent_outcome_id == null && !placed.has(child.id))
+          .map((child) => ({ kind: 'outcome', data: child })),
+        ...targetsForImpact(targets, entity).map((target) => ({
+          kind: 'target',
+          data: target,
+          parent: entity,
+          parentKind: 'impact',
+        })),
+      ];
     } else if (item.kind === 'project') {
       placedProjects.add(entity.id);
       children = (projectsByParent.get(String(entity.id)) ?? [])
@@ -552,7 +739,8 @@ function layout(outcomes, projects, targets) {
         ...targetsForOutcome(targets, entity).map((target) => ({
           kind: 'target',
           data: target,
-          outcome: entity,
+          parent: entity,
+          parentKind: 'outcome',
         })),
       ];
     }
@@ -575,7 +763,7 @@ function layout(outcomes, projects, targets) {
       x = (childPositions[0].x + childPositions[childPositions.length - 1].x) / 2;
     }
 
-    nodes.push({ type: item.kind, data: entity, parentOutcome: item.outcome, x, y, depth });
+    nodes.push({ type: item.kind, data: entity, parent: item.parent, parentKind: item.parentKind, x, y, depth });
     for (const child of childPositions) {
       edges.push({
         key: `${item.kind}-${entity.id}-${child.kind}-${child.id}`,
@@ -595,6 +783,14 @@ function layout(outcomes, projects, targets) {
   );
 
   let left = PAD;
+  const impactRoots = impacts.filter(
+    (impact) => impact.parent_impact_id == null || !presentImpacts.has(String(impact.parent_impact_id))
+  );
+  for (const root of impactRoots) {
+    if (placedImpacts.has(root.id)) continue;
+    const position = place({ kind: 'impact', data: root }, 0, left);
+    left = position.right + H_GAP * 2;
+  }
   for (const root of roots) {
     if (placed.has(root.id)) continue;
     const position = place({ kind: 'outcome', data: root }, 0, left);

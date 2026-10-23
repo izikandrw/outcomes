@@ -17,6 +17,24 @@ export function targetsForOutcome(targets, outcome) {
   return targets.filter((target) => same(target.outcome_id, outcome.id));
 }
 
+// An impact is measured directly: its targets are the business result as
+// numbers, separate from the behavior targets on the outcomes beneath it.
+export function targetsForImpact(targets, impact) {
+  return targets.filter((target) => same(target.impact_id, impact.id));
+}
+
+// Targets and readings hang off either an outcome or an impact; `kind` says
+// which the entity is.
+export function targetsFor(targets, entity, kind) {
+  return kind === 'impact' ? targetsForImpact(targets, entity) : targetsForOutcome(targets, entity);
+}
+
+// Only top-level outcomes carry an impact link; this is the outcomes drawn
+// directly under the impact.
+export function outcomesForImpact(outcomes, impact) {
+  return outcomes.filter((outcome) => same(outcome.impact_id, impact.id));
+}
+
 // The reverse of projectsForOutcome: every outcome that links to this project,
 // via either the join table or the legacy single-column link. Empty means the
 // project can't name the outcome it drives.
