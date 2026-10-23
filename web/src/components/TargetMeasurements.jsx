@@ -7,6 +7,16 @@ import {
   targetRange,
 } from "../lib/links.js";
 
+// Readings are weekly-ish, so the time of day is enough; seconds are noise.
+const formatMeasuredAt = (value) =>
+  new Date(value).toLocaleString(undefined, {
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
 // Every reading taken against one target, newest first, so the latest number
 // is the first thing seen. The unit lives on the target, so it heads the value
 // column rather than repeating on every row.
@@ -44,7 +54,7 @@ export default function TargetMeasurements({ target, measurements, onAddReading,
               <tbody>
                 {readings.map((reading) => (
                   <tr key={reading.id}>
-                    <td>{new Date(reading.measured_at).toLocaleString()}</td>
+                    <td>{formatMeasuredAt(reading.measured_at)}</td>
                     <td className="num">{formatValue(reading.value)}</td>
                   </tr>
                 ))}
@@ -242,7 +252,7 @@ function MeasurementChart({ target, series }) {
           cy={y(p.v)}
           r="3.5"
         >
-          <title>{`${formatValue(p.v)} ${target.unit} · ${new Date(p.t).toLocaleString()}`}</title>
+          <title>{`${formatValue(p.v)} ${target.unit} · ${formatMeasuredAt(p.t)}`}</title>
         </circle>
       ))}
       <text className="chart-label" x={PAD.left} y={H - 8} textAnchor="start">
