@@ -4,8 +4,8 @@ import { formatValue } from '../lib/links.js';
 // A measurement is a reading against one target: a value and when it applies,
 // which is not necessarily when it was entered. The unit is not asked for —
 // it belongs to the target, so every reading in a series counts the same thing.
-export default function MeasurementForm({ outcome, targets, onSubmit, onCancel, onAddTarget }) {
-  const [form, setForm] = useState({ target_id: '', value: '', measured_at: '' });
+export default function MeasurementForm({ outcome, targets, onSubmit, onCancel, onAddTarget, initialTargetId }) {
+  const [form, setForm] = useState({ target_id: initialTargetId ? String(initialTargetId) : '', value: '', measured_at: '' });
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
 

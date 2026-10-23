@@ -34,10 +34,12 @@ export default function OutcomeTree({
   onEditTarget,
   onShowInsights,
   onAdd,
+  onAddMeasurement,
   onAddChildProject,
 }) {
   const { nodes, edges, width, height } = layout(outcomes, projects, targets);
-  // { outcome, left, top } — anchored in viewport coordinates so the menu is
+  // { outcome, target?, left, top } — a target is set when the menu belongs to a
+  // target node rather than an outcome. Anchored in viewport coordinates so the menu is
   // never clipped by the scroll container.
   const [menu, setMenu] = useState(null);
 
@@ -60,16 +62,17 @@ export default function OutcomeTree({
     };
   }, [menu]);
 
-  function openMenu(event, outcome) {
+  function openMenu(event, outcome, target = null) {
     event.stopPropagation();
     const rect = event.currentTarget.getBoundingClientRect();
-    setMenu({ outcome, left: rect.right + 6, top: rect.top });
+    setMenu({ outcome, target, left: rect.right + 6, top: rect.top });
   }
 
   function choose(kind) {
-    const { outcome } = menu;
+    const { outcome, target } = menu;
     setMenu(null);
-    onAdd(outcome, kind);
+    if (target) onAddMeasurement(outcome, target);
+    else onAdd(outcome, kind);
   }
 
   return (
@@ -133,6 +136,7 @@ export default function OutcomeTree({
               key={`target-${node.data.id}`}
               target={node.data}
               onEdit={onEditTarget}
+              onOpenMenu={openMenu}
               {...node}
             />
           ) : node.type === 'project' ? (
@@ -171,25 +175,33 @@ export default function OutcomeTree({
           className="node-menu"
           style={{ left: menu.left, top: menu.top }}
           role="menu"
-          aria-label={`Add to ${menu.outcome.name}`}
+          aria-label={`Add to ${(menu.target ?? menu.outcome).name}`}
           onPointerDown={(event) => event.stopPropagation()}
         >
-          <p className="node-menu-head">Add to “{menu.outcome.name}”</p>
-          <button type="button" role="menuitem" onClick={() => choose('outcome')}>
-            Child outcome
-          </button>
-          <button type="button" role="menuitem" onClick={() => choose('target')}>
-            Target
-          </button>
-          <button type="button" role="menuitem" onClick={() => choose('measurement')}>
-            Measurement
-          </button>
-          <button type="button" role="menuitem" onClick={() => choose('project')}>
-            Project
-          </button>
-          <button type="button" role="menuitem" onClick={() => choose('insight')}>
-            Insight
-          </button>
+          <p className="node-menu-head">Add to “{(menu.target ?? menu.outcome).name}”</p>
+          {menu.target ? (
+            <button type="button" role="menuitem" onClick={() => choose('measurement')}>
+              Measurement
+            </button>
+          ) : (
+            <>
+              <button type="button" role="menuitem" onClick={() => choose('outcome')}>
+                Child outcome
+              </button>
+              <button type="button" role="menuitem" onClick={() => choose('target')}>
+                Target
+              </button>
+              <button type="button" role="menuitem" onClick={() => choose('measurement')}>
+                Measurement
+              </button>
+              <button type="button" role="menuitem" onClick={() => choose('project')}>
+                Project
+              </button>
+              <button type="button" role="menuitem" onClick={() => choose('insight')}>
+                Insight
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -328,7 +340,7 @@ function InsightPill({ x, y, count, dollars, label, onOpen }) {
 }
 
 // A leaf: the outcome stated as numbers. Click edits it in the target form.
-function TargetNode({ target, parentOutcome, x, y, depth, onEdit }) {
+function TargetNode({ target, parentOutcome, x, y, depth, onEdit, onOpenMenu }) {
   const lines = wrapLabel(target.name, MAX_CHARS, MAX_LINES - 1);
   const [rangeLine] = wrapLabel(
     `${formatValue(target.baseline_value)} → ${formatValue(target.target_value)} ${target.unit}`,
@@ -374,6 +386,25 @@ function TargetNode({ target, parentOutcome, x, y, depth, onEdit }) {
           </tspan>
         ))}
       </text>
+
+      {/* Revealed on hover or keyboard focus; opens the add menu. */}
+      <g
+        className="node-add"
+        role="button"
+        tabIndex={0}
+        aria-label={`Add to ${target.name}`}
+        onClick={(event) => onOpenMenu(event, parentOutcome, target)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            event.stopPropagation();
+            onOpenMenu(event, parentOutcome, target);
+          }
+        }}
+      >
+        <circle cx={x + NODE_W / 2} cy={y + NODE_H / 2} r="11" />
+        <path d={`M${x + NODE_W / 2 - 5} ${y + NODE_H / 2}h10M${x + NODE_W / 2} ${y + NODE_H / 2 - 5}v10`} />
+      </g>
     </g>
   );
 }
