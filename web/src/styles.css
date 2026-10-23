@@ -1376,3 +1376,31 @@ button.danger-solid:hover {
   color: var(--muted);
   font-size: 13px;
 }
+
+/* Hovering a relationship line softly lights up the two nodes it joins. */
+.tree-edge-hit {
+  stroke: transparent;
+  stroke-width: 12;
+  pointer-events: stroke;
+}
+
+.tree-edge-hit:hover {
+  cursor: default;
+}
+
+.edge-hover .tree-node rect {
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 55%, transparent));
+  stroke-width: 2;
+}
+
+.edge-hover .tree-node.project rect {
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--project) 55%, transparent));
+}
+
+.edge-hover .tree-node.impact rect {
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--impact) 55%, transparent));
+}
+
+.edge-hover .tree-node.target rect {
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--target) 55%, transparent));
+}
