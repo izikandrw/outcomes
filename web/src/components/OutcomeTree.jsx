@@ -178,16 +178,16 @@ export default function OutcomeTree({
         >
           <p className="node-menu-head">Add to “{menu.outcome.name}”</p>
           <button type="button" role="menuitem" onClick={() => choose('outcome')}>
-            Child outcome
+            🌱 Child outcome
           </button>
           <button type="button" role="menuitem" onClick={() => choose('target')}>
-            Target
+            🎯 Target
           </button>
           <button type="button" role="menuitem" onClick={() => choose('project')}>
-            Project
+            🚀 Project
           </button>
           <button type="button" role="menuitem" onClick={() => choose('insight')}>
-            Insight
+            💡 Insight
           </button>
         </div>
       )}
