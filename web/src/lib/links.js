@@ -94,6 +94,18 @@ export const INSIGHT_TYPES = [
 export const insightTypeLabel = (type) =>
   INSIGHT_TYPES.find((entry) => entry.id === type)?.label ?? type;
 
+export const IMPACT_AREAS = [
+  { id: 'acquisition', label: 'Acquisition' },
+  { id: 'activation', label: 'Activation' },
+  { id: 'retention', label: 'Retention' },
+  { id: 'expansion', label: 'Expansion' },
+  { id: 'cost', label: 'Cost' },
+  { id: 'other', label: 'Other' },
+];
+
+export const impactAreaLabel = (area) =>
+  IMPACT_AREAS.find((entry) => entry.id === area)?.label ?? area;
+
 // Whole dollars when the amount is whole, cents otherwise. NUMERIC columns
 // arrive as strings, so this takes either.
 export const formatDollars = (value) =>

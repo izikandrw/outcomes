@@ -1,4 +1,5 @@
 const PAGES = [
+  { id: 'map', label: 'Map' },
   { id: 'outcomes', label: 'Outcomes' },
   { id: 'roadmap', label: 'Roadmap' },
   { id: 'insights', label: 'Insights' },

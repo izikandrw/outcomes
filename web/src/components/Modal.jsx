@@ -5,7 +5,7 @@ import { CloseIcon } from './icons.jsx';
 // focus trapping and Esc handling rather than us reimplementing them.
 // `header`, when given, replaces the plain text title in the head (e.g. a
 // clickable tag) — `title` still supplies the accessible name either way.
-export default function Modal({ title, header, onClose, children }) {
+export default function Modal({ title, header, wide, onClose, children }) {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export default function Modal({ title, header, onClose, children }) {
   }
 
   return (
-    <dialog ref={ref} className="modal" aria-label={title} onCancel={cancel} onClick={click}>
+    <dialog ref={ref} className={`modal${wide ? ' wide' : ''}`} aria-label={title} onCancel={cancel} onClick={click}>
       <div className="modal-body">
         <div className="modal-head">
           {header ?? <h2>{title}</h2>}

@@ -89,6 +89,8 @@ CREATE TABLE insights (
     source      TEXT,
     observed_at TIMESTAMPTZ,
     dollar_impact NUMERIC(14, 2),
+    impact_area TEXT
+                CHECK (impact_area IN ('acquisition', 'activation', 'retention', 'expansion', 'cost', 'other')),
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );

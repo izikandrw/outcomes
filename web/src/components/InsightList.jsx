@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { INSIGHT_TYPES, formatDollars, insightTypeLabel } from '../lib/links.js';
+import { INSIGHT_TYPES, formatDollars, impactAreaLabel, insightTypeLabel } from '../lib/links.js';
 import { PencilIcon, PlusIcon, TrashIcon } from './icons.jsx';
 
 // Every insight in the account, filterable by text and type. Each row shows how
@@ -61,6 +61,7 @@ export default function InsightList({ insights, onCreate, onEdit, onDelete }) {
                     <span className="tag">{insightTypeLabel(insight.type)}</span>
                     <span className="tag">{plural(insight.outcome_ids.length, 'outcome')}</span>
                     <span className="tag project">{plural(insight.project_ids.length, 'project')}</span>
+                    {insight.impact_area && <span className="tag">{impactAreaLabel(insight.impact_area)}</span>}
                     {insight.dollar_impact != null && (
                       <span className="tag">{formatDollars(insight.dollar_impact)}</span>
                     )}

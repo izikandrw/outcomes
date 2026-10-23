@@ -12,6 +12,8 @@ Insights have a type.
 
 Insights can carry a dollar impact: the estimated amount of money the observation represents, such as revenue at risk or cost incurred. It is optional, since not every observation can be priced.
 
+Insights can have an impact area: the part of the business the impact lands on — acquisition, activation, retention, expansion, cost, or other. It is a single value, since the dollar impact is a single number and splitting it across areas would be a guess. It is optional.
+
 # Relationships
 
 Insights can be connected to one or more outcomes, as evidence that the outcome is worth pursuing.

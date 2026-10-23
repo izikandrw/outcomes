@@ -5,6 +5,7 @@ const { belongsToAccount, missingFromAccount } = require('../lib/validateRef');
 const router = express.Router({ mergeParams: true });
 
 const TYPES = ['support_ticket', 'session_recording', 'interview', 'funnel', 'experiment', 'other'];
+const IMPACT_AREAS = ['acquisition', 'activation', 'retention', 'expansion', 'cost', 'other'];
 
 // Every read shape carries the linked outcome and project ids so a client can
 // render an insight's evidence trail without extra round trips.
@@ -32,7 +33,7 @@ async function fetchInsight(executor, insightId, accountId) {
 // Validates the body. Writes the response and returns null when something
 // doesn't check out; otherwise returns the normalised values.
 async function readBody(req, res) {
-  const { name, type, description, source, observed_at, dollar_impact, team_id, outcome_ids, project_ids } = req.body;
+  const { name, type, description, source, observed_at, dollar_impact, impact_area, team_id, outcome_ids, project_ids } = req.body;
 
   if (!name) {
     res.status(400).json({ error: 'name is required' });
@@ -40,6 +41,10 @@ async function readBody(req, res) {
   }
   if (type !== undefined && !TYPES.includes(type)) {
     res.status(400).json({ error: `type must be one of: ${TYPES.join(', ')}` });
+    return null;
+  }
+  if (impact_area !== undefined && impact_area !== null && impact_area !== '' && !IMPACT_AREAS.includes(impact_area)) {
+    res.status(400).json({ error: `impact_area must be one of: ${IMPACT_AREAS.join(', ')}` });
     return null;
   }
   if (dollar_impact !== undefined && dollar_impact !== null && dollar_impact !== '') {
@@ -79,6 +84,7 @@ async function readBody(req, res) {
     source: source || null,
     observedAt: observed_at || null,
     dollarImpact: dollar_impact === undefined || dollar_impact === null || dollar_impact === '' ? null : Number(dollar_impact),
+    impactArea: impact_area || null,
     teamId: team_id || null,
     outcomeIds: links.outcome_ids,
     projectIds: links.project_ids,
@@ -132,9 +138,9 @@ router.post('/', async (req, res, next) => {
     client = await pool.connect();
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `INSERT INTO insights (account_id, team_id, name, type, description, source, observed_at, dollar_impact)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-      [req.accountId, input.teamId, input.name, input.type, input.description, input.source, input.observedAt, input.dollarImpact]
+      `INSERT INTO insights (account_id, team_id, name, type, description, source, observed_at, dollar_impact, impact_area)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+      [req.accountId, input.teamId, input.name, input.type, input.description, input.source, input.observedAt, input.dollarImpact, input.impactArea]
     );
     await replaceAllLinks(client, rows[0].id, req.accountId, {
       outcomeIds: input.outcomeIds ?? [],
@@ -161,8 +167,8 @@ router.put('/:insightId', async (req, res, next) => {
     await client.query('BEGIN');
     const { rows } = await client.query(
       `UPDATE insights SET name = $1, type = $2, description = $3, source = $4, observed_at = $5,
-         dollar_impact = $6, team_id = $7, updated_at = now()
-       WHERE id = $8 AND account_id = $9 RETURNING id`,
+         dollar_impact = $6, impact_area = $7, team_id = $8, updated_at = now()
+       WHERE id = $9 AND account_id = $10 RETURNING id`,
       [
         input.name,
         input.type,
@@ -170,6 +176,7 @@ router.put('/:insightId', async (req, res, next) => {
         input.source,
         input.observedAt,
         input.dollarImpact,
+        input.impactArea,
         input.teamId,
         req.params.insightId,
         req.accountId,

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { INSIGHT_TYPES } from '../lib/links.js';
+import { IMPACT_AREAS, INSIGHT_TYPES } from '../lib/links.js';
 
 // Creates an insight or edits one in place. Evidence is linked to the outcomes
 // and projects it supports from here (a new insight started from an outcome
@@ -12,6 +12,7 @@ export default function InsightForm({ editing, outcome, project, teams, outcomes
     source: editing?.source ?? '',
     observed_at: asDateInput(editing?.observed_at),
     dollar_impact: editing?.dollar_impact ?? '',
+    impact_area: editing?.impact_area ?? '',
     team_id: editing?.team_id ? String(editing.team_id) : '',
   });
   const [outcomeIds, setOutcomeIds] = useState(
@@ -41,6 +42,7 @@ export default function InsightForm({ editing, outcome, project, teams, outcomes
         source: form.source.trim() || null,
         observed_at: form.observed_at ? new Date(form.observed_at).toISOString() : null,
         dollar_impact: form.dollar_impact === '' ? null : Number(form.dollar_impact),
+        impact_area: form.impact_area || null,
         team_id: form.team_id ? Number(form.team_id) : null,
         outcome_ids: [...outcomeIds].map(Number),
         project_ids: [...projectIds].map(Number),
@@ -85,16 +87,29 @@ export default function InsightForm({ editing, outcome, project, teams, outcomes
         </label>
       </div>
 
-      <label>
-        Dollar impact
-        <input
-          type="number"
-          step="0.01"
-          value={form.dollar_impact}
-          placeholder="Estimated $ at stake, e.g. 120000"
-          onChange={(event) => update('dollar_impact', event.target.value)}
-        />
-      </label>
+      <div className="row">
+        <label>
+          Dollar impact
+          <input
+            type="number"
+            step="0.01"
+            value={form.dollar_impact}
+            placeholder="Estimated $ at stake, e.g. 120000"
+            onChange={(event) => update('dollar_impact', event.target.value)}
+          />
+        </label>
+        <label>
+          Impact area
+          <select value={form.impact_area} onChange={(event) => update('impact_area', event.target.value)}>
+            <option value="">Not specified</option>
+            {IMPACT_AREAS.map((area) => (
+              <option key={area.id} value={area.id}>
+                {area.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
       <label>
         Source

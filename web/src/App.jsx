@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as api from './api.js';
 import InsightForm from './components/InsightForm.jsx';
+import AccountMenu from './components/AccountMenu.jsx';
 import EntityInsights from './components/EntityInsights.jsx';
 import InsightList from './components/InsightList.jsx';
 import MeasurementForm from './components/MeasurementForm.jsx';
@@ -36,7 +37,7 @@ export default function App({ user, account, onSignOut }) {
   // is the row being edited, `parent` the outcome a new child hangs off, and
   // `parentId` (for kind 'outcome') the live value of the parent-outcome tag.
   const [modal, setModal] = useState(null);
-  const [view, setView] = useState(() => localStorage.getItem(STORED_VIEW) || 'tree');
+  const [view, setView] = useState(() => localStorage.getItem(STORED_VIEW) || 'list');
   const [page, setPage] = useState(() => localStorage.getItem(STORED_PAGE) || 'outcomes');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -201,6 +202,25 @@ export default function App({ user, account, onSignOut }) {
     setModal(null);
   }
 
+  // Inline edit of one field from a table; the PUT replaces the whole insight,
+  // so send the rest of it back unchanged. Throws so the cell can show the error.
+  async function patchInsight(insight, patch) {
+    const updated = await api.updateInsight(accountId, insight.id, {
+      name: insight.name,
+      type: insight.type,
+      description: insight.description,
+      source: insight.source,
+      observed_at: insight.observed_at,
+      dollar_impact: insight.dollar_impact,
+      impact_area: insight.impact_area,
+      team_id: insight.team_id,
+      outcome_ids: insight.outcome_ids.map(Number),
+      project_ids: insight.project_ids.map(Number),
+      ...patch,
+    });
+    setInsights((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+  }
+
   async function removeInsight(insight) {
     if (!window.confirm(`Delete insight "${insight.name}"?`)) return;
     try {
@@ -257,19 +277,12 @@ export default function App({ user, account, onSignOut }) {
       <header>
         <h1>Outcomes</h1>
         <TopNav page={page} onChange={changePage} />
-        <div className="account-bar">
-          <span className="account-name">
-            {account.name} · {user.email}
-          </span>
-          {user.role === 'admin' && (
-            <button type="button" className="ghost small" onClick={() => setModal({ kind: 'members' })}>
-              Members
-            </button>
-          )}
-          <button type="button" className="ghost small" onClick={onSignOut}>
-            Sign out
-          </button>
-        </div>
+        <AccountMenu
+          user={user}
+          account={account}
+          onMembers={() => setModal({ kind: 'members' })}
+          onSignOut={onSignOut}
+        />
       </header>
 
       {error && <p className="error banner">{error}</p>}
@@ -322,9 +335,9 @@ export default function App({ user, account, onSignOut }) {
               )}
             </section>
           ) : (
-          <section className="card" aria-label="Outcomes">
+          <section className="card" aria-label={page === 'map' ? 'Map' : 'Outcomes'}>
             <div className="list-head">
-              <ViewToggle view={view} onChange={changeView} />
+              {page === 'map' ? <span /> : <ViewToggle view={view === 'issues' ? 'issues' : 'list'} onChange={changeView} />}
               <button type="button" className="with-icon" onClick={openCreate}>
                 <PlusIcon />
                 New outcome
@@ -334,7 +347,7 @@ export default function App({ user, account, onSignOut }) {
               <p className="empty">Loading…</p>
             ) : outcomes.length === 0 ? (
               <EmptyOutcomes onCreate={openCreate} />
-            ) : view === 'tree' ? (
+            ) : page === 'map' ? (
               <OutcomeTree
                 outcomes={outcomes}
                 teams={teams}
@@ -375,6 +388,7 @@ export default function App({ user, account, onSignOut }) {
       {modal && (
         <Modal
           title={modalTitle(modal)}
+          wide={modal.kind === 'entity-insights'}
           header={
             modal.kind === 'outcome' ? (
               <ParentOutcomeTag
@@ -398,6 +412,7 @@ export default function App({ user, account, onSignOut }) {
                   : insightsForOutcome(insights, modal.entity)
               }
               onOpen={(insight) => setModal({ kind: 'insight', insight })}
+              onUpdate={patchInsight}
               onAdd={() =>
                 setModal({
                   kind: 'insight',
