@@ -852,6 +852,11 @@ button.small {
   font-weight: 600;
   fill: var(--target);
   font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.tree-node-target:hover {
+  text-decoration: underline;
 }
 
 /* Impacts sit above the outcomes that drive them: the business result the
@@ -1669,4 +1674,160 @@ button.team-chip.link:hover {
 
 .edge-unlink:focus-visible {
   outline: none;
+}
+
+/* The name and range of a target, as one button that opens its measurements. */
+.target-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.target-open:hover .target-name {
+  text-decoration: underline;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.measurement-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.measurement-table th,
+.measurement-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid color-mix(in srgb, var(--muted) 25%, transparent);
+}
+
+.measurement-table th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.measurement-table .num {
+  text-align: right;
+}
+
+.target-measurements-range {
+  margin: 0 0 12px;
+  text-align: center;
+}
+
+.target-measurements-range .target-range {
+  font-size: 16px;
+  padding: 4px 14px;
+}
+
+.measurement-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-bottom: 12px;
+}
+
+.chart-grid {
+  stroke: color-mix(in srgb, var(--muted) 22%, transparent);
+  stroke-width: 1;
+}
+
+.chart-label {
+  font-size: 11px;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.chart-point {
+  fill: var(--surface);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.chart-goal {
+  stroke: var(--target);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+
+/* Native <details>, collapsed by default so the chart leads. */
+.measurement-accordion > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  list-style: none;
+}
+
+.measurement-accordion > summary::-webkit-details-marker {
+  display: none;
+}
+
+.measurement-accordion > summary::before {
+  content: '▸';
+  transition: transform 120ms ease;
+}
+
+.measurement-accordion[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.target-measurements-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+/* In-place editing of a target's range pill: each part reads as text until hovered. */
+.target-range-part {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0 2px;
+  margin: 0;
+  border-radius: 4px;
+  cursor: text;
+}
+
+.target-range-part:hover,
+.target-range-part:focus-visible {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  outline: none;
+}
+
+.target-range-input {
+  font: inherit;
+  width: auto;
+  min-width: 3ch;
+  padding: 0 4px;
+  text-align: center;
+}
+
+.target-range-error {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
 }

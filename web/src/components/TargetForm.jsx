@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { formatValue } from '../lib/links.js';
 
+// Suggestions only: the unit stays free text, so anything typed is accepted.
+export const COMMON_UNITS = ['$', '%', 'hours', 'days', 'users', 'customers', 'tickets', 'points'];
+
 const EMPTY = {
   name: '',
   description: '',
@@ -131,9 +134,15 @@ export default function TargetForm({ outcome, parentKind = 'outcome', editing, o
           </span>
           <input
             value={form.unit}
-            placeholder="admins, percent…"
+            list="target-unit-options"
+            placeholder="Pick one or type your own"
             onChange={(event) => update('unit', event.target.value)}
           />
+          <datalist id="target-unit-options">
+            {COMMON_UNITS.map((unit) => (
+              <option key={unit} value={unit} />
+            ))}
+          </datalist>
         </label>
       </div>
 

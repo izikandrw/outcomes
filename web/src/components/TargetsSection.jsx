@@ -4,7 +4,7 @@ import { PencilIcon, PlusIcon, TrashIcon } from './icons.jsx';
 // The targets an outcome or impact owns, listed inside its own form. A target
 // belongs to exactly one of them, so this is where they are added and edited.
 // A parent that hasn't been saved yet has nothing to attach a target to.
-export default function TargetsSection({ targets, saved, onAdd, onEdit, onDelete }) {
+export default function TargetsSection({ targets, saved, onAdd, onEdit, onDelete, onView }) {
   return (
     <section className="targets-section" aria-label="Targets">
       <div className="targets-section-head">
@@ -25,8 +25,16 @@ export default function TargetsSection({ targets, saved, onAdd, onEdit, onDelete
           {targets.map((target) => (
             <li key={target.id} className="target">
               <div className="target-head">
-                {target.name && <span className="target-name">{target.name}</span>}
-                <span className="target-range">{targetRange(target)}</span>
+                <button
+                  type="button"
+                  className="target-open"
+                  title="Show measurements"
+                  aria-label={`Show measurements for ${targetLabel(target)}`}
+                  onClick={() => onView(target)}
+                >
+                  {target.name && <span className="target-name">{target.name}</span>}
+                  <span className="target-range">{targetRange(target)}</span>
+                </button>
                 <span className="target-actions">
                   <button
                     type="button"

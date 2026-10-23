@@ -30,6 +30,7 @@ export default function OutcomeList({
   onAddTarget,
   onEditTarget,
   onDeleteTarget,
+  onViewTarget,
 }) {
   const nameOf = (collection, id) => collection.find((item) => item.id === id)?.name ?? null;
 
@@ -96,6 +97,7 @@ export default function OutcomeList({
                     <Target
                       key={target.id}
                       target={target}
+                      onView={() => onViewTarget(target)}
                       onEdit={() => onEditTarget(target, outcome)}
                       onDelete={() => onDeleteTarget(target)}
                     />
@@ -118,7 +120,7 @@ export default function OutcomeList({
   );
 }
 
-function Target({ target, onEdit, onDelete }) {
+function Target({ target, onView, onEdit, onDelete }) {
   const progress = progressOf(target);
   // The bar is clamped so an overshoot or a slide backwards still draws, while
   // the percentage beside it keeps reporting the real number.
@@ -127,8 +129,16 @@ function Target({ target, onEdit, onDelete }) {
   return (
     <li className="target">
       <div className="target-head">
-        {target.name && <span className="target-name">{target.name}</span>}
-        <span className="target-range">{targetRange(target)}</span>
+        <button
+          type="button"
+          className="target-open"
+          title="Show measurements"
+          aria-label={`Show measurements for ${targetLabel(target)}`}
+          onClick={onView}
+        >
+          {target.name && <span className="target-name">{target.name}</span>}
+          <span className="target-range">{targetRange(target)}</span>
+        </button>
         <span className="target-actions">
           <button
             type="button"

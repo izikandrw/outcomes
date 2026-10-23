@@ -12,6 +12,7 @@ import Modal from './components/Modal.jsx';
 import OutcomeForm from './components/OutcomeForm.jsx';
 import ParentOutcomeTag from './components/ParentOutcomeTag.jsx';
 import ProjectForm from './components/ProjectForm.jsx';
+import TargetMeasurements from './components/TargetMeasurements.jsx';
 import TargetForm from './components/TargetForm.jsx';
 import TeamForm from './components/TeamForm.jsx';
 import TeamHome from './components/TeamHome.jsx';
@@ -133,6 +134,17 @@ export default function App({ user, account, onSignOut }) {
   // A target is always edited in the context of the outcome or impact it quantifies.
   const openEditTarget = (target, parent, parentKind = 'outcome') =>
     setModal({ kind: 'target', outcome: null, target, parent, parentKind });
+  const viewTarget = (target) => setModal({ kind: 'target-measurements', target });
+  // From a target's measurements: the reading form is for that one target, and
+  // `returnTo` brings the user back to the table once it is saved or cancelled.
+  const addReading = (target) => {
+    const parentKind = target.impact_id != null ? 'impact' : 'outcome';
+    const parent =
+      parentKind === 'impact'
+        ? impacts.find((item) => String(item.id) === String(target.impact_id))
+        : outcomes.find((item) => String(item.id) === String(target.outcome_id));
+    setModal({ kind: 'measurement', target, parent, parentKind, returnTo: target });
+  };
   // entity is the outcome or project whose insights to list; kind says which.
   const showInsights = (entity, kind) => setModal({ kind: 'entity-insights', entity, entityKind: kind });
   const openEditProject = (project) => setModal({ kind: 'project', project, parent: null });
@@ -259,8 +271,11 @@ export default function App({ user, account, onSignOut }) {
     } catch {
       /* empty */
     }
-    setModal(null);
+    closeMeasurement();
   }
+
+  const closeMeasurement = () =>
+    setModal(modal?.returnTo ? { kind: 'target-measurements', target: modal.returnTo } : null);
 
   async function removeTarget(target) {
     if (!(await askConfirm('Delete target?', `“${targetLabel(target)}” will be permanently deleted.`))) return;
@@ -519,6 +534,7 @@ export default function App({ user, account, onSignOut }) {
                 onShowInsights={showInsights}
                 onEdit={openEdit}
                 onEditImpact={openEditImpact}
+                onViewTarget={viewTarget}
                 onEditProject={openEditProject}
                 onAdd={openAdd}
                 onAddChildProject={openAddChildProject}
@@ -539,6 +555,7 @@ export default function App({ user, account, onSignOut }) {
                 onAddTarget={(outcome) => openAdd(outcome, 'target')}
                 onEditTarget={openEditTarget}
                 onDeleteTarget={removeTarget}
+                onViewTarget={viewTarget}
               />
             ) : (
               <PotentialIssues
@@ -615,6 +632,7 @@ export default function App({ user, account, onSignOut }) {
               onAddTarget={() => openAdd(modal.impact, 'target', 'impact')}
               onEditTarget={(target) => openEditTarget(target, modal.impact, 'impact')}
               onDeleteTarget={removeTarget}
+              onViewTarget={viewTarget}
               onSubmit={saveImpact}
               onCancel={() => setModal(null)}
               onDelete={() => removeImpact(modal.impact)}
@@ -628,6 +646,16 @@ export default function App({ user, account, onSignOut }) {
               onSubmit={saveTeam}
               onCancel={() => setModal(null)}
               onDelete={() => removeTeam(modal.team)}
+            />
+          ) : modal.kind === 'target-measurements' ? (
+            <TargetMeasurements
+              target={targets.find((item) => item.id === modal.target.id) ?? modal.target}
+              measurements={measurements}
+              onAddReading={addReading}
+              onUpdateTarget={async (existing, body) => {
+                const updated = await api.updateTarget(accountId, existing.id, body);
+                setTargets((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+              }}
             />
           ) : modal.kind === 'target' ? (
             <TargetForm
@@ -645,7 +673,7 @@ export default function App({ user, account, onSignOut }) {
                 modal.target ? [modal.target] : targetsFor(targets, modal.parent, modal.parentKind)
               }
               onSubmit={saveMeasurement}
-              onCancel={() => setModal(null)}
+              onCancel={closeMeasurement}
               onAddTarget={() => openAdd(modal.parent, 'target', modal.parentKind)}
             />
           ) : modal.kind === 'project' ? (
@@ -671,6 +699,7 @@ export default function App({ user, account, onSignOut }) {
               onAddTarget={() => openAdd(modal.outcome, 'target', 'outcome')}
               onEditTarget={(target) => openEditTarget(target, modal.outcome, 'outcome')}
               onDeleteTarget={removeTarget}
+              onViewTarget={viewTarget}
               onSubmit={saveOutcome}
               onCancel={() => setModal(null)}
               onDelete={() => removeOutcome(modal.outcome)}
@@ -699,6 +728,7 @@ function modalTitle({ kind, outcome, parent, target, project, team, insight, imp
   if (kind === 'team') return team ? `Edit team #${team.id}` : 'New team';
   if (kind === 'target') return target ? `Edit target #${target.id}` : 'New target';
   if (kind === 'measurement') return 'New measurement';
+  if (kind === 'target-measurements') return targetLabel(target);
   if (kind === 'project') return project ? `Edit project #${project.id}` : 'New project';
   if (outcome) return `Edit outcome #${outcome.id}`;
   return parent ? 'New child outcome' : 'New outcome';

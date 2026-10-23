@@ -41,6 +41,7 @@ export default function OutcomeTree({
   insights,
   onEdit,
   onEditImpact,
+  onViewTarget,
   onEditProject,
   onShowInsights,
   onAdd,
@@ -206,6 +207,7 @@ export default function OutcomeTree({
               impact={node.data}
               targets={targets}
               onEdit={onEditImpact}
+              onViewTarget={onViewTarget}
               onOpenMenu={openMenu}
               {...node}
             />
@@ -239,6 +241,7 @@ export default function OutcomeTree({
               issues={issuesFor(validation, 'outcome', node.data)}
               onShowInsights={onShowInsights}
               onEdit={onEdit}
+              onViewTarget={onViewTarget}
               onOpenMenu={openMenu}
               {...node}
             />
@@ -312,6 +315,7 @@ function OutcomeNode({
   issues,
   onShowInsights,
   onEdit,
+  onViewTarget,
   onOpenMenu,
 }) {
   const nameOf = (collection, id) => collection.find((item) => item.id === id)?.name ?? null;
@@ -363,7 +367,14 @@ function OutcomeNode({
           .join('\n')}
       </title>
       <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={NODE_H} rx="10" />
-      <NodeText x={x} y={y} lines={lines} targetLine={targetLine} lift={LABEL_LIFT} />
+      <NodeText
+        x={x}
+        y={y}
+        lines={lines}
+        targetLine={targetLine}
+        lift={LABEL_LIFT}
+        onTargetClick={() => onViewTarget(quantified[0])}
+      />
 
       {/* Revealed on hover or keyboard focus; opens the add menu. */}
       <g
@@ -396,7 +407,7 @@ function OutcomeNode({
 
 // The business result at the top of the tree. Click edits it; the hover "+"
 // adds a child impact, an outcome driving it, or a target measuring it.
-function ImpactNode({ impact, x, y, depth, targets, onEdit, onOpenMenu }) {
+function ImpactNode({ impact, x, y, depth, targets, onEdit, onViewTarget, onOpenMenu }) {
   const quantified = targetsForImpact(targets, impact);
   const { lines, targetLine } = nodeLabel(impact.name, quantified);
 
@@ -428,7 +439,13 @@ function ImpactNode({ impact, x, y, depth, targets, onEdit, onOpenMenu }) {
           .join('\n')}
       </title>
       <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={NODE_H} rx="10" />
-      <NodeText x={x} y={y} lines={lines} targetLine={targetLine} />
+      <NodeText
+        x={x}
+        y={y}
+        lines={lines}
+        targetLine={targetLine}
+        onTargetClick={() => onViewTarget(quantified[0])}
+      />
 
       <g
         className="node-add"
@@ -622,7 +639,9 @@ function nodeLabel(name, quantified) {
   return { lines: wrapLabel(name, MAX_CHARS, MAX_LINES - 1), targetLine };
 }
 
-function NodeText({ x, y, lines, targetLine, lift = 0 }) {
+// Clicking the target line opens that target's measurements instead of the
+// node's edit form; with several targets it is the first one, the one shown.
+function NodeText({ x, y, lines, targetLine, lift = 0, onTargetClick }) {
   const all = targetLine ? [...lines, targetLine] : lines;
   return (
     <text x={x} y={y + NODE_H / 2 - lift} textAnchor="middle" dominantBaseline="middle">
@@ -630,6 +649,14 @@ function NodeText({ x, y, lines, targetLine, lift = 0 }) {
         <tspan
           key={index}
           className={targetLine && index === all.length - 1 ? 'tree-node-target' : undefined}
+          onClick={
+            targetLine && index === all.length - 1
+              ? (event) => {
+                  event.stopPropagation();
+                  onTargetClick();
+                }
+              : undefined
+          }
           x={x}
           dy={index === 0 ? -((all.length - 1) * LINE_H) / 2 : LINE_H}
         >

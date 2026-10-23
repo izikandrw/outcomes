@@ -14,6 +14,7 @@ export default function ImpactForm({
   onAddTarget,
   onEditTarget,
   onDeleteTarget,
+  onViewTarget,
   onSubmit,
   onCancel,
   onDelete,
@@ -105,6 +106,7 @@ export default function ImpactForm({
         onAdd={onAddTarget}
         onEdit={onEditTarget}
         onDelete={onDeleteTarget}
+        onView={onViewTarget}
       />
 
       {error && <p className="error">{error}</p>}

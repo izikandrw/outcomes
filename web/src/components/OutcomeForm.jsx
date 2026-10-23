@@ -26,6 +26,7 @@ export default function OutcomeForm({
   onAddTarget,
   onEditTarget,
   onDeleteTarget,
+  onViewTarget,
   onSubmit,
   onCancel,
   onDelete,
@@ -163,6 +164,7 @@ export default function OutcomeForm({
         onAdd={onAddTarget}
         onEdit={onEditTarget}
         onDelete={onDeleteTarget}
+        onView={onViewTarget}
       />
 
       {error && <p className="error">{error}</p>}
