@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import {
   insightsForOutcome,
   insightsForProject,
+  totalDollarImpact,
+  formatDollars,
   measurementsForOutcome,
   projectsForOutcome,
   targetsForOutcome,
@@ -32,6 +34,7 @@ export default function OutcomeTree({
   onAdd,
   onDelete,
   onDeleteProject,
+  onAddChildProject,
 }) {
   const { nodes, edges, width, height } = layout(outcomes, projects);
   // { outcome, left, top } — anchored in viewport coordinates so the menu is
@@ -114,9 +117,11 @@ export default function OutcomeTree({
               project={node.data}
               teams={teams}
               insightCount={insightsForProject(insights, node.data).length}
+              insightDollars={totalDollarImpact(insightsForProject(insights, node.data))}
               onShowInsights={onShowInsights}
               onEdit={onEditProject}
               onDelete={onDeleteProject}
+              onAddChild={onAddChildProject}
               {...node}
             />
           ) : (
@@ -128,6 +133,7 @@ export default function OutcomeTree({
               targets={targets}
               measurements={measurements}
               insightCount={insightsForOutcome(insights, node.data).length}
+              insightDollars={totalDollarImpact(insightsForOutcome(insights, node.data))}
               onShowInsights={onShowInsights}
               onEdit={onEdit}
               onDelete={onDelete}
@@ -178,6 +184,7 @@ function OutcomeNode({
   targets,
   measurements,
   insightCount,
+  insightDollars,
   onShowInsights,
   onEdit,
   onDelete,
@@ -256,14 +263,14 @@ function OutcomeNode({
           }v10`}
         />
       </g>
-      <InsightPill x={x} y={y} count={insightCount} label={outcome.name} onOpen={() => onShowInsights(outcome, 'outcome')} />
+      <InsightPill x={x} y={y} count={insightCount} dollars={insightDollars} label={outcome.name} onOpen={() => onShowInsights(outcome, 'outcome')} />
       <DeleteButton x={x} y={y} label={outcome.name} onDelete={() => onDelete(outcome)} />
     </g>
   );
 }
 
 // Always visible, bottom-left of the node: how many insights back it up.
-function InsightPill({ x, y, count, label, onOpen }) {
+function InsightPill({ x, y, count, dollars, label, onOpen }) {
   const cx = x - NODE_W / 2 + 18;
   const cy = y + NODE_H;
   return (
@@ -288,6 +295,14 @@ function InsightPill({ x, y, count, label, onOpen }) {
       <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
         💡{count}
       </text>
+      {dollars != null && (
+        <>
+          <rect x={cx + 22} y={cy - 9} width={formatDollars(dollars).length * 7 + 12} height="18" rx="9" />
+          <text x={cx + 28 + (formatDollars(dollars).length * 7) / 2} y={cy} textAnchor="middle" dominantBaseline="central">
+            {formatDollars(dollars)}
+          </text>
+        </>
+      )}
     </g>
   );
 }
@@ -320,9 +335,21 @@ function DeleteButton({ x, y, label, onDelete }) {
   );
 }
 
-// A project is a leaf with no children of its own here, so it gets no
-// add-menu, but it opens the same edit modal an outcome does.
-function ProjectNode({ project, x, y, depth, teams, insightCount, onShowInsights, onEdit, onDelete }) {
+// Opens the same edit modal an outcome does; its hover "+" adds a child
+// project directly, since that is the only thing that can hang under one.
+function ProjectNode({
+  project,
+  x,
+  y,
+  depth,
+  teams,
+  insightCount,
+  insightDollars,
+  onShowInsights,
+  onEdit,
+  onDelete,
+  onAddChild,
+}) {
   const team = teams.find((item) => item.id === project.team_id)?.name ?? null;
   // Reserve the last line for the team badge so it doesn't get squeezed out
   // by a long project name.
@@ -361,16 +388,42 @@ function ProjectNode({ project, x, y, depth, teams, insightCount, onShowInsights
           </tspan>
         ))}
       </text>
-      <InsightPill x={x} y={y} count={insightCount} label={project.name} onOpen={() => onShowInsights(project, 'project')} />
+
+      <g
+        className="node-add"
+        role="button"
+        tabIndex={0}
+        aria-label={`Add child project to ${project.name}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          onAddChild(project);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            event.stopPropagation();
+            onAddChild(project);
+          }
+        }}
+      >
+        <circle cx={x + NODE_W / 2} cy={y + NODE_H / 2} r="11" />
+        <path
+          d={`M${x + NODE_W / 2 - 5} ${y + NODE_H / 2}h10M${x + NODE_W / 2} ${
+            y + NODE_H / 2 - 5
+          }v10`}
+        />
+      </g>
+      <InsightPill x={x} y={y} count={insightCount} dollars={insightDollars} label={project.name} onOpen={() => onShowInsights(project, 'project')} />
       <DeleteButton x={x} y={y} label={project.name} onDelete={() => onDelete(project)} />
     </g>
   );
 }
 
-// Places outcomes as a node-link tree, then hangs each project as a leaf
-// under the first outcome (in list order) it drives. A project linked to more
-// than one outcome is still drawn once — the other outcomes it drives get a
-// dashed cross-edge to that same node instead of a duplicate.
+// Places outcomes as a node-link tree, then hangs each project as a node
+// under the first outcome (in list order) it drives, or under its parent
+// project when it has one. A project linked to more than one outcome is still
+// drawn once — the other outcomes it drives get a dashed cross-edge to that
+// same node instead of a duplicate.
 function layout(outcomes, projects) {
   const byParent = new Map();
   for (const outcome of outcomes) {
@@ -379,11 +432,24 @@ function layout(outcomes, projects) {
     byParent.get(key).push(outcome);
   }
 
+  // A project whose parent isn't in the set is drawn as if it had none.
+  const presentProjects = new Set(projects.map((project) => String(project.id)));
+  const nestedUnder = (project) =>
+    project.parent_project_id != null && presentProjects.has(String(project.parent_project_id));
+
+  const projectsByParent = new Map(); // project.id -> child project[]
+  for (const project of projects) {
+    if (!nestedUnder(project)) continue;
+    const key = String(project.parent_project_id);
+    if (!projectsByParent.has(key)) projectsByParent.set(key, []);
+    projectsByParent.get(key).push(project);
+  }
+
   const primaryOutcomeOf = new Map(); // project.id -> outcome.id it's drawn under
   const projectsByOutcome = new Map(); // outcome.id -> project[] drawn under it
   for (const outcome of outcomes) {
     for (const project of projectsForOutcome(projects, outcome)) {
-      if (primaryOutcomeOf.has(project.id)) continue;
+      if (nestedUnder(project) || primaryOutcomeOf.has(project.id)) continue;
       primaryOutcomeOf.set(project.id, outcome.id);
       if (!projectsByOutcome.has(outcome.id)) projectsByOutcome.set(outcome.id, []);
       projectsByOutcome.get(outcome.id).push(project);
@@ -393,26 +459,31 @@ function layout(outcomes, projects) {
   const nodes = [];
   const edges = [];
   const placed = new Set(); // guards against a parent cycle the API doesn't reject
+  const placedProjects = new Set();
   let maxDepth = 0;
 
   function place(item, depth, left) {
     maxDepth = Math.max(maxDepth, depth);
     const y = PAD + depth * LEVEL_H;
+    const entity = item.data;
 
+    let children;
     if (item.kind === 'project') {
-      const x = left + NODE_W / 2;
-      nodes.push({ type: 'project', data: item.data, x, y, depth });
-      return { id: item.data.id, x, y, right: left + NODE_W };
+      placedProjects.add(entity.id);
+      children = (projectsByParent.get(String(entity.id)) ?? [])
+        .filter((child) => !placedProjects.has(child.id))
+        .map((child) => ({ kind: 'project', data: child }));
+    } else {
+      placed.add(entity.id);
+      const childOutcomes = (byParent.get(entity.id) ?? []).filter((child) => !placed.has(child.id));
+      const childProjects = (projectsByOutcome.get(entity.id) ?? []).filter(
+        (child) => !placedProjects.has(child.id)
+      );
+      children = [
+        ...childOutcomes.map((child) => ({ kind: 'outcome', data: child })),
+        ...childProjects.map((project) => ({ kind: 'project', data: project })),
+      ];
     }
-
-    const outcome = item.data;
-    placed.add(outcome.id);
-    const childOutcomes = (byParent.get(outcome.id) ?? []).filter((child) => !placed.has(child.id));
-    const childProjects = projectsByOutcome.get(outcome.id) ?? [];
-    const children = [
-      ...childOutcomes.map((child) => ({ kind: 'outcome', data: child })),
-      ...childProjects.map((project) => ({ kind: 'project', data: project })),
-    ];
 
     let x;
     let right;
@@ -432,16 +503,16 @@ function layout(outcomes, projects) {
       x = (childPositions[0].x + childPositions[childPositions.length - 1].x) / 2;
     }
 
-    nodes.push({ type: 'outcome', data: outcome, x, y, depth });
+    nodes.push({ type: item.kind, data: entity, x, y, depth });
     for (const child of childPositions) {
       edges.push({
-        key: `${outcome.id}-${child.kind}-${child.id}`,
+        key: `${item.kind}-${entity.id}-${child.kind}-${child.id}`,
         d: elbowPath(x, y + NODE_H, child.x, child.y - 3),
         kind: child.kind,
       });
     }
 
-    return { id: outcome.id, x, y, right };
+    return { id: entity.id, x, y, right };
   }
 
   // An outcome whose parent isn't in the set (filtered out, or a stale id) is

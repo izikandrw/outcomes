@@ -11,6 +11,7 @@ export default function InsightForm({ editing, outcome, project, teams, outcomes
     description: editing?.description ?? '',
     source: editing?.source ?? '',
     observed_at: asDateInput(editing?.observed_at),
+    dollar_impact: editing?.dollar_impact ?? '',
     team_id: editing?.team_id ? String(editing.team_id) : '',
   });
   const [outcomeIds, setOutcomeIds] = useState(
@@ -27,6 +28,8 @@ export default function InsightForm({ editing, outcome, project, teams, outcomes
   async function submit(event) {
     event.preventDefault();
     if (!form.name.trim()) return setError('Name is required.');
+    if (form.dollar_impact !== '' && !Number.isFinite(Number(form.dollar_impact)))
+      return setError('Dollar impact must be a number.');
 
     setSaving(true);
     setError(null);
@@ -37,6 +40,7 @@ export default function InsightForm({ editing, outcome, project, teams, outcomes
         description: form.description.trim() || null,
         source: form.source.trim() || null,
         observed_at: form.observed_at ? new Date(form.observed_at).toISOString() : null,
+        dollar_impact: form.dollar_impact === '' ? null : Number(form.dollar_impact),
         team_id: form.team_id ? Number(form.team_id) : null,
         outcome_ids: [...outcomeIds].map(Number),
         project_ids: [...projectIds].map(Number),
@@ -80,6 +84,17 @@ export default function InsightForm({ editing, outcome, project, teams, outcomes
           />
         </label>
       </div>
+
+      <label>
+        Dollar impact
+        <input
+          type="number"
+          step="0.01"
+          value={form.dollar_impact}
+          placeholder="Estimated $ at stake, e.g. 120000"
+          onChange={(event) => update('dollar_impact', event.target.value)}
+        />
+      </label>
 
       <label>
         Source

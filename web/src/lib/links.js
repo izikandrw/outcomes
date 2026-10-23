@@ -76,6 +76,12 @@ export function insightsForProject(insights, project) {
   return insights.filter((insight) => (insight.project_ids ?? []).some((id) => same(id, project.id)));
 }
 
+// Sum of the dollar impact across a set of insights; null when none is priced.
+export function totalDollarImpact(insights) {
+  const priced = insights.filter((insight) => insight.dollar_impact != null);
+  return priced.length === 0 ? null : priced.reduce((sum, insight) => sum + Number(insight.dollar_impact), 0);
+}
+
 export const INSIGHT_TYPES = [
   { id: 'support_ticket', label: 'Support ticket' },
   { id: 'session_recording', label: 'Session recording' },
@@ -87,3 +93,12 @@ export const INSIGHT_TYPES = [
 
 export const insightTypeLabel = (type) =>
   INSIGHT_TYPES.find((entry) => entry.id === type)?.label ?? type;
+
+// Whole dollars when the amount is whole, cents otherwise. NUMERIC columns
+// arrive as strings, so this takes either.
+export const formatDollars = (value) =>
+  Number(value).toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: Number.isInteger(Number(value)) ? 0 : 2,
+  });

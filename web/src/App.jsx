@@ -92,6 +92,8 @@ export default function App({ user, account, onSignOut }) {
   // entity is the outcome or project whose insights to list; kind says which.
   const showInsights = (entity, kind) => setModal({ kind: 'entity-insights', entity, entityKind: kind });
   const openEditProject = (project) => setModal({ kind: 'project', project, parent: null });
+  const openAddChildProject = (parentProject) =>
+    setModal({ kind: 'project', project: null, parent: null, parentProject });
   const setModalParentId = (parentId) => setModal((current) => (current ? { ...current, parentId } : current));
 
   function changePage(next) {
@@ -346,6 +348,7 @@ export default function App({ user, account, onSignOut }) {
                 onAdd={openAdd}
                 onDelete={removeOutcome}
                 onDeleteProject={removeProject}
+                onAddChildProject={openAddChildProject}
               />
             ) : view === 'list' ? (
               <OutcomeList
@@ -445,6 +448,7 @@ export default function App({ user, account, onSignOut }) {
             <ProjectForm
               editing={modal.project}
               outcome={modal.parent}
+              parentProject={modal.parentProject}
               teams={teams}
               onSubmit={saveProject}
               onCancel={() => setModal(null)}

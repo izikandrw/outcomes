@@ -10,6 +10,8 @@ Insights are reusable. The same observation can justify several outcomes and sev
 
 Insights have a type.
 
+Insights can carry a dollar impact: the estimated amount of money the observation represents, such as revenue at risk or cost incurred. It is optional, since not every observation can be priced.
+
 # Relationships
 
 Insights can be connected to one or more outcomes, as evidence that the outcome is worth pursuing.

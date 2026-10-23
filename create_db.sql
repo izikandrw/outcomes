@@ -88,6 +88,7 @@ CREATE TABLE insights (
     description TEXT,
     source      TEXT,
     observed_at TIMESTAMPTZ,
+    dollar_impact NUMERIC(14, 2),
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );

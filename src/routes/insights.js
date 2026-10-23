@@ -32,7 +32,7 @@ async function fetchInsight(executor, insightId, accountId) {
 // Validates the body. Writes the response and returns null when something
 // doesn't check out; otherwise returns the normalised values.
 async function readBody(req, res) {
-  const { name, type, description, source, observed_at, team_id, outcome_ids, project_ids } = req.body;
+  const { name, type, description, source, observed_at, dollar_impact, team_id, outcome_ids, project_ids } = req.body;
 
   if (!name) {
     res.status(400).json({ error: 'name is required' });
@@ -41,6 +41,12 @@ async function readBody(req, res) {
   if (type !== undefined && !TYPES.includes(type)) {
     res.status(400).json({ error: `type must be one of: ${TYPES.join(', ')}` });
     return null;
+  }
+  if (dollar_impact !== undefined && dollar_impact !== null && dollar_impact !== '') {
+    if (!Number.isFinite(Number(dollar_impact)) || Math.abs(Number(dollar_impact)) >= 1e12) {
+      res.status(400).json({ error: 'dollar_impact must be a number' });
+      return null;
+    }
   }
   if (team_id && !(await belongsToAccount('teams', team_id, req.accountId))) {
     res.status(400).json({ error: 'team_id not found in this account' });
@@ -72,6 +78,7 @@ async function readBody(req, res) {
     description: description || null,
     source: source || null,
     observedAt: observed_at || null,
+    dollarImpact: dollar_impact === undefined || dollar_impact === null || dollar_impact === '' ? null : Number(dollar_impact),
     teamId: team_id || null,
     outcomeIds: links.outcome_ids,
     projectIds: links.project_ids,
@@ -125,9 +132,9 @@ router.post('/', async (req, res, next) => {
     client = await pool.connect();
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `INSERT INTO insights (account_id, team_id, name, type, description, source, observed_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-      [req.accountId, input.teamId, input.name, input.type, input.description, input.source, input.observedAt]
+      `INSERT INTO insights (account_id, team_id, name, type, description, source, observed_at, dollar_impact)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+      [req.accountId, input.teamId, input.name, input.type, input.description, input.source, input.observedAt, input.dollarImpact]
     );
     await replaceAllLinks(client, rows[0].id, req.accountId, {
       outcomeIds: input.outcomeIds ?? [],
@@ -154,14 +161,15 @@ router.put('/:insightId', async (req, res, next) => {
     await client.query('BEGIN');
     const { rows } = await client.query(
       `UPDATE insights SET name = $1, type = $2, description = $3, source = $4, observed_at = $5,
-         team_id = $6, updated_at = now()
-       WHERE id = $7 AND account_id = $8 RETURNING id`,
+         dollar_impact = $6, team_id = $7, updated_at = now()
+       WHERE id = $8 AND account_id = $9 RETURNING id`,
       [
         input.name,
         input.type,
         input.description,
         input.source,
         input.observedAt,
+        input.dollarImpact,
         input.teamId,
         req.params.insightId,
         req.accountId,

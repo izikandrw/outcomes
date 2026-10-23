@@ -4,6 +4,7 @@ import {
   progressOf,
   projectsForOutcome,
   targetsForOutcome,
+  totalDollarImpact,
 } from '../lib/links.js';
 import InsightBadge from './InsightBadge.jsx';
 import { PencilIcon, PlusIcon, TrashIcon } from './icons.jsx';
@@ -44,6 +45,7 @@ export default function OutcomeList({
                   </span>
                   <InsightBadge
                     count={insightsForOutcome(insights, outcome).length}
+                    dollars={totalDollarImpact(insightsForOutcome(insights, outcome))}
                     label={outcome.name}
                     onClick={() => onShowInsights(outcome, 'outcome')}
                   />

@@ -3,13 +3,14 @@ import { useEffect, useState } from 'react';
 const EMPTY = { name: '', description: '', team_id: '', start_at: '', end_at: '' };
 
 // Creates a project already linked to the outcome it is meant to drive (when
-// `outcome` is given), or edits an existing one in place (when `editing` is
-// given). The team defaults to the outcome's on create, since that is nearly
-// always the same team.
-export default function ProjectForm({ editing, outcome, teams, onSubmit, onCancel, onDelete }) {
+// `outcome` is given) or nested under another project (when `parentProject` is
+// given), or edits an existing one in place (when `editing` is given). The team
+// defaults to the parent's on create, since that is nearly always the same team.
+export default function ProjectForm({ editing, outcome, parentProject, teams, onSubmit, onCancel, onDelete }) {
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+  const defaultTeam = parentProject ?? outcome;
 
   useEffect(() => {
     if (editing) {
@@ -23,11 +24,11 @@ export default function ProjectForm({ editing, outcome, teams, onSubmit, onCance
     } else {
       setForm({
         ...EMPTY,
-        team_id: outcome?.team_id ? String(outcome.team_id) : '',
+        team_id: defaultTeam?.team_id ? String(defaultTeam.team_id) : '',
       });
     }
     setError(null);
-  }, [editing, outcome]);
+  }, [editing, defaultTeam]);
 
   useEffect(() => {
     if (!form.team_id && teams.length === 1) {
@@ -56,7 +57,11 @@ export default function ProjectForm({ editing, outcome, teams, onSubmit, onCance
         team_id: Number(form.team_id),
         start_at: form.start_at ? new Date(form.start_at).toISOString() : null,
         end_at: form.end_at ? new Date(form.end_at).toISOString() : null,
-        ...(editing ? {} : { outcome_ids: [outcome.id] }),
+        ...(editing
+          ? {}
+          : parentProject
+            ? { parent_project_id: parentProject.id, outcome_ids: [] }
+            : { outcome_ids: [outcome.id] }),
       });
     } catch (err) {
       setError(err.message);
@@ -69,7 +74,15 @@ export default function ProjectForm({ editing, outcome, teams, onSubmit, onCance
     <form className="outcome-form" onSubmit={submit}>
       {!editing && (
         <p className="empty">
-          This project will be linked to <strong>{outcome.name}</strong>.
+          {parentProject ? (
+            <>
+              This project will be nested under <strong>{parentProject.name}</strong>.
+            </>
+          ) : (
+            <>
+              This project will be linked to <strong>{outcome.name}</strong>.
+            </>
+          )}
         </p>
       )}
 

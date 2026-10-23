@@ -1,4 +1,4 @@
-import { insightsForProject, outcomesForProject } from '../lib/links.js';
+import { insightsForProject, outcomesForProject, totalDollarImpact } from '../lib/links.js';
 import InsightBadge from './InsightBadge.jsx';
 
 // Projects are the outputs, so the roadmap sequences them by start date (end
@@ -41,6 +41,7 @@ export default function Roadmap({ projects, outcomes, teams, insights, onEditPro
             </span>
             <InsightBadge
               count={insightsForProject(insights, project).length}
+              dollars={totalDollarImpact(insightsForProject(insights, project))}
               label={project.name}
               onClick={() => onShowInsights(project, 'project')}
             />
