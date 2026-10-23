@@ -1,14 +1,13 @@
-import { insightsForProject, outcomesForProject, totalDollarImpact } from '../lib/links.js';
+import { insightsForProject, outcomesForProject, teamsOnProject, totalDollarImpact } from '../lib/links.js';
 import InsightBadge from './InsightBadge.jsx';
+import TeamChips from './TeamChips.jsx';
 
 // Projects are the outputs, so the roadmap sequences them by start date (end
 // date when there is no start), grouped by the month they begin. Projects with
 // neither date can't be placed in time; they sit at the end rather than
 // disappearing, since an unscheduled output is worth noticing.
 const anchor = (project) => project.start_at || project.end_at;
-export default function Roadmap({ projects, outcomes, teams, insights, onEditProject, onShowInsights }) {
-  const nameOf = (collection, id) => collection.find((item) => String(item.id) === String(id))?.name;
-
+export default function Roadmap({ projects, outcomes, teams, insights, onEditProject, onShowInsights, onOpenTeam, emptyMessage }) {
   const scheduled = projects
     .filter(anchor)
     .sort((a, b) => new Date(anchor(a)) - new Date(anchor(b)) || a.id - b.id);
@@ -23,7 +22,11 @@ export default function Roadmap({ projects, outcomes, teams, insights, onEditPro
   }
 
   if (projects.length === 0) {
-    return <p className="empty">No projects yet. Add one from an outcome to see it on the roadmap.</p>;
+    return (
+      <p className="empty">
+        {emptyMessage ?? 'No projects yet. Add one from an outcome to see it on the roadmap.'}
+      </p>
+    );
   }
 
   const renderProject = (project) => {
@@ -36,9 +39,7 @@ export default function Roadmap({ projects, outcomes, teams, insights, onEditPro
             {project.name}
           </button>
           <p className="meta">
-            <span className="tag">
-              {nameOf(teams, project.team_id) ?? `team ${project.team_id}`}
-            </span>
+            <TeamChips entries={teamsOnProject(projects, project)} teams={teams} onOpen={onOpenTeam} />
             <InsightBadge
               count={insightsForProject(insights, project).length}
               dollars={totalDollarImpact(insightsForProject(insights, project))}

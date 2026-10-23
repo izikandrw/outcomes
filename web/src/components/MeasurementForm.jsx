@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { formatValue } from '../lib/links.js';
+import { targetRange } from '../lib/links.js';
 
 // A measurement is a reading against one target: a value and when it applies,
 // which is not necessarily when it was entered. The unit is not asked for —
@@ -82,8 +82,7 @@ export default function MeasurementForm({ outcome, targets, onSubmit, onCancel, 
           <option value="">Select a target…</option>
           {targets.map((target) => (
             <option key={target.id} value={target.id}>
-              {target.name} ({formatValue(target.baseline_value)} → {formatValue(target.target_value)}{' '}
-              {target.unit})
+              {target.name ? `${target.name} (${targetRange(target)})` : targetRange(target)}
             </option>
           ))}
         </select>

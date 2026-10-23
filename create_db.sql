@@ -145,17 +145,19 @@ CREATE INDEX idx_insight_projects_account_id ON insight_projects(account_id);
 CREATE INDEX idx_insight_projects_insight_id ON insight_projects(insight_id);
 CREATE INDEX idx_insight_projects_project_id ON insight_projects(project_id);
 
--- A target is one outcome stated as numbers: the unit being counted, the
--- baseline it starts from, and the value it has to reach. An outcome can carry
--- several, because a behavior change that moves exactly one number is rare.
--- No ON DELETE CASCADE: deleting an outcome that still has targets is refused,
--- the same way the rest of the real entities behave.
+-- A target is an outcome or an impact stated as numbers: the unit being
+-- counted, the baseline it starts from, and the value it has to reach. It is
+-- owned by exactly one of them, which can carry several, because a result that
+-- moves exactly one number is rare. The name is optional; the unit labels a
+-- target that has none.
+-- No ON DELETE CASCADE: deleting an outcome or impact that still has targets is
+-- refused, the same way the rest of the real entities behave.
 CREATE TABLE targets (
     id             BIGSERIAL PRIMARY KEY,
     account_id     BIGINT NOT NULL REFERENCES accounts(id),
     outcome_id     BIGINT REFERENCES outcomes(id),
     impact_id      BIGINT REFERENCES impacts(id),
-    name           TEXT NOT NULL,
+    name           TEXT,
     description    TEXT,
     unit           TEXT NOT NULL,
     baseline_value DOUBLE PRECISION NOT NULL,

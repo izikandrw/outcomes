@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import TargetsSection from './TargetsSection.jsx';
 
 const EMPTY = {
   name: '',
@@ -21,6 +22,10 @@ export default function OutcomeForm({
   projects,
   impacts = [],
   impactId,
+  targets = [],
+  onAddTarget,
+  onEditTarget,
+  onDeleteTarget,
   onSubmit,
   onCancel,
   onDelete,
@@ -152,6 +157,14 @@ export default function OutcomeForm({
         </label>
       )}
 
+      <TargetsSection
+        targets={targets}
+        saved={Boolean(editing)}
+        onAdd={onAddTarget}
+        onEdit={onEditTarget}
+        onDelete={onDeleteTarget}
+      />
+
       {error && <p className="error">{error}</p>}
 
       <div className="actions form-actions">
@@ -163,7 +176,7 @@ export default function OutcomeForm({
         <button type="button" className="ghost" onClick={onCancel}>
           Cancel
         </button>
-        <button type="submit" disabled={saving}>
+        <button type="submit" className="btn-outcome" disabled={saving}>
           {saving ? 'Saving…' : editing ? 'Save changes' : 'Add outcome'}
         </button>
       </div>

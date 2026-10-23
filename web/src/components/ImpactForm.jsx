@@ -1,11 +1,23 @@
 import { useEffect, useState } from 'react';
+import TargetsSection from './TargetsSection.jsx';
 
 const EMPTY = { name: '', description: '', parent_impact_id: '' };
 
 // Rendered inside the modal, which supplies the heading and close control.
 // `editing` is null when creating, or the impact being changed; `parent` is the
 // impact a new child hangs off, when added from the map.
-export default function ImpactForm({ editing, parent, impacts, onSubmit, onCancel, onDelete }) {
+export default function ImpactForm({
+  editing,
+  parent,
+  impacts,
+  targets = [],
+  onAddTarget,
+  onEditTarget,
+  onDeleteTarget,
+  onSubmit,
+  onCancel,
+  onDelete,
+}) {
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -59,7 +71,7 @@ export default function ImpactForm({ editing, parent, impacts, onSubmit, onCance
           placeholder="e.g. Grow revenue"
           onChange={(event) => update('name', event.target.value)}
         />
-        <span className="hint">The business result. Put the number in a target.</span>
+        <span className="hint">The business result. Put the number in a target below.</span>
       </label>
 
       <label>
@@ -87,6 +99,14 @@ export default function ImpactForm({ editing, parent, impacts, onSubmit, onCance
         </select>
       </label>
 
+      <TargetsSection
+        targets={targets}
+        saved={Boolean(editing)}
+        onAdd={onAddTarget}
+        onEdit={onEditTarget}
+        onDelete={onDeleteTarget}
+      />
+
       {error && <p className="error">{error}</p>}
 
       <div className="actions form-actions">
@@ -98,7 +118,7 @@ export default function ImpactForm({ editing, parent, impacts, onSubmit, onCance
         <button type="button" className="ghost" onClick={onCancel}>
           Cancel
         </button>
-        <button type="submit" disabled={saving}>
+        <button type="submit" className="btn-impact" disabled={saving}>
           {saving ? 'Saving…' : editing ? 'Save changes' : 'Add impact'}
         </button>
       </div>

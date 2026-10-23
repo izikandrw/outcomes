@@ -5,7 +5,10 @@
   --text: #1a1d23;
   --muted: #6b7280;
   --accent: #2f5bea;
+  /* One hue per entity so each reads at a glance on the map and on its buttons. */
+  --outcome: var(--accent);
   --project: #1a9c6b;
+  --team: #d6336c;
   --target: #b7791f;
   --impact: #7c3aed;
   --danger: #c0392b;
@@ -21,8 +24,9 @@
     --muted: #9aa1ad;
     --accent: #6f8cff;
     --project: #4bcf9a;
+    --team: #f06595;
     --target: #e0a84a;
-  --impact: #a78bfa;
+    --impact: #a78bfa;
     --danger: #ef6a5c;
   }
 }
@@ -211,6 +215,31 @@ button {
 button:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+/* "New <thing>" buttons take the color of the thing they create. Darkened a
+   touch so white text stays readable on the lighter dark-mode hues. */
+button.btn-impact,
+button.btn-outcome,
+button.btn-project,
+button.btn-team {
+  background: color-mix(in srgb, var(--entity) 78%, #000);
+}
+
+button.btn-impact {
+  --entity: var(--impact);
+}
+
+button.btn-outcome {
+  --entity: var(--outcome);
+}
+
+button.btn-project {
+  --entity: var(--project);
+}
+
+button.btn-team {
+  --entity: var(--team);
 }
 
 button.ghost {
@@ -817,31 +846,12 @@ button.small {
   fill: color-mix(in srgb, var(--project) 55%, transparent);
 }
 
-.tree-node.target rect {
-  fill: color-mix(in srgb, var(--target) 12%, var(--surface));
-  stroke: color-mix(in srgb, var(--target) 45%, transparent);
-}
-
-.tree-node.target text {
+/* The first target's numbers, drawn on the last line of its owner's node. */
+.tree-node-target {
+  font-size: 11px;
+  font-weight: 600;
   fill: var(--target);
-}
-
-.tree-node.target:hover rect {
-  stroke: color-mix(in srgb, var(--target) 65%, transparent);
-  stroke-width: 1.5;
-}
-
-.tree-node.target .tree-node-team {
-  fill: color-mix(in srgb, var(--target) 70%, var(--muted));
-}
-
-.tree-edge.target {
-  stroke: color-mix(in srgb, var(--target) 55%, transparent);
-  stroke-dasharray: 5 4;
-}
-
-.tree-arrowhead.target {
-  fill: color-mix(in srgb, var(--target) 55%, transparent);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Impacts sit above the outcomes that drive them: the business result the
@@ -1256,7 +1266,7 @@ button.danger-solid:hover {
 }
 
 .team-initial circle {
-  fill: var(--accent, #4f46e5);
+  fill: var(--team);
 }
 
 .tree-node .team-initial text {
@@ -1270,7 +1280,7 @@ button.danger-solid:hover {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: var(--accent, #4f46e5);
+  background: var(--team);
   color: #fff;
   font-weight: 600;
 }
@@ -1281,11 +1291,204 @@ button.danger-solid:hover {
 }
 
 .tree-node.root .team-initial text {
-  fill: var(--accent);
+  fill: var(--team);
 }
 
 .tree-node.root .tree-node-team {
   fill: rgb(255 255 255 / 0.8);
+}
+
+/* Teams get their own color rather than borrowing the outcome blue. */
+.tree-node.team rect {
+  fill: color-mix(in srgb, var(--team) 10%, var(--surface));
+  stroke: color-mix(in srgb, var(--team) 45%, transparent);
+}
+
+.tree-node.team.root rect {
+  fill: var(--team);
+  stroke: var(--team);
+}
+
+.tree-node.team:hover rect {
+  stroke: var(--team);
+}
+
+.tree-node.team:not(.root) text {
+  fill: var(--team);
+}
+
+.tree-node.team:not(.root) .tree-node-team {
+  fill: color-mix(in srgb, var(--team) 70%, var(--muted));
+}
+
+/* Teams working on an outcome or project. Solid = directly, dashed = on
+   something beneath it. Darkened like the New buttons so white text reads. */
+.team-chip {
+  display: inline-block;
+  padding: 1px 9px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.team-chip.direct {
+  background: color-mix(in srgb, var(--team) 78%, #000);
+  color: #fff;
+}
+
+.team-chip.indirect {
+  background: color-mix(in srgb, var(--team) 10%, var(--surface));
+  border: 1px dashed color-mix(in srgb, var(--team) 60%, transparent);
+  color: var(--team);
+}
+
+button.team-chip.link {
+  cursor: pointer;
+}
+
+button.team-chip.link:hover {
+  filter: brightness(1.1);
+}
+
+.tree-node .node-team {
+  cursor: pointer;
+}
+
+/* A team's home page. */
+.team-home {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.team-home-nav {
+  display: flex;
+  justify-content: space-between;
+}
+
+.team-home-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.team-home-head h2 {
+  margin: 0;
+}
+
+.team-home-head .logo-preview {
+  width: 56px;
+  height: 56px;
+  font-size: 24px;
+}
+
+.team-home-toggle {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.team-home h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+/* Impact → outcome → project, indented one step per level. Each pill takes
+   its entity's color so the layers read apart. */
+.rollup,
+.rollup ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rollup ul {
+  margin-left: 14px;
+  padding-left: 14px;
+  border-left: 1.5px solid var(--border);
+}
+
+.rollup li {
+  margin: 8px 0;
+}
+
+.rollup-pill {
+  --entity: var(--accent);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  text-align: left;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--entity) 12%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--entity) 45%, transparent);
+  color: var(--entity);
+}
+
+.rollup-pill:hover {
+  border-color: var(--entity);
+}
+
+.rollup-pill.impact {
+  --entity: var(--impact);
+}
+
+.rollup-pill.outcome {
+  --entity: var(--outcome);
+}
+
+.rollup-pill.project {
+  --entity: var(--project);
+}
+
+.rollup-kind {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+}
+
+.rollup-owner {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.rollup-note {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.rollup-note.warn {
+  color: var(--danger);
+}
+
+.tree-node .node-team circle {
+  fill: color-mix(in srgb, var(--team) 78%, #000);
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+
+.tree-node .node-team text {
+  fill: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.tree-node .node-team.indirect circle {
+  fill: color-mix(in srgb, var(--team) 12%, var(--surface));
+  stroke: color-mix(in srgb, var(--team) 70%, transparent);
+  stroke-dasharray: 3 2;
+}
+
+.tree-node .node-team.indirect text {
+  fill: var(--team);
 }
 
 .count-link {
@@ -1401,6 +1604,38 @@ button.danger-solid:hover {
   filter: drop-shadow(0 0 6px color-mix(in srgb, var(--impact) 55%, transparent));
 }
 
-.edge-hover .tree-node.target rect {
-  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--target) 55%, transparent));
+/* End-quarter pill straddling the top-right corner of a project node. */
+.quarter-pill rect {
+  fill: var(--project);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+.quarter-pill text {
+  font-size: 10px;
+  font-weight: 600;
+  fill: #fff;
+  pointer-events: none;
+}
+
+/* Targets listed inside the outcome and impact forms, where they're owned. */
+.targets-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.targets-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+}
+
+.targets-section .target-list {
+  gap: 6px;
+}
+
+.targets-section .target-actions {
+  opacity: 1;
 }

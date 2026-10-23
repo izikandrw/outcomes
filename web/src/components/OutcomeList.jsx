@@ -3,10 +3,14 @@ import {
   insightsForOutcome,
   progressOf,
   projectsForOutcome,
+  targetLabel,
+  targetRange,
   targetsForOutcome,
+  teamsOnOutcome,
   totalDollarImpact,
 } from '../lib/links.js';
 import InsightBadge from './InsightBadge.jsx';
+import TeamChips from './TeamChips.jsx';
 import { PencilIcon, PlusIcon, TrashIcon } from './icons.jsx';
 
 // Flat list of every outcome. Nesting is shown by the tree view instead, so a
@@ -22,6 +26,7 @@ export default function OutcomeList({
   onEdit,
   onDelete,
   onShowInsights,
+  onOpenTeam,
   onAddTarget,
   onEditTarget,
   onDeleteTarget,
@@ -40,9 +45,7 @@ export default function OutcomeList({
                 <h3>{outcome.name}</h3>
                 {outcome.description && <p className="description">{outcome.description}</p>}
                 <p className="meta">
-                  <span className="tag">
-                    {nameOf(teams, outcome.team_id) ?? `team ${outcome.team_id}`}
-                  </span>
+                  <TeamChips entries={teamsOnOutcome(outcomes, projects, outcome)} teams={teams} onOpen={onOpenTeam} />
                   <InsightBadge
                     count={insightsForOutcome(insights, outcome).length}
                     dollars={totalDollarImpact(insightsForOutcome(insights, outcome))}
@@ -124,15 +127,13 @@ function Target({ target, onEdit, onDelete }) {
   return (
     <li className="target">
       <div className="target-head">
-        <span className="target-name">{target.name}</span>
-        <span className="target-range">
-          {formatValue(target.baseline_value)} → {formatValue(target.target_value)} {target.unit}
-        </span>
+        {target.name && <span className="target-name">{target.name}</span>}
+        <span className="target-range">{targetRange(target)}</span>
         <span className="target-actions">
           <button
             type="button"
             className="icon-button"
-            aria-label={`Edit target ${target.name}`}
+            aria-label={`Edit target ${targetLabel(target)}`}
             title="Edit target"
             onClick={onEdit}
           >
@@ -141,7 +142,7 @@ function Target({ target, onEdit, onDelete }) {
           <button
             type="button"
             className="icon-button danger"
-            aria-label={`Delete target ${target.name}`}
+            aria-label={`Delete target ${targetLabel(target)}`}
             title="Delete target"
             onClick={onDelete}
           >
@@ -156,7 +157,7 @@ function Target({ target, onEdit, onDelete }) {
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(width)}
-        aria-label={`Progress on ${target.name}`}
+        aria-label={`Progress on ${targetLabel(target)}`}
       >
         <div className="target-progress-fill" style={{ width: `${width}%` }} />
       </div>

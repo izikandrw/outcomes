@@ -11,8 +11,8 @@ const EMPTY = {
   due_at: '',
 };
 
-// A target is an outcome (or an impact) stated as numbers. The API requires a
-// unit and both numbers, so all three are enforced here rather than being left
+// A target is an outcome (or an impact) stated as numbers, and belongs to just
+// that one. The API requires a unit and both numbers, so all three are enforced here rather than being left
 // to the 400. `outcome` is the entity being quantified and `parentKind` says
 // whether it is an 'outcome' (default) or an 'impact'.
 // `editing` is null when creating, or the target being changed.
@@ -44,7 +44,6 @@ export default function TargetForm({ outcome, parentKind = 'outcome', editing, o
 
   async function submit(event) {
     event.preventDefault();
-    if (!form.name.trim()) return setError('Name is required.');
     if (!form.unit.trim()) return setError('Unit is required — a number with no unit counts nothing.');
     for (const [field, label] of [
       ['baseline_value', 'Baseline'],
@@ -62,7 +61,7 @@ export default function TargetForm({ outcome, parentKind = 'outcome', editing, o
     try {
       await onSubmit({
         [parentKind === 'impact' ? 'impact_id' : 'outcome_id']: Number(outcome.id),
-        name: form.name.trim(),
+        name: form.name.trim() || null,
         description: form.description.trim() || null,
         unit: form.unit.trim(),
         baseline_value: Number(form.baseline_value),
@@ -87,7 +86,7 @@ export default function TargetForm({ outcome, parentKind = 'outcome', editing, o
   return (
     <form className="outcome-form" onSubmit={submit}>
       <p className="empty">
-        Quantifying <strong>{outcome.name}</strong>.
+        A target of <strong>{outcome.name}</strong>.
       </p>
 
       <label>
@@ -95,10 +94,10 @@ export default function TargetForm({ outcome, parentKind = 'outcome', editing, o
         <input
           autoFocus
           value={form.name}
-          placeholder="e.g. Admins inviting in their first session"
+          placeholder="e.g. Share of admins inviting in their first session"
           onChange={(event) => update('name', event.target.value)}
         />
-        <span className="hint">What the number counts, not what will be built.</span>
+        <span className="hint">Optional. Left blank, the unit names it. It belongs to {outcome.name}, so don't repeat that here.</span>
       </label>
 
       <div className="row">

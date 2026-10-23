@@ -134,7 +134,7 @@ export default function TeamForm({ editing, parent, teams, onSubmit, onCancel, o
         <button type="button" className="ghost" onClick={onCancel}>
           Cancel
         </button>
-        <button type="submit" disabled={saving}>
+        <button type="submit" className="btn-team" disabled={saving}>
           {saving ? 'Saving…' : editing ? 'Save changes' : 'Add team'}
         </button>
       </div>

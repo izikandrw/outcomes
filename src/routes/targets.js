@@ -22,14 +22,11 @@ const SELECT_TARGET = `
          ) latest ON true
 `;
 
-// A target is only a target once it has a unit and both numbers, so all four
-// are required on write rather than being allowed to fill in later.
+// A target is only a target once it has a unit and both numbers, so all three
+// are required on write rather than being allowed to fill in later. The name is
+// optional: the unit labels a target that has none.
 async function validateBody(req, res) {
-  const { outcome_id, impact_id, name, unit, baseline_value, target_value } = req.body;
-  if (!name) {
-    res.status(400).json({ error: 'name is required' });
-    return false;
-  }
+  const { outcome_id, impact_id, unit, baseline_value, target_value } = req.body;
   // A target belongs to exactly one parent: an outcome or an impact.
   if (!outcome_id && !impact_id) {
     res.status(400).json({ error: 'outcome_id or impact_id is required' });
@@ -101,7 +98,7 @@ router.post('/', async (req, res, next) => {
         req.accountId,
         outcome_id || null,
         impact_id || null,
-        name,
+        name || null,
         description || null,
         unit,
         Number(baseline_value),
@@ -129,7 +126,7 @@ router.put('/:targetId', async (req, res, next) => {
       [
         outcome_id || null,
         impact_id || null,
-        name,
+        name || null,
         description || null,
         unit,
         Number(baseline_value),

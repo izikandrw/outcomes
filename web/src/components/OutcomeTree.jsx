@@ -9,8 +9,12 @@ import {
   projectsForOutcome,
   targetsForImpact,
   targetsForOutcome,
-  formatValue,
+  teamsOnOutcome,
+  teamsOnProject,
+  formatQuarter,
+  targetRange,
 } from '../lib/links.js';
+import TeamBadges from './TeamBadges.jsx';
 import { groupByRule, issuesFor, validateTree } from '../lib/validation.js';
 
 export const NODE_W = 160;
@@ -36,13 +40,12 @@ export default function OutcomeTree({
   onEdit,
   onEditImpact,
   onEditProject,
-  onEditTarget,
-  onAddMeasurement,
   onShowInsights,
   onAdd,
   onAddChildProject,
+  onOpenTeam,
 }) {
-  const { nodes, edges, width, height } = layout(outcomes, projects, targets, impacts);
+  const { nodes, edges, width, height } = layout(outcomes, projects, impacts);
   const validation = validateTree({ outcomes, projects, insights });
   const counts = groupByRule(validation, { outcomes, projects });
   // { entity, kind, left, top } — kind is 'outcome' or 'impact'. Anchored in
@@ -133,17 +136,6 @@ export default function OutcomeTree({
           >
             <path className="tree-arrowhead project" d="M0 1.5 L7 4 L0 6.5 z" />
           </marker>
-          <marker
-            id="tree-arrow-target"
-            viewBox="0 0 8 8"
-            refX="7"
-            refY="4"
-            markerWidth="7"
-            markerHeight="7"
-            orient="auto-start-reverse"
-          >
-            <path className="tree-arrowhead target" d="M0 1.5 L7 4 L0 6.5 z" />
-          </marker>
         </defs>
 
         {edges.map((edge) => (
@@ -159,11 +151,9 @@ export default function OutcomeTree({
               markerEnd={
                 edge.kind === 'project'
                   ? 'url(#tree-arrow-project)'
-                  : edge.kind === 'target'
-                    ? 'url(#tree-arrow-target)'
-                    : edge.kind === 'impact'
-                      ? 'url(#tree-arrow-impact)'
-                      : 'url(#tree-arrow)'
+                  : edge.kind === 'impact'
+                    ? 'url(#tree-arrow-impact)'
+                    : 'url(#tree-arrow)'
               }
             />
             {/* Wider invisible stroke so the thin line is easy to hover. */}
@@ -176,15 +166,7 @@ export default function OutcomeTree({
             key={`${node.type}-${node.data.id}`}
             className={hoverEnds?.includes(`${node.type}-${node.data.id}`) ? 'edge-hover' : undefined}
           >
-          {node.type === 'target' ? (
-            <TargetNode
-              key={`target-${node.data.id}`}
-              target={node.data}
-              onEdit={onEditTarget}
-              onAddMeasurement={onAddMeasurement}
-              {...node}
-            />
-          ) : node.type === 'impact' ? (
+          {node.type === 'impact' ? (
             <ImpactNode
               key={`impact-${node.data.id}`}
               impact={node.data}
@@ -198,6 +180,8 @@ export default function OutcomeTree({
               key={`project-${node.data.id}`}
               project={node.data}
               teams={teams}
+              teamEntries={teamsOnProject(projects, node.data)}
+              onOpenTeam={onOpenTeam}
               insightCount={insightsForProject(insights, node.data).length}
               insightDollars={totalDollarImpact(insightsForProject(insights, node.data))}
               issues={issuesFor(validation, 'project', node.data)}
@@ -214,6 +198,8 @@ export default function OutcomeTree({
               projects={projects}
               targets={targets}
               measurements={measurements}
+              teamEntries={teamsOnOutcome(outcomes, projects, node.data)}
+              onOpenTeam={onOpenTeam}
               insightCount={insightsForOutcome(insights, node.data).length}
               insightDollars={totalDollarImpact(insightsForOutcome(insights, node.data))}
               issues={issuesFor(validation, 'outcome', node.data)}
@@ -247,6 +233,9 @@ export default function OutcomeTree({
               <button type="button" role="menuitem" onClick={() => choose('target')}>
                 🎯 Target
               </button>
+              <button type="button" role="menuitem" onClick={() => choose('measurement')}>
+                📈 Measurement
+              </button>
             </>
           ) : (
             <>
@@ -255,6 +244,9 @@ export default function OutcomeTree({
               </button>
               <button type="button" role="menuitem" onClick={() => choose('target')}>
                 🎯 Target
+              </button>
+              <button type="button" role="menuitem" onClick={() => choose('measurement')}>
+                📈 Measurement
               </button>
               <button type="button" role="menuitem" onClick={() => choose('project')}>
                 🚀 Project
@@ -279,6 +271,8 @@ function OutcomeNode({
   projects,
   targets,
   measurements,
+  teamEntries,
+  onOpenTeam,
   insightCount,
   insightDollars,
   issues,
@@ -287,10 +281,10 @@ function OutcomeNode({
   onOpenMenu,
 }) {
   const nameOf = (collection, id) => collection.find((item) => item.id === id)?.name ?? null;
-  const lines = wrapLabel(outcome.name);
   const team = nameOf(teams, outcome.team_id);
   const linked = projectsForOutcome(projects, outcome);
   const quantified = targetsForOutcome(targets, outcome);
+  const { lines, targetLine } = nodeLabel(outcome.name, quantified);
   const readings = measurementsForOutcome(measurements, targets, outcome);
   // An outcome with no target can't be settled by evidence, so it is
   // drawn differently rather than looking finished.
@@ -324,7 +318,7 @@ function OutcomeNode({
           linked.length > 0 && `Projects: ${linked.map((item) => item.name).join(', ')}`,
           quantified.length > 0
             ? `Targets: ${quantified
-                .map((item) => `${item.name} (${item.baseline_value} → ${item.target_value} ${item.unit})`)
+                .map((item) => (item.name ? `${item.name} (${targetRange(item)})` : targetRange(item)))
                 .join(', ')}`
             : 'No target yet',
           readings.length > 0 && `Measurements: ${readings.length}`,
@@ -335,13 +329,7 @@ function OutcomeNode({
           .join('\n')}
       </title>
       <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={NODE_H} rx="10" />
-      <text x={x} y={y + NODE_H / 2} textAnchor="middle" dominantBaseline="middle">
-        {lines.map((line, index) => (
-          <tspan key={index} x={x} dy={index === 0 ? -((lines.length - 1) * LINE_H) / 2 : LINE_H}>
-            {line}
-          </tspan>
-        ))}
-      </text>
+      <NodeText x={x} y={y} lines={lines} targetLine={targetLine} />
 
       {/* Revealed on hover or keyboard focus; opens the add menu. */}
       <g
@@ -366,6 +354,7 @@ function OutcomeNode({
         />
       </g>
       <IssueBadges x={x} y={y} issues={issues} />
+      <TeamBadges x={x} y={y} width={NODE_W} entries={teamEntries} teams={teams} idPrefix={`outcome-${outcome.id}`} onOpen={onOpenTeam} />
       <InsightPill x={x} y={y} count={insightCount} dollars={insightDollars} label={outcome.name} onOpen={() => onShowInsights(outcome, 'outcome')} />
     </g>
   );
@@ -374,8 +363,8 @@ function OutcomeNode({
 // The business result at the top of the tree. Click edits it; the hover "+"
 // adds a child impact, an outcome driving it, or a target measuring it.
 function ImpactNode({ impact, x, y, depth, targets, onEdit, onOpenMenu }) {
-  const lines = wrapLabel(impact.name);
   const quantified = targetsForImpact(targets, impact);
+  const { lines, targetLine } = nodeLabel(impact.name, quantified);
 
   return (
     <g
@@ -396,7 +385,7 @@ function ImpactNode({ impact, x, y, depth, targets, onEdit, onOpenMenu }) {
           impact.name,
           quantified.length > 0
             ? `Targets: ${quantified
-                .map((item) => `${item.name} (${item.baseline_value} → ${item.target_value} ${item.unit})`)
+                .map((item) => (item.name ? `${item.name} (${targetRange(item)})` : targetRange(item)))
                 .join(', ')}`
             : 'No target yet',
           impact.description,
@@ -405,13 +394,7 @@ function ImpactNode({ impact, x, y, depth, targets, onEdit, onOpenMenu }) {
           .join('\n')}
       </title>
       <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={NODE_H} rx="10" />
-      <text x={x} y={y + NODE_H / 2} textAnchor="middle" dominantBaseline="middle">
-        {lines.map((line, index) => (
-          <tspan key={index} x={x} dy={index === 0 ? -((lines.length - 1) * LINE_H) / 2 : LINE_H}>
-            {line}
-          </tspan>
-        ))}
-      </text>
+      <NodeText x={x} y={y} lines={lines} targetLine={targetLine} />
 
       <g
         className="node-add"
@@ -490,82 +473,6 @@ function InsightPill({ x, y, count, dollars, label, onOpen }) {
   );
 }
 
-// A leaf: the outcome stated as numbers. Click edits it in the target form.
-function TargetNode({ target, parent, parentKind, x, y, depth, onEdit, onAddMeasurement }) {
-  const lines = wrapLabel(target.name, MAX_CHARS, MAX_LINES - 1);
-  const [rangeLine] = wrapLabel(
-    `${formatValue(target.baseline_value)} → ${formatValue(target.target_value)} ${target.unit}`,
-    MAX_CHARS,
-    1
-  );
-  const all = [...lines, rangeLine];
-
-  return (
-    <g
-      className="tree-node target"
-      role="treeitem"
-      aria-level={depth + 1}
-      tabIndex={0}
-      onClick={() => onEdit(target, parent, parentKind)}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          onEdit(target, parent, parentKind);
-        }
-      }}
-    >
-      <title>
-        {[
-          target.name,
-          `${target.baseline_value} → ${target.target_value} ${target.unit}`,
-          target.latest_value != null && `Latest: ${target.latest_value} ${target.unit}`,
-          target.description,
-        ]
-          .filter(Boolean)
-          .join('\n')}
-      </title>
-      <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={NODE_H} rx="10" />
-      <text x={x} y={y + NODE_H / 2} textAnchor="middle" dominantBaseline="middle">
-        {all.map((line, index) => (
-          <tspan
-            key={index}
-            className={index === all.length - 1 ? 'tree-node-team' : undefined}
-            x={x}
-            dy={index === 0 ? -((all.length - 1) * LINE_H) / 2 : LINE_H}
-          >
-            {line}
-          </tspan>
-        ))}
-      </text>
-
-      <g
-        className="node-add"
-        role="button"
-        tabIndex={0}
-        aria-label={`Add measurement to ${target.name}`}
-        onClick={(event) => {
-          event.stopPropagation();
-          onAddMeasurement(target, parent, parentKind);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            event.stopPropagation();
-            onAddMeasurement(target, parent, parentKind);
-          }
-        }}
-      >
-        <circle cx={x + NODE_W / 2} cy={y + NODE_H / 2} r="11" />
-        <path
-          d={`M${x + NODE_W / 2 - 5} ${y + NODE_H / 2}h10M${x + NODE_W / 2} ${
-            y + NODE_H / 2 - 5
-          }v10`}
-        />
-      </g>
-    </g>
-  );
-}
-
 // Opens the same edit modal an outcome does; its hover "+" adds a child
 // project directly, since that is the only thing that can hang under one.
 function ProjectNode({
@@ -574,6 +481,8 @@ function ProjectNode({
   y,
   depth,
   teams,
+  teamEntries,
+  onOpenTeam,
   insightCount,
   insightDollars,
   issues,
@@ -582,6 +491,7 @@ function ProjectNode({
   onAddChild,
 }) {
   const team = teams.find((item) => item.id === project.team_id)?.name ?? null;
+  const quarter = formatQuarter(project.end_at);
   // Reserve the last line for the team badge so it doesn't get squeezed out
   // by a long project name.
   const nameLines = wrapLabel(project.name, MAX_CHARS, team ? MAX_LINES - 1 : MAX_LINES);
@@ -607,6 +517,7 @@ function ProjectNode({
         {[
           project.name,
           team && `Team: ${team}`,
+          quarter && `Ends: ${quarter}`,
           ...issues.map((rule) => `${rule.emoji} ${rule.title}: ${rule.description}`),
           project.description,
         ]
@@ -626,6 +537,15 @@ function ProjectNode({
           </tspan>
         ))}
       </text>
+
+      {quarter && (
+        <g className="quarter-pill">
+          <rect x={x + NODE_W / 2 - 54} y={y + NODE_H - 8} width="48" height="16" rx="8" />
+          <text x={x + NODE_W / 2 - 30} y={y + NODE_H} textAnchor="middle" dominantBaseline="central">
+            {quarter}
+          </text>
+        </g>
+      )}
 
       <g
         className="node-add"
@@ -652,8 +572,37 @@ function ProjectNode({
         />
       </g>
       <IssueBadges x={x} y={y} issues={issues} />
+      <TeamBadges x={x} y={y} width={NODE_W} entries={teamEntries} teams={teams} idPrefix={`project-${project.id}`} onOpen={onOpenTeam} />
       <InsightPill x={x} y={y} count={insightCount} dollars={insightDollars} label={project.name} onOpen={() => onShowInsights(project, 'project')} />
     </g>
+  );
+}
+
+// An outcome or impact states its targets inside its own node: the name takes
+// up to two lines and the last line is its first target's numbers, with "+N"
+// when it owns more. Without targets the name gets all three lines.
+function nodeLabel(name, quantified) {
+  if (quantified.length === 0) return { lines: wrapLabel(name), targetLine: null };
+  const extra = quantified.length > 1 ? ` +${quantified.length - 1}` : '';
+  const [targetLine] = wrapLabel(`${targetRange(quantified[0])}${extra}`, MAX_CHARS, 1);
+  return { lines: wrapLabel(name, MAX_CHARS, MAX_LINES - 1), targetLine };
+}
+
+function NodeText({ x, y, lines, targetLine }) {
+  const all = targetLine ? [...lines, targetLine] : lines;
+  return (
+    <text x={x} y={y + NODE_H / 2} textAnchor="middle" dominantBaseline="middle">
+      {all.map((line, index) => (
+        <tspan
+          key={index}
+          className={targetLine && index === all.length - 1 ? 'tree-node-target' : undefined}
+          x={x}
+          dy={index === 0 ? -((all.length - 1) * LINE_H) / 2 : LINE_H}
+        >
+          {line}
+        </tspan>
+      ))}
+    </text>
   );
 }
 
@@ -662,7 +611,7 @@ function ProjectNode({
 // project when it has one. A project linked to more than one outcome is still
 // drawn once — the other outcomes it drives get a dashed cross-edge to that
 // same node instead of a duplicate.
-function layout(outcomes, projects, targets, impacts) {
+function layout(outcomes, projects, impacts) {
   const byParent = new Map();
   for (const outcome of outcomes) {
     const key = outcome.parent_outcome_id ?? null;
@@ -716,9 +665,7 @@ function layout(outcomes, projects, targets, impacts) {
     const entity = item.data;
 
     let children;
-    if (item.kind === 'target') {
-      children = [];
-    } else if (item.kind === 'impact') {
+    if (item.kind === 'impact') {
       placedImpacts.add(entity.id);
       children = [
         ...(impactsByParent.get(String(entity.id)) ?? [])
@@ -729,12 +676,6 @@ function layout(outcomes, projects, targets, impacts) {
         ...outcomesForImpact(outcomes, entity)
           .filter((child) => child.parent_outcome_id == null && !placed.has(child.id))
           .map((child) => ({ kind: 'outcome', data: child })),
-        ...targetsForImpact(targets, entity).map((target) => ({
-          kind: 'target',
-          data: target,
-          parent: entity,
-          parentKind: 'impact',
-        })),
       ];
     } else if (item.kind === 'project') {
       placedProjects.add(entity.id);
@@ -750,12 +691,6 @@ function layout(outcomes, projects, targets, impacts) {
       children = [
         ...childOutcomes.map((child) => ({ kind: 'outcome', data: child })),
         ...childProjects.map((project) => ({ kind: 'project', data: project })),
-        ...targetsForOutcome(targets, entity).map((target) => ({
-          kind: 'target',
-          data: target,
-          parent: entity,
-          parentKind: 'outcome',
-        })),
       ];
     }
 
@@ -777,7 +712,7 @@ function layout(outcomes, projects, targets, impacts) {
       x = (childPositions[0].x + childPositions[childPositions.length - 1].x) / 2;
     }
 
-    nodes.push({ type: item.kind, data: entity, parent: item.parent, parentKind: item.parentKind, x, y, depth });
+    nodes.push({ type: item.kind, data: entity, x, y, depth });
     for (const child of childPositions) {
       edges.push({
         key: `${item.kind}-${entity.id}-${child.kind}-${child.id}`,

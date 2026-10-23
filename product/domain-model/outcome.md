@@ -15,5 +15,5 @@ An outcome is only settled by evidence. The behavior change should be observable
 | team | Outcomes can be connected to one team. | That team is accountable for the outcome, even when other teams run projects against it. |
 | project | Outcomes can be connected to 0 or many projects. | The projects should be creating outputs that will drive the outcome. |
 | insight | Outcomes can be connected to 0 or many insights. | Those insights are the evidence that the outcome is worth pursuing. An outcome with no insight behind it is an assumption. |
-| target | Outcomes can be connected to 0 or many targets. | A target is the outcome stated as numbers — the unit, the baseline and the value to reach. An outcome with no target is a sentence nobody can settle. |
+| target | Outcomes can own 0 or many targets. A target belongs to exactly one outcome or impact. | A target is the outcome stated as numbers — the unit, the baseline and the value to reach — and is shown inside the outcome rather than beside it. An outcome with no target is a sentence nobody can settle. |
 | measurement | Outcomes are not connected to measurements directly. | Measurements are readings on a target; an outcome's progress is read through its targets. |

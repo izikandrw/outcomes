@@ -18,8 +18,9 @@ const NODE_W = 224;
 const NAME_CHARS = 20;
 
 // Team hierarchy drawn like the outcome map: parents above, children below,
-// each parent centred over its children. Hover "+" adds a team beneath one.
-export default function TeamTree({ teams, outcomes, projects, onCreate, onEdit, onAddChild, onOpenOutcome, onOpenProject }) {
+// each parent centred over its children. Clicking a team opens its home page;
+// hover "+" adds a team beneath one.
+export default function TeamTree({ teams, outcomes, projects, onCreate, onOpenTeam, onAddChild, onOpenOutcome, onOpenProject }) {
   const { nodes, edges, width, height } = layout(teams);
   const countFor = (collection, team) => collection.filter((item) => item.team_id === team.id).length;
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -57,7 +58,7 @@ export default function TeamTree({ teams, outcomes, projects, onCreate, onEdit, 
     <>
       <div className="list-head">
         <span />
-        <button type="button" className="with-icon" onClick={onCreate}>
+        <button type="button" className="with-icon btn-team" onClick={onCreate}>
           <PlusIcon />
           New team
         </button>
@@ -89,11 +90,11 @@ export default function TeamTree({ teams, outcomes, projects, onCreate, onEdit, 
             const projectCount = plural(countFor(projects, team), 'project');
             const counts = `${outcomeCount} · ${projectCount}`;
             const all = [...lines, counts];
-            const open = () => onEdit(team);
+            const open = () => onOpenTeam(team);
             return (
               <g
                 key={team.id}
-                className={['tree-node', depth === 0 && 'root'].filter(Boolean).join(' ')}
+                className={['tree-node team', depth === 0 && 'root'].filter(Boolean).join(' ')}
                 role="treeitem"
                 aria-level={depth + 1}
                 tabIndex={0}

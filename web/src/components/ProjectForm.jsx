@@ -151,7 +151,7 @@ export default function ProjectForm({ editing, outcome, parentProject, teams, on
         <button type="button" className="ghost" onClick={onCancel}>
           Cancel
         </button>
-        <button type="submit" disabled={saving}>
+        <button type="submit" className="btn-project" disabled={saving}>
           {saving ? 'Saving…' : editing ? 'Save changes' : 'Add project'}
         </button>
       </div>

@@ -6,6 +6,8 @@
 
 * "chimerical outcome" -- outcomes that don't have any projects connected to them -- we hope the outcome will magically happen
 
+* "what's the point? project" -- projects that don't roll up to any outcomes
+
 # Where is all our effort going?
 
 Investment layer cake
