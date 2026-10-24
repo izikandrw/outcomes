@@ -14,7 +14,6 @@ import {
   formatQuarter,
   targetRange,
 } from '../lib/links.js';
-import TeamBadges from './TeamBadges.jsx';
 import { groupByRule, issuesFor, validateTree } from '../lib/validation.js';
 
 export const NODE_W = 160;
@@ -405,7 +404,6 @@ function OutcomeNode({
         />
       </g>
       <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, outcome)} />
-      <TeamBadges x={x} y={y} width={NODE_W} entries={teamEntries} teams={teams} idPrefix={`outcome-${outcome.id}`} onOpen={onOpenTeam} />
       <InsightPill x={x} y={y} count={insightCount} dollars={insightDollars} label={outcome.name} onOpen={() => onShowInsights(outcome, 'outcome')} />
     </g>
   );
@@ -570,12 +568,7 @@ function ProjectNode({
 }) {
   const team = teams.find((item) => item.id === project.team_id)?.name ?? null;
   const quarter = formatQuarter(project.end_at);
-  // Reserve the last line for the team badge so it doesn't get squeezed out
-  // by a long project name.
-  const nameLines = wrapLabel(project.name, MAX_CHARS, team ? MAX_LINES - 1 : MAX_LINES);
-  const [teamLine] = team ? wrapLabel(team, MAX_CHARS, 1) : [null];
-  const lines = teamLine ? [...nameLines, teamLine] : nameLines;
-  const teamLineIndex = teamLine ? lines.length - 1 : -1;
+  const lines = wrapLabel(project.name, MAX_CHARS, MAX_LINES);
 
   return (
     <g
@@ -607,7 +600,6 @@ function ProjectNode({
         {lines.map((line, index) => (
           <tspan
             key={index}
-            className={index === teamLineIndex ? 'tree-node-team' : undefined}
             x={x}
             dy={index === 0 ? -((lines.length - 1) * LINE_H) / 2 : LINE_H}
           >
@@ -650,7 +642,6 @@ function ProjectNode({
         />
       </g>
       <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, project)} />
-      <TeamBadges x={x} y={y} width={NODE_W} entries={teamEntries} teams={teams} idPrefix={`project-${project.id}`} onOpen={onOpenTeam} />
       <InsightPill x={x} y={y} count={insightCount} dollars={insightDollars} label={project.name} onOpen={() => onShowInsights(project, 'project')} />
     </g>
   );
