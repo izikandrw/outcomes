@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { api } from '../client.js';
-
-const id = z.union([z.string(), z.number()]).describe('Numeric id');
+import { id, text, path, registerReadAndDelete } from './shared.js';
 
 const fields = {
   name: z.string().min(1).describe('The behavior change, e.g. "Admins invite a teammate in their first session". Not a thing to build.'),
@@ -9,31 +8,18 @@ const fields = {
   team_id: id.describe('Team accountable for the outcome'),
   project_id: id.optional().describe("Optional home project"),
   parent_outcome_id: id.optional().describe('Optional parent outcome; omit for a top-level outcome'),
+  impact_id: id
+    .optional()
+    .describe('The business impact this outcome drives. Only top-level outcomes carry it; children inherit it from their top-level ancestor.'),
 };
 
-const text = (value) => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] });
-
 export function registerOutcomeTools(server) {
-  server.registerTool(
-    'list_outcomes',
-    {
-      title: 'List outcomes',
-      description: 'List every outcome in the account, each with the ids of projects linked to it (project_ids).',
-      annotations: { readOnlyHint: true },
-    },
-    async () => text(await api('/outcomes'))
-  );
-
-  server.registerTool(
-    'get_outcome',
-    {
-      title: 'Get outcome',
-      description: 'Get one outcome by id.',
-      inputSchema: { outcome_id: id },
-      annotations: { readOnlyHint: true },
-    },
-    async ({ outcome_id }) => text(await api(`/outcomes/${encodeURIComponent(outcome_id)}`))
-  );
+  registerReadAndDelete(server, {
+    collection: 'outcomes',
+    singular: 'outcome',
+    idField: 'outcome_id',
+    listDescription: 'List every outcome in the account, each with the ids of projects linked to it (project_ids).',
+  });
 
   server.registerTool(
     'create_outcome',
@@ -58,35 +44,24 @@ export function registerOutcomeTools(server) {
         team_id: id.optional(),
         project_id: id.nullable().optional().describe('Pass null to clear'),
         parent_outcome_id: id.nullable().optional().describe('Pass null to make top-level'),
+        impact_id: id.nullable().optional().describe('Top-level outcomes only. Pass null to clear'),
       },
       annotations: { idempotentHint: true },
     },
     async ({ outcome_id, ...changes }) => {
-      const path = `/outcomes/${encodeURIComponent(outcome_id)}`;
-      const current = await api(path);
+      const outcomePath = path('outcomes', outcome_id);
+      const current = await api(outcomePath);
       const { name, description, team_id, project_id, parent_outcome_id, impact_id } = { ...current, ...changes };
-      // The PUT replaces the record, so carry the impact link through. Only a
-      // top-level outcome may have one; nesting an outcome drops it.
+      // Only a top-level outcome may link to an impact, so nesting an outcome
+      // drops the link it carried. An impact_id passed explicitly is sent as-is
+      // and the API rejects it on a child.
+      const impact = changes.impact_id !== undefined ? impact_id : parent_outcome_id ? null : impact_id;
       return text(
-        await api(path, {
+        await api(outcomePath, {
           method: 'PUT',
-          body: { name, description, team_id, project_id, parent_outcome_id, impact_id: parent_outcome_id ? null : impact_id },
+          body: { name, description, team_id, project_id, parent_outcome_id, impact_id: impact },
         })
       );
-    }
-  );
-
-  server.registerTool(
-    'delete_outcome',
-    {
-      title: 'Delete outcome',
-      description: 'Permanently delete an outcome by id.',
-      inputSchema: { outcome_id: id },
-      annotations: { destructiveHint: true },
-    },
-    async ({ outcome_id }) => {
-      await api(`/outcomes/${encodeURIComponent(outcome_id)}`, { method: 'DELETE' });
-      return text({ deleted: String(outcome_id) });
     }
   );
 }

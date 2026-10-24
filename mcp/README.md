@@ -4,15 +4,21 @@ A stdio [MCP](https://modelcontextprotocol.io) server that exposes the outcomes 
 
 ## Tools
 
-| tool | |
-| --- | --- |
-| `list_outcomes` | all outcomes in the account |
-| `get_outcome` | one outcome by id |
-| `create_outcome` | `name`, `team_id`, optional `description`, `project_id`, `parent_outcome_id` |
-| `update_outcome` | partial update; unspecified fields are kept |
-| `delete_outcome` | delete by id |
+Every resource has `list_*`, `get_*`, `create_*`, `update_*` and `delete_*`, except measurements (below). The API's PUTs replace the whole record, so `update_*` tools fetch the current record and apply only the fields you pass.
 
-New resources (teams, projects, targets…) go in `src/tools/` and are registered in `src/server.js`.
+| resource | notes |
+| --- | --- |
+| teams | `update_team` keeps the logo |
+| impacts | nest via `parent_impact_id` |
+| outcomes | `impact_id` only on top-level outcomes; nesting an outcome drops it |
+| projects | `outcome_ids` links the outcomes a project drives; passing it on update replaces the set |
+| insights | `outcome_ids` / `project_ids` link evidence; passing either on update replaces that set |
+| targets | exactly one of `outcome_id` / `impact_id`; `update_target` can't move a target to another parent |
+| measurements | `list_measurements` (optionally by `target_id`, oldest first), `record_measurement`, `update_measurement`, `delete_measurement` |
+
+`review_portfolio` answers "are we working on the right things?" (`product/jtbds/delivery.md`): chimerical impacts, unvalidated outcomes (`min_insights`, default 1), chimerical outcomes and projects with no outcome. Links roll up through nesting.
+
+New resources go in `src/tools/` and are registered in `src/server.js`; `src/tools/shared.js` has the list/get/delete and partial-update helpers.
 
 ## Run
 
