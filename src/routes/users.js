@@ -6,6 +6,7 @@ const { newInviteToken, hashInviteToken } = require('../lib/auth');
 const router = express.Router();
 
 const INVITE_DAYS = 7;
+const RESET_HOURS = 24;
 const ROLES = ['admin', 'member'];
 
 router.get('/users', async (req, res, next) => {
@@ -33,6 +34,40 @@ router.delete('/users/:userId', requireAdmin, async (req, res, next) => {
     res.status(204).send();
   } catch (err) {
     next(err);
+  }
+});
+
+// The raw token is returned once, here; the admin shares it as a link. Any
+// earlier unused link for the same user stops working.
+router.post('/users/:userId/password-reset', requireAdmin, async (req, res, next) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const user = (
+      await client.query('SELECT id, email FROM users WHERE id = $1 AND account_id = $2', [
+        req.params.userId,
+        req.accountId,
+      ])
+    ).rows[0];
+    if (!user) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'user not found' });
+    }
+    await client.query('DELETE FROM password_resets WHERE user_id = $1 AND used_at IS NULL', [user.id]);
+    const token = newInviteToken();
+    const { rows } = await client.query(
+      `INSERT INTO password_resets (user_id, token_hash, created_by, expires_at)
+       VALUES ($1, $2, $3, now() + make_interval(hours => $4))
+       RETURNING expires_at`,
+      [user.id, hashInviteToken(token), req.user.id, RESET_HOURS]
+    );
+    await client.query('COMMIT');
+    res.status(201).json({ email: user.email, expires_at: rows[0].expires_at, token });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    client.release();
   }
 });
 

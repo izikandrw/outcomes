@@ -33,11 +33,13 @@ const sign = (data) => crypto.createHmac('sha256', secret()).update(data).digest
 
 function signToken(userId) {
   const header = b64(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const payload = b64(JSON.stringify({ sub: String(userId), exp: Math.floor(Date.now() / 1000) + SESSION_SECONDS }));
+  const iat = Math.floor(Date.now() / 1000);
+  const payload = b64(JSON.stringify({ sub: String(userId), iat, exp: iat + SESSION_SECONDS }));
   return `${header}.${payload}.${sign(`${header}.${payload}`)}`;
 }
 
-// Returns the user id, or null if the token is malformed, forged or expired.
+// Returns { userId, issuedAt } (issuedAt in seconds, absent on tokens signed
+// before it was added), or null if the token is malformed, forged or expired.
 function verifyToken(token) {
   const parts = String(token || '').split('.');
   if (parts.length !== 3) return null;
@@ -45,14 +47,14 @@ function verifyToken(token) {
   const given = Buffer.from(parts[2]);
   if (expected.length !== given.length || !crypto.timingSafeEqual(expected, given)) return null;
   try {
-    const { sub, exp } = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
-    return exp > Date.now() / 1000 ? sub : null;
+    const { sub, iat, exp } = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
+    return exp > Date.now() / 1000 ? { userId: sub, issuedAt: iat } : null;
   } catch {
     return null;
   }
 }
 
-// Invite tokens are random; only their hash is stored.
+// Invite and password-reset tokens are random; only their hash is stored.
 const newInviteToken = () => crypto.randomBytes(24).toString('base64url');
 const hashInviteToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 

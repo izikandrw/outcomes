@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as api from '../api.js';
 
-// Admin-only: list users, remove them, and invite more by generating a
-// single-use link (shown once) for the admin to share.
+// Admin-only: list users, remove them, invite more and reset their passwords.
+// Invites and resets are single-use links (shown once) for the admin to share.
 export default function Members({ accountId, currentUserId }) {
   const [users, setUsers] = useState([]);
   const [invites, setInvites] = useState([]);
@@ -30,9 +30,25 @@ export default function Members({ accountId, currentUserId }) {
     setError(null);
     try {
       const created = await api.createInvite(accountId, email.trim(), role);
-      setLink({ email: created.email, url: `${window.location.origin}/?invite=${created.token}` });
+      setLink({
+        message: `Share this link with ${created.email}. It works once, expires in 7 days, and won't be shown again.`,
+        url: `${window.location.origin}/?invite=${created.token}`,
+      });
       setEmail('');
       load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function resetPassword(user) {
+    setError(null);
+    try {
+      const created = await api.createPasswordReset(accountId, user.id);
+      setLink({
+        message: `Share this link with ${created.email} so they can choose a new password. It works once, expires in 24 hours, replaces any earlier reset link, and won't be shown again. Their current password keeps working until they use it.`,
+        url: `${window.location.origin}/?reset=${created.token}`,
+      });
     } catch (err) {
       setError(err.message);
     }
@@ -57,15 +73,20 @@ export default function Members({ accountId, currentUserId }) {
             <span>
               {user.email} <small>{user.role}</small>
             </span>
-            {String(user.id) !== String(currentUserId) && (
-              <button
-                type="button"
-                className="ghost danger small"
-                onClick={() => run(() => api.deleteUser(accountId, user.id))}
-              >
-                Remove
+            <span className="member-actions">
+              <button type="button" className="ghost small" onClick={() => resetPassword(user)}>
+                Reset password
               </button>
-            )}
+              {String(user.id) !== String(currentUserId) && (
+                <button
+                  type="button"
+                  className="ghost danger small"
+                  onClick={() => run(() => api.deleteUser(accountId, user.id))}
+                >
+                  Remove
+                </button>
+              )}
+            </span>
           </li>
         ))}
         {invites.map((item) => (
@@ -101,9 +122,7 @@ export default function Members({ accountId, currentUserId }) {
 
       {link && (
         <div className="invite-link">
-          <p className="empty">
-            Share this link with {link.email}. It works once, expires in 7 days, and won&apos;t be shown again.
-          </p>
+          <p className="empty">{link.message}</p>
           <input readOnly value={link.url} onFocus={(e) => e.target.select()} />
         </div>
       )}

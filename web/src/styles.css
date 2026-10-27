@@ -1027,6 +1027,11 @@ button.small {
   margin-left: 6px;
 }
 
+.member-actions {
+  display: flex;
+  gap: 4px;
+}
+
 .invite-link {
   margin-top: 14px;
 }

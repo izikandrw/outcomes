@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import * as api from '../api.js';
 
-// Sign in, create a new account, or (with an invite token) join an existing one.
-export default function AuthScreen({ inviteToken, onSignedIn }) {
+// Sign in, create a new account, (with an invite token) join an existing one,
+// or (with a reset token) choose a new password.
+export default function AuthScreen({ inviteToken, resetToken, onSignedIn }) {
   const [mode, setMode] = useState('login');
   const [invite, setInvite] = useState(null);
+  const [reset, setReset] = useState(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [accountName, setAccountName] = useState('');
@@ -19,12 +21,21 @@ export default function AuthScreen({ inviteToken, onSignedIn }) {
       .catch((err) => setError(err.message));
   }, [inviteToken]);
 
+  useEffect(() => {
+    if (!resetToken) return;
+    api
+      .getPasswordReset(resetToken)
+      .then(setReset)
+      .catch((err) => setError(err.message));
+  }, [resetToken]);
+
   async function submit(event) {
     event.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      if (inviteToken && invite) onSignedIn(await api.acceptInvite(inviteToken, password));
+      if (resetToken && reset) onSignedIn(await api.resetPassword(resetToken, password));
+      else if (inviteToken && invite) onSignedIn(await api.acceptInvite(inviteToken, password));
       else if (mode === 'signup') onSignedIn(await api.signup({ email, password, accountName }));
       else onSignedIn(await api.login(email, password));
     } catch (err) {
@@ -33,8 +44,18 @@ export default function AuthScreen({ inviteToken, onSignedIn }) {
     }
   }
 
-  const joining = Boolean(inviteToken && invite);
-  const title = joining ? `Join ${invite.account_name}` : mode === 'signup' ? 'Create an account' : 'Sign in';
+  const resetting = Boolean(resetToken && reset);
+  const joining = !resetToken && Boolean(inviteToken && invite);
+  const linkToken = resetToken || inviteToken;
+  const linkLoaded = resetToken ? reset : invite;
+  const newPassword = resetting || joining || mode === 'signup';
+  const title = resetting
+    ? 'Choose a new password'
+    : joining
+      ? `Join ${invite.account_name}`
+      : mode === 'signup'
+        ? 'Create an account'
+        : 'Sign in';
 
   return (
     <div className="app auth">
@@ -44,8 +65,8 @@ export default function AuthScreen({ inviteToken, onSignedIn }) {
       <form className="card" onSubmit={submit}>
         <h2>{title}</h2>
         {error && <p className="error banner">{error}</p>}
-        {joining ? (
-          <p className="empty">Choose a password for {invite.email}.</p>
+        {resetting || joining ? (
+          <p className="empty">Choose a password for {(reset || invite).email}.</p>
         ) : (
           <>
             {mode === 'signup' && (
@@ -61,21 +82,21 @@ export default function AuthScreen({ inviteToken, onSignedIn }) {
           </>
         )}
         <label>
-          Password
+          {resetting ? 'New password' : 'Password'}
           <input
             type="password"
-            autoComplete={mode === 'login' && !joining ? 'current-password' : 'new-password'}
-            minLength={joining || mode === 'signup' ? 8 : undefined}
+            autoComplete={newPassword ? 'new-password' : 'current-password'}
+            minLength={newPassword ? 8 : undefined}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
         </label>
         <div className="inline-form">
-          <button type="submit" disabled={busy || (inviteToken && !invite)}>
-            {joining ? 'Join' : mode === 'signup' ? 'Create account' : 'Sign in'}
+          <button type="submit" disabled={busy || (linkToken && !linkLoaded)}>
+            {resetting ? 'Set password' : joining ? 'Join' : mode === 'signup' ? 'Create account' : 'Sign in'}
           </button>
-          {!inviteToken && (
+          {!linkToken && (
             <button
               type="button"
               className="ghost"
@@ -88,6 +109,9 @@ export default function AuthScreen({ inviteToken, onSignedIn }) {
             </button>
           )}
         </div>
+        {mode === 'login' && !linkToken && (
+          <p className="empty">Forgot your password? Ask an admin on your account for a reset link.</p>
+        )}
       </form>
     </div>
   );

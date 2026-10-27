@@ -127,6 +127,62 @@ router.post('/invites/:token/accept', async (req, res, next) => {
   }
 });
 
+// Shows whose password a reset link is for before they choose a new one.
+router.get('/password-resets/:token', async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT u.email FROM password_resets r JOIN users u ON u.id = r.user_id
+       WHERE r.token_hash = $1 AND r.used_at IS NULL AND r.expires_at > now()`,
+      [hashInviteToken(req.params.token)]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'this reset link is invalid or has expired' });
+    res.json(rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Sets the new password, signs the user out of every other session and signs
+// them in here.
+router.post('/password-resets/:token', async (req, res, next) => {
+  const { password } = req.body;
+  if (typeof password !== 'string' || password.length < MIN_PASSWORD) {
+    return res.status(400).json({ error: `password must be at least ${MIN_PASSWORD} characters` });
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // Claiming the row first makes the link single-use even under races.
+    const reset = (
+      await client.query(
+        `UPDATE password_resets SET used_at = now()
+         WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now() RETURNING user_id`,
+        [hashInviteToken(req.params.token)]
+      )
+    ).rows[0];
+    if (!reset) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'this reset link is invalid or has expired' });
+    }
+    // The app's clock, not the database's, since requireAuth compares this with
+    // the iat the app signs into the new session.
+    const user = (
+      await client.query(
+        'UPDATE users SET password_hash = $1, password_changed_at = $2 WHERE id = $3 RETURNING *',
+        [hashPassword(password), new Date(), reset.user_id]
+      )
+    ).rows[0];
+    const account = (await client.query('SELECT * FROM accounts WHERE id = $1', [user.account_id])).rows[0];
+    await client.query('COMMIT');
+    res.json(session(user, account));
+  } catch (err) {
+    await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    client.release();
+  }
+});
+
 // Local development only: signs in as a fixed admin of an "outcomes" account,
 // creating both on first use. Off unless DEV_AUTO_LOGIN=true, and never in production.
 const DEV_EMAIL = 'isaac.stennett@gmail.com';

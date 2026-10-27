@@ -41,10 +41,15 @@ export const signup = (body) => request('/auth/signup', json('POST', body));
 export const getInvite = (token) => request(`/auth/invites/${token}`);
 export const acceptInvite = (token, password) =>
   request(`/auth/invites/${token}/accept`, json('POST', { password }));
+export const getPasswordReset = (token) => request(`/auth/password-resets/${token}`);
+export const resetPassword = (token, password) =>
+  request(`/auth/password-resets/${token}`, json('POST', { password }));
 
 export const listUsers = (accountId) => request(`/accounts/${accountId}/users`);
 export const deleteUser = (accountId, userId) =>
   request(`/accounts/${accountId}/users/${userId}`, { method: 'DELETE' });
+export const createPasswordReset = (accountId, userId) =>
+  request(`/accounts/${accountId}/users/${userId}/password-reset`, { method: 'POST' });
 export const listInvites = (accountId) => request(`/accounts/${accountId}/invites`);
 export const createInvite = (accountId, email, role) =>
   request(`/accounts/${accountId}/invites`, json('POST', { email, role }));

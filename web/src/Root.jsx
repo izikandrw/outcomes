@@ -5,8 +5,9 @@ import AuthScreen from './components/AuthScreen.jsx';
 
 // Owns the session. Shows the sign-in / sign-up / accept-invite screen until
 // there is a signed-in user, then hands the account to the workspace.
-// An invite link looks like /?invite=<token>.
+// An invite link looks like /?invite=<token>, a password reset link like /?reset=<token>.
 const inviteToken = () => new URLSearchParams(window.location.search).get('invite');
+const resetToken = () => new URLSearchParams(window.location.search).get('reset');
 
 export default function Root() {
   const [session, setSession] = useState(null);
@@ -15,18 +16,21 @@ export default function Root() {
   useEffect(() => {
     // In local dev, skip the sign-in screen when the API has DEV_AUTO_LOGIN on.
     const devSignIn = () =>
-      import.meta.env.DEV && !inviteToken()
+      import.meta.env.DEV && !inviteToken() && !resetToken()
         ? api.devLogin().then(({ token, user, account }) => {
             api.setToken(token);
             setSession({ user, account });
           })
         : null;
-    const start = api.getToken()
-      ? api.getMe().then(setSession).catch(() => {
-          api.setToken(null);
-          return devSignIn();
-        })
-      : devSignIn();
+    const restore = () =>
+      api.getToken()
+        ? api.getMe().then(setSession).catch(() => {
+            api.setToken(null);
+            return devSignIn();
+          })
+        : devSignIn();
+    // A reset link always shows the reset screen, even to someone already signed in here.
+    const start = resetToken() ? null : restore();
     Promise.resolve(start)
       .catch(() => {})
       .finally(() => setChecking(false));
@@ -43,7 +47,7 @@ export default function Root() {
 
   function signedIn({ token, user, account }) {
     api.setToken(token);
-    if (inviteToken()) window.history.replaceState(null, '', window.location.pathname);
+    if (inviteToken() || resetToken()) window.history.replaceState(null, '', window.location.pathname);
     setSession({ user, account });
   }
 
@@ -53,6 +57,6 @@ export default function Root() {
   }
 
   if (checking) return null;
-  if (!session) return <AuthScreen inviteToken={inviteToken()} onSignedIn={signedIn} />;
+  if (!session) return <AuthScreen inviteToken={inviteToken()} resetToken={resetToken()} onSignedIn={signedIn} />;
   return <App key={session.account.id} user={session.user} account={session.account} onSignOut={signOut} />;
 }
