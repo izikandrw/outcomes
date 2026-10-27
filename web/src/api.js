@@ -123,5 +123,14 @@ export const updateInsight = (accountId, insightId, insight) =>
     method: 'PUT',
     body: JSON.stringify(insight),
   });
+// Review of the insight collector's suggestions: approve one into evidence, or
+// turn it down with a reason (kept so it is never suggested again).
+export const validateInsight = (accountId, insightId) =>
+  request(`/accounts/${accountId}/insights/${insightId}/validate`, { method: 'POST' });
+export const rejectInsight = (accountId, insightId, reason, note) =>
+  request(`/accounts/${accountId}/insights/${insightId}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ reason, note }),
+  });
 export const deleteInsight = (accountId, insightId) =>
   request(`/accounts/${accountId}/insights/${insightId}`, { method: 'DELETE' });

@@ -21,11 +21,12 @@ import OutcomeList from './components/OutcomeList.jsx';
 import IssueExplainer from './components/IssueExplainer.jsx';
 import OutcomeTree from './components/OutcomeTree.jsx';
 import PotentialIssues from './components/PotentialIssues.jsx';
+import ReviewQueue from './components/ReviewQueue.jsx';
 import Roadmap from './components/Roadmap.jsx';
 import TopNav from './components/TopNav.jsx';
 import ViewToggle from './components/ViewToggle.jsx';
 import { PlusIcon } from './components/icons.jsx';
-import { insightsForOutcome, insightsForProject, targetLabel, targetsFor } from './lib/links.js';
+import { insightsForOutcome, insightsForProject, isEvidence, targetLabel, targetsFor } from './lib/links.js';
 
 const STORED_VIEW = 'outcomes.view';
 const STORED_PAGE = 'outcomes.page';
@@ -115,6 +116,14 @@ export default function App({ user, account, onSignOut }) {
   }, [accountId, loadAccountData]);
 
   const currentTeam = teams.find((team) => String(team.id) === String(teamId)) ?? null;
+
+  // Every count, badge and issue check reads `evidence`: suggestions from the
+  // insight collector don't count until someone approves them. Lists where a
+  // person works with insights directly also show suggestions (marked), but
+  // never rejected ones.
+  const evidence = insights.filter(isEvidence);
+  const activeInsights = insights.filter((insight) => insight.status !== 'rejected');
+  const pendingReview = insights.filter((insight) => insight.status === 'unvalidated').length;
 
   const openCreate = () => setModal({ kind: 'outcome', outcome: null, parentId: null });
   const openEdit = (outcome) =>
@@ -323,6 +332,25 @@ export default function App({ user, account, onSignOut }) {
     setInsights((current) => current.map((item) => (item.id === updated.id ? updated : item)));
   }
 
+  const replaceInsight = (updated) =>
+    setInsights((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+
+  async function approveInsight(insight) {
+    replaceInsight(await api.validateInsight(accountId, insight.id));
+  }
+
+  async function rejectInsight(insight, reason, note) {
+    replaceInsight(await api.rejectInsight(accountId, insight.id, reason, note));
+  }
+
+  // From the review queue: drop one suggested link and keep the rest.
+  function unlinkInsight(insight, kind, id) {
+    const field = kind === 'project' ? 'project_ids' : 'outcome_ids';
+    return patchInsight(insight, {
+      [field]: insight[field].filter((linked) => String(linked) !== String(id)).map(Number),
+    });
+  }
+
   async function removeInsight(insight) {
     if (!(await askConfirm('Delete insight?', `“${insight.name}” will be permanently deleted.`))) return;
     try {
@@ -426,7 +454,7 @@ export default function App({ user, account, onSignOut }) {
     <div className="app">
       <header>
         <h1>Outcomes</h1>
-        <TopNav page={page === 'team' ? 'teams' : page} onChange={changePage} />
+        <TopNav page={page === 'team' ? 'teams' : page} onChange={changePage} counts={{ review: pendingReview }} />
         <AccountMenu
           user={user}
           account={account}
@@ -452,7 +480,7 @@ export default function App({ user, account, onSignOut }) {
                   projects={projects}
                   outcomes={outcomes}
                   impacts={impacts}
-                  insights={insights}
+                  insights={evidence}
                   onBack={() => changePage('teams')}
                   onEdit={(team) => setModal({ kind: 'team', team })}
                   onOpenTeam={openTeam}
@@ -480,10 +508,26 @@ export default function App({ user, account, onSignOut }) {
                 <p className="empty">Loading…</p>
               ) : (
                 <InsightList
-                  insights={insights}
+                  insights={activeInsights}
                   onCreate={() => setModal({ kind: 'insight', insight: null })}
                   onEdit={(insight) => setModal({ kind: 'insight', insight })}
                   onDelete={removeInsight}
+                />
+              )}
+            </section>
+          ) : page === 'review' ? (
+            <section className="card" aria-label="Review">
+              {loading ? (
+                <p className="empty">Loading…</p>
+              ) : (
+                <ReviewQueue
+                  insights={insights}
+                  outcomes={outcomes}
+                  projects={projects}
+                  onApprove={approveInsight}
+                  onReject={rejectInsight}
+                  onEdit={(insight) => setModal({ kind: 'insight', insight })}
+                  onUnlink={unlinkInsight}
                 />
               )}
             </section>
@@ -496,7 +540,7 @@ export default function App({ user, account, onSignOut }) {
                   projects={projects}
                   outcomes={outcomes}
                   teams={teams}
-                  insights={insights}
+                  insights={evidence}
                   onEditProject={openEditProject}
                   onShowInsights={showInsights}
                   onOpenTeam={openTeam}
@@ -532,7 +576,7 @@ export default function App({ user, account, onSignOut }) {
                 projects={projects}
                 targets={targets}
                 measurements={measurements}
-                insights={insights}
+                insights={evidence}
                 onShowInsights={showInsights}
                 onEdit={openEdit}
                 onEditImpact={openEditImpact}
@@ -550,7 +594,7 @@ export default function App({ user, account, onSignOut }) {
                 teams={teams}
                 projects={projects}
                 targets={targets}
-                insights={insights}
+                insights={evidence}
                 onShowInsights={showInsights}
                 onOpenTeam={openTeam}
                 onEdit={openEdit}
@@ -566,7 +610,7 @@ export default function App({ user, account, onSignOut }) {
                 outcomes={outcomes}
                 projects={projects}
                 teams={teams}
-                insights={insights}
+                insights={evidence}
                 onEdit={openEdit}
                 onEditImpact={openEditImpact}
                 onEditProject={openEditProject}
@@ -602,8 +646,8 @@ export default function App({ user, account, onSignOut }) {
               entity={modal.entity}
               insights={
                 modal.entityKind === 'project'
-                  ? insightsForProject(insights, modal.entity)
-                  : insightsForOutcome(insights, modal.entity)
+                  ? insightsForProject(activeInsights, modal.entity)
+                  : insightsForOutcome(activeInsights, modal.entity)
               }
               onOpen={(insight) => setModal({ kind: 'insight', insight })}
               onUpdate={patchInsight}

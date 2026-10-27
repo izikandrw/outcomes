@@ -94,27 +94,69 @@ CREATE INDEX idx_project_outcomes_account_id ON project_outcomes(account_id);
 CREATE INDEX idx_project_outcomes_project_id ON project_outcomes(project_id);
 CREATE INDEX idx_project_outcomes_outcome_id ON project_outcomes(outcome_id);
 
+-- One run of the insight collector agent against one external source. stats
+-- holds the counts and token usage the run reports.
+CREATE TABLE collection_runs (
+    id             BIGSERIAL PRIMARY KEY,
+    account_id     BIGINT NOT NULL REFERENCES accounts(id),
+    source_system  TEXT NOT NULL,
+    source_config  JSONB NOT NULL DEFAULT '{}',
+    cursor         JSONB,
+    status         TEXT NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'succeeded', 'failed')),
+    model          TEXT,
+    prompt_version TEXT,
+    stats          JSONB NOT NULL DEFAULT '{}',
+    error          TEXT,
+    started_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    finished_at    TIMESTAMPTZ
+);
+
+CREATE INDEX idx_collection_runs_account_id ON collection_runs(account_id);
+
 -- An insight is a single sourced observation. team_id is optional: the team
--- that recorded it, if any. Any outcome or project may link to it.
+-- that recorded it, if any. Any outcome or project may link to it. Only a
+-- validated insight counts as evidence; the collector's suggestions start
+-- unvalidated and carry where they came from (source_*).
 CREATE TABLE insights (
     id          BIGSERIAL PRIMARY KEY,
     account_id  BIGINT NOT NULL REFERENCES accounts(id),
     team_id     BIGINT REFERENCES teams(id),
     name        TEXT NOT NULL,
     type        TEXT NOT NULL DEFAULT 'other'
-                CHECK (type IN ('support_ticket', 'session_recording', 'interview', 'funnel', 'experiment', 'other')),
+                CHECK (type IN ('support_ticket', 'session_recording', 'interview', 'funnel', 'experiment',
+                                'sales_call', 'feature_request', 'survey', 'review', 'other')),
     description TEXT,
     source      TEXT,
     observed_at TIMESTAMPTZ,
     dollar_impact NUMERIC(14, 2),
     impact_area TEXT
                 CHECK (impact_area IN ('acquisition', 'activation', 'retention', 'expansion', 'cost', 'other')),
+    status      TEXT NOT NULL DEFAULT 'validated'
+                CHECK (status IN ('unvalidated', 'validated', 'rejected')),
+    source_system      TEXT,
+    source_url         TEXT,
+    source_external_id TEXT,
+    source_excerpt     TEXT,
+    firsthand          BOOLEAN,
+    collection_run_id  BIGINT REFERENCES collection_runs(id) ON DELETE SET NULL,
+    edited_in_review   BOOLEAN NOT NULL DEFAULT false,
+    reviewed_by        BIGINT, -- references users(id); added below, once users exists
+    reviewed_at        TIMESTAMPTZ,
+    rejection_reason   TEXT
+                CHECK (rejection_reason IN ('not_an_insight', 'inaccurate', 'wrong_link', 'duplicate', 'other')),
+    review_note        TEXT,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX idx_insights_account_id ON insights(account_id);
 CREATE INDEX idx_insights_team_id ON insights(team_id);
+CREATE INDEX idx_insights_account_status ON insights(account_id, status);
+
+-- The same quote from the same source document is collected once.
+CREATE UNIQUE INDEX idx_insights_source_excerpt
+    ON insights (account_id, source_system, source_external_id, md5(source_excerpt))
+    WHERE source_system IS NOT NULL AND source_external_id IS NOT NULL AND source_excerpt IS NOT NULL;
 
 -- Many-to-many: one insight can justify several outcomes, and one outcome can
 -- rest on several insights.
@@ -123,6 +165,7 @@ CREATE TABLE insight_outcomes (
     account_id BIGINT NOT NULL REFERENCES accounts(id),
     insight_id BIGINT NOT NULL REFERENCES insights(id) ON DELETE CASCADE,
     outcome_id BIGINT NOT NULL REFERENCES outcomes(id) ON DELETE CASCADE,
+    rationale  TEXT, -- why the collector thinks the insight supports it
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (insight_id, outcome_id)
 );
@@ -137,6 +180,7 @@ CREATE TABLE insight_projects (
     account_id BIGINT NOT NULL REFERENCES accounts(id),
     insight_id BIGINT NOT NULL REFERENCES insights(id) ON DELETE CASCADE,
     project_id BIGINT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    rationale  TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (insight_id, project_id)
 );
@@ -196,12 +240,15 @@ CREATE TABLE users (
     account_id    BIGINT NOT NULL REFERENCES accounts(id),
     email         TEXT NOT NULL,
     password_hash TEXT NOT NULL,
-    role          TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member')),
+    -- collector: the insight collector agent, which may only suggest insights.
+    role          TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member', 'collector')),
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE UNIQUE INDEX idx_users_email ON users (lower(email));
 CREATE INDEX idx_users_account_id ON users(account_id);
+
+ALTER TABLE insights ADD FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL;
 
 CREATE TABLE invites (
     id          BIGSERIAL PRIMARY KEY,

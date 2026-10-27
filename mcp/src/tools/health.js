@@ -45,8 +45,10 @@ export function registerHealthTools(server) {
       annotations: { readOnlyHint: true },
     },
     async ({ min_insights = 1 }) => {
+      // Only validated insights are evidence; the collector's suggestions and
+      // rejected ones don't make an outcome any less of a guess.
       const [impacts, outcomes, projects, insights] = await Promise.all(
-        ['/impacts', '/outcomes', '/projects', '/insights'].map((p) => api(p))
+        ['/impacts', '/outcomes', '/projects', '/insights?status=validated'].map((p) => api(p))
       );
 
       const subtree = (outcome) => withDescendants([key(outcome.id)], outcomes, 'parent_outcome_id');

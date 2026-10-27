@@ -58,6 +58,11 @@ export default function InsightList({ insights, onCreate, onEdit, onDelete }) {
                 <div>
                   <h3>{insight.name}</h3>
                   <p className="meta">
+                    {insight.status === 'unvalidated' && (
+                      <span className="tag parent" title="Waiting for review; not counted as evidence yet">
+                        Suggested
+                      </span>
+                    )}
                     <span className="tag">{insightTypeLabel(insight.type)}</span>
                     <span className="tag">{plural(insight.outcome_ids.length, 'outcome')}</span>
                     <span className="tag project">{plural(insight.project_ids.length, 'project')}</span>

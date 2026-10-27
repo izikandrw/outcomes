@@ -3,6 +3,7 @@ const pool = require('../db');
 const { requireAdmin } = require('../middleware/requireAuth');
 const usersRouter = require('./users');
 const accountScope = require('../middleware/accountScope');
+const collectorScope = require('../middleware/collectorScope');
 const teamsRouter = require('./teams');
 const projectsRouter = require('./projects');
 const impactsRouter = require('./impacts');
@@ -12,6 +13,8 @@ const insightsRouter = require('./insights');
 const measurementsRouter = require('./measurements');
 
 const router = express.Router();
+
+router.use(collectorScope);
 
 router.get('/:accountId', accountScope, async (req, res, next) => {
   try {

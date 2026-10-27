@@ -1,0 +1,14 @@
+{
+  "insights": [
+    {
+      "excerpt": "Honestly we gave up on SSO after two days and just kept using passwords. The metadata upload never told us what was wrong.",
+      "name": "Globex abandoned SSO setup after two days because the metadata upload failed without an error",
+      "type": "sales_call",
+      "firsthand": true,
+      "dollar_impact": null,
+      "links": [{ "kind": "outcome", "name": "Admins finish SSO setup without contacting support" }]
+    }
+  ],
+  "notes": "14:41 is the rep's opinion, not an observation: not an insight. 15:02 (security asking about SSO for the renewal) is context for the same insight, not a separate one. deal_value is metadata about the account, not a stated impact of this observation, so dollar_impact stays null. Links use outcome names here because the catalog fixture doesn't exist yet; switch to ids once it does.",
+  "tags": ["attention", "firsthand", "single-insight", "rep-opinion-distractor"]
+}

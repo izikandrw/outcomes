@@ -4,11 +4,22 @@ const { belongsToAccount, missingFromAccount } = require('../lib/validateRef');
 
 const router = express.Router({ mergeParams: true });
 
-const TYPES = ['support_ticket', 'session_recording', 'interview', 'funnel', 'experiment', 'other'];
+const TYPES = [
+  'support_ticket', 'session_recording', 'interview', 'funnel', 'experiment',
+  'sales_call', 'feature_request', 'survey', 'review', 'other',
+];
 const IMPACT_AREAS = ['acquisition', 'activation', 'retention', 'expansion', 'cost', 'other'];
+const STATUSES = ['unvalidated', 'validated', 'rejected'];
+const REJECTION_REASONS = ['not_an_insight', 'inaccurate', 'wrong_link', 'duplicate', 'other'];
+
+// The insight collector agent signs in with this role. It may only suggest
+// insights; a person validates them (see product/agents/insight-collector/).
+const isCollector = (req) => req.user.role === 'collector';
 
 // Every read shape carries the linked outcome and project ids so a client can
-// render an insight's evidence trail without extra round trips.
+// render an insight's evidence trail without extra round trips, plus the
+// collector's reason for each link that has one, keyed by id:
+// link_rationales = { outcomes: { "12": "..." }, projects: { "4": "..." } }.
 const SELECT_INSIGHT = `
   SELECT i.*,
          COALESCE(
@@ -18,7 +29,19 @@ const SELECT_INSIGHT = `
          COALESCE(
            (SELECT array_agg(ip.project_id ORDER BY ip.project_id) FROM insight_projects ip WHERE ip.insight_id = i.id),
            '{}'
-         ) AS project_ids
+         ) AS project_ids,
+         json_build_object(
+           'outcomes', COALESCE(
+             (SELECT json_object_agg(io.outcome_id, io.rationale) FROM insight_outcomes io
+               WHERE io.insight_id = i.id AND io.rationale IS NOT NULL),
+             '{}'
+           ),
+           'projects', COALESCE(
+             (SELECT json_object_agg(ip.project_id, ip.rationale) FROM insight_projects ip
+               WHERE ip.insight_id = i.id AND ip.rationale IS NOT NULL),
+             '{}'
+           )
+         ) AS link_rationales
     FROM insights i
 `;
 
@@ -33,7 +56,7 @@ async function fetchInsight(executor, insightId, accountId) {
 // Validates the body. Writes the response and returns null when something
 // doesn't check out; otherwise returns the normalised values.
 async function readBody(req, res) {
-  const { name, type, description, source, observed_at, dollar_impact, impact_area, team_id, outcome_ids, project_ids } = req.body;
+  const { name, type, description, source, observed_at, dollar_impact, impact_area, team_id, outcome_ids, project_ids, link_rationales } = req.body;
 
   if (!name) {
     res.status(400).json({ error: 'name is required' });
@@ -77,6 +100,19 @@ async function readBody(req, res) {
     links[field] = unique;
   }
 
+  // Only rationales for links the request makes are kept; see replaceLinks.
+  const rationales = { outcomes: {}, projects: {} };
+  if (link_rationales !== undefined && link_rationales !== null) {
+    for (const kind of ['outcomes', 'projects']) {
+      const given = link_rationales[kind] ?? {};
+      if (typeof given !== 'object' || Array.isArray(given) || Object.values(given).some((text) => typeof text !== 'string')) {
+        res.status(400).json({ error: `link_rationales.${kind} must map ids to text` });
+        return null;
+      }
+      rationales[kind] = given;
+    }
+  }
+
   return {
     name,
     type: type || 'other',
@@ -88,31 +124,86 @@ async function readBody(req, res) {
     teamId: team_id || null,
     outcomeIds: links.outcome_ids,
     projectIds: links.project_ids,
+    rationales,
+  };
+}
+
+// Where an insight came from. Set once, when it is created: an edit in the UI
+// replaces the rest of the record but never what the observation rests on.
+async function readProvenance(req, res) {
+  const { status, source_system, source_url, source_external_id, source_excerpt, firsthand, collection_run_id } = req.body;
+
+  // A person's own insight is evidence straight away unless they say otherwise;
+  // the collector's never is.
+  let initialStatus = status || 'validated';
+  if (!['unvalidated', 'validated'].includes(initialStatus)) {
+    res.status(400).json({ error: 'status must be unvalidated or validated' });
+    return null;
+  }
+  if (isCollector(req)) initialStatus = 'unvalidated';
+
+  if (firsthand !== undefined && firsthand !== null && typeof firsthand !== 'boolean') {
+    res.status(400).json({ error: 'firsthand must be true or false' });
+    return null;
+  }
+  if (collection_run_id && !(await belongsToAccount('collection_runs', collection_run_id, req.accountId))) {
+    res.status(400).json({ error: 'collection_run_id not found in this account' });
+    return null;
+  }
+
+  return {
+    status: initialStatus,
+    sourceSystem: source_system || null,
+    sourceUrl: source_url || null,
+    sourceExternalId: source_external_id || null,
+    sourceExcerpt: source_excerpt || null,
+    firsthand: firsthand ?? null,
+    collectionRunId: collection_run_id || null,
   };
 }
 
 // Replaces an insight's links in `table` with `ids`. Left alone when the
-// request didn't mention the field at all.
-async function replaceLinks(client, table, column, insightId, accountId, ids) {
+// request didn't mention the field at all. A link that survives keeps its
+// rationale unless the request gives a new one, so editing an insight in the
+// UI doesn't erase why the collector linked it.
+async function replaceLinks(client, table, column, insightId, accountId, ids, rationales) {
   if (ids === undefined) return;
+  const { rows: previous } = await client.query(
+    `SELECT ${column} AS id, rationale FROM ${table} WHERE insight_id = $1 AND account_id = $2`,
+    [insightId, accountId]
+  );
+  const kept = new Map(previous.map((row) => [String(row.id), row.rationale]));
   await client.query(`DELETE FROM ${table} WHERE insight_id = $1 AND account_id = $2`, [insightId, accountId]);
   if (ids.length === 0) return;
   await client.query(
-    `INSERT INTO ${table} (account_id, insight_id, ${column}) SELECT $1, $2, unnest($3::bigint[])`,
-    [accountId, insightId, ids]
+    `INSERT INTO ${table} (account_id, insight_id, ${column}, rationale)
+     SELECT $1, $2, unnest($3::bigint[]), unnest($4::text[])`,
+    [accountId, insightId, ids, ids.map((id) => rationales[id] ?? kept.get(String(id)) ?? null)]
   );
 }
 
 async function replaceAllLinks(client, insightId, accountId, input) {
-  await replaceLinks(client, 'insight_outcomes', 'outcome_id', insightId, accountId, input.outcomeIds);
-  await replaceLinks(client, 'insight_projects', 'project_id', insightId, accountId, input.projectIds);
+  await replaceLinks(client, 'insight_outcomes', 'outcome_id', insightId, accountId, input.outcomeIds, input.rationales.outcomes);
+  await replaceLinks(client, 'insight_projects', 'project_id', insightId, accountId, input.projectIds, input.rationales.projects);
 }
 
+// The collector may read and suggest, nothing else.
+function forbidCollector(req, res, next) {
+  if (isCollector(req)) return res.status(403).json({ error: 'the insight collector may only create unvalidated insights' });
+  next();
+}
+
+// ?status=unvalidated narrows to one status, e.g. the review queue.
 router.get('/', async (req, res, next) => {
   try {
-    const { rows } = await pool.query(`${SELECT_INSIGHT} WHERE i.account_id = $1 ORDER BY i.id`, [
-      req.accountId,
-    ]);
+    const { status } = req.query;
+    if (status !== undefined && !STATUSES.includes(status)) {
+      return res.status(400).json({ error: `status must be one of: ${STATUSES.join(', ')}` });
+    }
+    const { rows } = await pool.query(
+      `${SELECT_INSIGHT} WHERE i.account_id = $1 AND ($2::text IS NULL OR i.status = $2) ORDER BY i.id`,
+      [req.accountId, status ?? null]
+    );
     res.json(rows);
   } catch (err) {
     next(err);
@@ -134,17 +225,38 @@ router.post('/', async (req, res, next) => {
   try {
     const input = await readBody(req, res);
     if (!input) return;
+    const provenance = await readProvenance(req, res);
+    if (!provenance) return;
 
     client = await pool.connect();
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `INSERT INTO insights (account_id, team_id, name, type, description, source, observed_at, dollar_impact, impact_area)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-      [req.accountId, input.teamId, input.name, input.type, input.description, input.source, input.observedAt, input.dollarImpact, input.impactArea]
+      `INSERT INTO insights (account_id, team_id, name, type, description, source, observed_at, dollar_impact, impact_area,
+         status, source_system, source_url, source_external_id, source_excerpt, firsthand, collection_run_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id`,
+      [
+        req.accountId,
+        input.teamId,
+        input.name,
+        input.type,
+        input.description,
+        input.source,
+        input.observedAt,
+        input.dollarImpact,
+        input.impactArea,
+        provenance.status,
+        provenance.sourceSystem,
+        provenance.sourceUrl,
+        provenance.sourceExternalId,
+        provenance.sourceExcerpt,
+        provenance.firsthand,
+        provenance.collectionRunId,
+      ]
     );
     await replaceAllLinks(client, rows[0].id, req.accountId, {
       outcomeIds: input.outcomeIds ?? [],
       projectIds: input.projectIds ?? [],
+      rationales: input.rationales,
     });
     await client.query('COMMIT');
 
@@ -157,7 +269,7 @@ router.post('/', async (req, res, next) => {
   }
 });
 
-router.put('/:insightId', async (req, res, next) => {
+router.put('/:insightId', forbidCollector, async (req, res, next) => {
   let client;
   try {
     const input = await readBody(req, res);
@@ -166,8 +278,11 @@ router.put('/:insightId', async (req, res, next) => {
     client = await pool.connect();
     await client.query('BEGIN');
     const { rows } = await client.query(
+      // Changing a suggestion before approving it is recorded: how often
+      // reviewers have to fix the collector's output is a quality signal.
       `UPDATE insights SET name = $1, type = $2, description = $3, source = $4, observed_at = $5,
-         dollar_impact = $6, impact_area = $7, team_id = $8, updated_at = now()
+         dollar_impact = $6, impact_area = $7, team_id = $8, updated_at = now(),
+         edited_in_review = edited_in_review OR status = 'unvalidated'
        WHERE id = $9 AND account_id = $10 RETURNING id`,
       [
         input.name,
@@ -198,7 +313,44 @@ router.put('/:insightId', async (req, res, next) => {
   }
 });
 
-router.delete('/:insightId', async (req, res, next) => {
+// Approves a suggestion: it becomes evidence. Also undoes a rejection.
+router.post('/:insightId/validate', forbidCollector, async (req, res, next) => {
+  try {
+    const { rowCount } = await pool.query(
+      `UPDATE insights SET status = 'validated', reviewed_by = $1, reviewed_at = now(),
+         rejection_reason = NULL, review_note = NULL, updated_at = now()
+       WHERE id = $2 AND account_id = $3`,
+      [req.user.id, req.params.insightId, req.accountId]
+    );
+    if (rowCount === 0) return res.status(404).json({ error: 'insight not found' });
+    res.json(await fetchInsight(pool, req.params.insightId, req.accountId));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Turns a suggestion down. The row is kept so the collector never suggests it
+// again, and the reason feeds its evals.
+router.post('/:insightId/reject', forbidCollector, async (req, res, next) => {
+  const { reason, note } = req.body;
+  if (!REJECTION_REASONS.includes(reason)) {
+    return res.status(400).json({ error: `reason must be one of: ${REJECTION_REASONS.join(', ')}` });
+  }
+  try {
+    const { rowCount } = await pool.query(
+      `UPDATE insights SET status = 'rejected', rejection_reason = $1, review_note = $2,
+         reviewed_by = $3, reviewed_at = now(), updated_at = now()
+       WHERE id = $4 AND account_id = $5`,
+      [reason, note || null, req.user.id, req.params.insightId, req.accountId]
+    );
+    if (rowCount === 0) return res.status(404).json({ error: 'insight not found' });
+    res.json(await fetchInsight(pool, req.params.insightId, req.accountId));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/:insightId', forbidCollector, async (req, res, next) => {
   try {
     // insight_outcomes and insight_projects rows cascade.
     const { rowCount } = await pool.query('DELETE FROM insights WHERE id = $1 AND account_id = $2', [

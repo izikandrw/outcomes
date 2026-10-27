@@ -178,6 +178,31 @@ async function seed(client, account) {
     for (const o of outcomes) await link('insight_outcomes', 'insight_id', id, 'outcome_id', o);
     for (const p of projects) await link('insight_projects', 'insight_id', id, 'project_id', p);
   }
+
+  // Suggestions from the insight collector, waiting in the review queue. They
+  // carry where they came from and why each link was made, and don't count as
+  // evidence until someone approves them.
+  const suggestions = [
+    ['sales_call', 'Globex admins abandoned SSO setup after two days and kept using passwords', 'Renewal call; their IT lead said the IdP metadata step failed silently. Renewal flagged at risk.', 'attention', 'Globex renewal call · 14:20', 'honestly we gave up on SSO after two days and just kept using passwords', true, 48000, 'retention',
+      [[sso, 'An admin giving up on SSO without help is this behavior not happening.']], [[ssoWizard, 'The wizard targets the metadata step they got stuck on.']]],
+    ['survey', '9 of 23 trial exit-survey respondents never found where to connect their data', null, 'csv', 'trial-exit-survey-oct.csv · rows 2–24', "couldn't figure out where to connect our warehouse", true, null, 'acquisition',
+      [[connect, 'Respondents never connected a data source during the trial.']], [[connectors, 'Connectors are what they could not find.']]],
+    ['feature_request', 'Support relayed that Initech wants audit-log export for their SOC 2 review', null, 'jira', 'PROD-2291', 'Initech asked again whether we can export audit logs for their SOC2 auditors', false, null, null, [], []],
+  ];
+  for (const [type, name, desc, system, externalId, excerpt, firsthand, dollars, area, outcomes, projects] of suggestions) {
+    const id = await one(
+      `INSERT INTO insights (account_id, type, name, description, observed_at, dollar_impact, impact_area,
+         status, source_system, source_external_id, source_excerpt, firsthand)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'unvalidated', $8, $9, $10, $11) RETURNING id`,
+      [accountId, type, name, desc, daysAgo(5), dollars, area, system, externalId, excerpt, firsthand]
+    );
+    for (const [o, why] of outcomes) {
+      await client.query('INSERT INTO insight_outcomes (account_id, insight_id, outcome_id, rationale) VALUES ($1, $2, $3, $4)', [accountId, id, o, why]);
+    }
+    for (const [p, why] of projects) {
+      await client.query('INSERT INTO insight_projects (account_id, insight_id, project_id, rationale) VALUES ($1, $2, $3, $4)', [accountId, id, p, why]);
+    }
+  }
 }
 
 async function main() {

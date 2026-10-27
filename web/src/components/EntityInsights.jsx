@@ -42,6 +42,11 @@ export default function EntityInsights({ entity, insights, onOpen, onUpdate, onA
                     bold
                     onCommit={(name) => save(insight, { name })}
                   />
+                  {insight.status === 'unvalidated' && (
+                    <span className="tag parent" title="Waiting for review; not counted as evidence yet">
+                      Suggested
+                    </span>
+                  )}
                 </td>
                 <td>
                   <select

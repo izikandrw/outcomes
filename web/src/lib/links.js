@@ -272,6 +272,22 @@ export function insightsForProject(insights, project) {
   return insights.filter((insight) => (insight.project_ids ?? []).some((id) => same(id, project.id)));
 }
 
+// Only a validated insight is evidence. The insight collector's suggestions
+// wait in the review queue as unvalidated and must not count toward an
+// outcome's evidence until a person approves them; rejected ones never do.
+export const isEvidence = (insight) => (insight.status ?? 'validated') === 'validated';
+
+export const REJECTION_REASONS = [
+  { id: 'not_an_insight', label: 'Not an insight' },
+  { id: 'inaccurate', label: 'Inaccurate' },
+  { id: 'wrong_link', label: 'Linked to the wrong work' },
+  { id: 'duplicate', label: 'Duplicate' },
+  { id: 'other', label: 'Other' },
+];
+
+export const rejectionReasonLabel = (reason) =>
+  REJECTION_REASONS.find((entry) => entry.id === reason)?.label ?? reason;
+
 // Sum of the dollar impact across a set of insights; null when none is priced.
 export function totalDollarImpact(insights) {
   const priced = insights.filter((insight) => insight.dollar_impact != null);
@@ -284,6 +300,10 @@ export const INSIGHT_TYPES = [
   { id: 'interview', label: 'Interview' },
   { id: 'funnel', label: 'Funnel' },
   { id: 'experiment', label: 'Experiment' },
+  { id: 'sales_call', label: 'Sales call' },
+  { id: 'feature_request', label: 'Feature request' },
+  { id: 'survey', label: 'Survey' },
+  { id: 'review', label: 'Review' },
   { id: 'other', label: 'Other' },
 ];
 
