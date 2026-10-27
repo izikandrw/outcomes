@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { PencilIcon } from './icons.jsx';
-import { IMPACT_AREAS, INSIGHT_TYPES, formatDollars } from '../lib/links.js';
+import { ArrowLeftIcon, ExpandIcon, PencilIcon } from './icons.jsx';
+import { IMPACT_AREAS, INSIGHT_TYPES, formatDollars, impactAreaLabel, insightTypeLabel } from '../lib/links.js';
 
 // The insights behind one outcome or project, shown in a modal. Fields edit in
 // place; the pencil goes to the full form, where links and details can be changed.
 export default function EntityInsights({ entity, insights, onOpen, onUpdate, onAdd }) {
   const [error, setError] = useState(null);
+  const [readingId, setReadingId] = useState(null);
 
   async function save(insight, patch) {
     setError(null);
@@ -14,6 +15,20 @@ export default function EntityInsights({ entity, insights, onOpen, onUpdate, onA
     } catch (err) {
       setError(`Could not save: ${err.message}`);
     }
+  }
+
+  const readingIndex = insights.findIndex((insight) => insight.id === readingId);
+  if (readingIndex !== -1) {
+    return (
+      <InsightDetail
+        insight={insights[readingIndex]}
+        position={`${readingIndex + 1} of ${insights.length}`}
+        onBack={() => setReadingId(null)}
+        onPrev={readingIndex > 0 ? () => setReadingId(insights[readingIndex - 1].id) : null}
+        onNext={readingIndex < insights.length - 1 ? () => setReadingId(insights[readingIndex + 1].id) : null}
+        onEdit={() => onOpen(insights[readingIndex])}
+      />
+    );
   }
 
   return (
@@ -101,7 +116,16 @@ export default function EntityInsights({ entity, insights, onOpen, onUpdate, onA
                     }
                   />
                 </td>
-                <td>
+                <td className="row-actions">
+                  <button
+                    type="button"
+                    className="icon-button"
+                    aria-label={`Read insight ${insight.id}`}
+                    title="Read full text"
+                    onClick={() => setReadingId(insight.id)}
+                  >
+                    <ExpandIcon />
+                  </button>
                   <button
                     type="button"
                     className="icon-button"
@@ -121,6 +145,59 @@ export default function EntityInsights({ entity, insights, onOpen, onUpdate, onA
       <div className="actions form-actions">
         <button type="button" onClick={onAdd}>
           Add insight
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Everything about one insight as plain readable text, with a way back to the
+// list and to the neighbouring insights without leaving the modal.
+function InsightDetail({ insight, position, onBack, onPrev, onNext, onEdit }) {
+  const facts = [
+    ['Type', insightTypeLabel(insight.type)],
+    ['Area', insight.impact_area ? impactAreaLabel(insight.impact_area) : null],
+    ['Impact', insight.dollar_impact != null ? formatDollars(insight.dollar_impact) : null],
+    ['Observed', insight.observed_at ? new Date(insight.observed_at).toISOString().slice(0, 10) : null],
+  ].filter(([, value]) => value);
+
+  return (
+    <div className="entity-insights insight-detail">
+      <div className="detail-nav">
+        <button type="button" className="ghost small" onClick={onBack}>
+          <ArrowLeftIcon /> All insights
+        </button>
+        <span className="hint">{position}</span>
+        <button type="button" className="ghost small" disabled={!onPrev} onClick={onPrev}>
+          Previous
+        </button>
+        <button type="button" className="ghost small" disabled={!onNext} onClick={onNext}>
+          Next
+        </button>
+      </div>
+      <h3>
+        {insight.name}
+        {insight.status === 'unvalidated' && <span className="tag parent">Suggested</span>}
+      </h3>
+      <dl className="detail-facts">
+        {facts.map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+      <section>
+        <h4>Details</h4>
+        <p className="detail-text">{insight.description || <span className="hint">No details written.</span>}</p>
+      </section>
+      <section>
+        <h4>Source</h4>
+        <p className="detail-text">{insight.source || <span className="hint">No source given.</span>}</p>
+      </section>
+      <div className="actions form-actions">
+        <button type="button" onClick={onEdit}>
+          Edit insight
         </button>
       </div>
     </div>

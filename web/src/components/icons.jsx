@@ -71,3 +71,15 @@ export const WarningIcon = () => (
     <path d="M8 11.6h.01" />
   </Icon>
 );
+
+export const ExpandIcon = () => (
+  <Icon>
+    <path d="M9.5 2.75h3.75V6.5M6.5 13.25H2.75V9.5M13.25 2.75 8.75 7.25M2.75 13.25l4.5-4.5" />
+  </Icon>
+);
+
+export const ArrowLeftIcon = () => (
+  <Icon>
+    <path d="M13 8H3.5M7.5 4 3.5 8l4 4" />
+  </Icon>
+);

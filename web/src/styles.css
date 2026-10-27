@@ -1223,6 +1223,58 @@ button.tag.insight-badge.empty {
 .insight-table td:nth-child(4) .cell-input { min-width: 5.5rem; }
 .insight-table td:nth-child(5) .cell-input { min-width: 8rem; }
 .insight-table td:last-child { padding-right: 0; }
+.insight-table td.row-actions { display: flex; gap: 6px; }
+
+.detail-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.detail-nav .hint {
+  margin-left: auto;
+}
+
+.detail-nav button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.insight-detail h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.insight-detail h4 {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.detail-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin: 0;
+}
+
+.detail-facts dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.detail-facts dd {
+  margin: 0;
+}
+
+.detail-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 
 .entity-insights {
   display: flex;
