@@ -43,9 +43,16 @@ body {
 }
 
 .app {
-  max-width: 1100px;
+  max-width: 2000px;
   margin: 0 auto;
-  padding: 24px 16px 64px;
+  padding: 24px 32px 64px;
+}
+
+@media (max-width: 640px) {
+  .app {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
 }
 
 header {
