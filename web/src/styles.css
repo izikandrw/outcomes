@@ -860,12 +860,11 @@ button.small {
   fill: color-mix(in srgb, var(--project) 70%, var(--muted));
 }
 
-/* A project can drive more than one outcome; the dashed line marks the
-   cross-links to outcomes it isn't drawn directly under. Colored to match
-   the project nodes it connects to, rather than the neutral outcome edges. */
+/* Edges into project nodes, including cross-links to outcomes a project
+   isn't drawn directly under. Colored to match the project nodes they
+   connect to, rather than the neutral outcome edges. */
 .tree-edge.project {
   stroke: color-mix(in srgb, var(--project) 55%, transparent);
-  stroke-dasharray: 5 4;
 }
 
 .tree-arrowhead.project {

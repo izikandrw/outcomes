@@ -685,7 +685,7 @@ function NodeText({ x, y, lines, targetLine, lift = 0, onTargetClick }) {
 // Places impacts at the top, then outcomes as a node-link tree, then hangs each project as a node
 // under the first outcome (in list order) it drives, or under its parent
 // project when it has one. A project linked to more than one outcome is still
-// drawn once — the other outcomes it drives get a dashed cross-edge to that
+// drawn once — the other outcomes it drives get a cross-edge to that
 // same node instead of a duplicate.
 function layout(outcomes, projects, impacts) {
   const byParent = new Map();
