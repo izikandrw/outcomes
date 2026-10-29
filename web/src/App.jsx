@@ -368,6 +368,10 @@ export default function App({ user, account, onSignOut }) {
     replaceInsight(await api.rejectInsight(accountId, insight.id, reason, note));
   }
 
+  async function reopenInsight(insight) {
+    replaceInsight(await api.reopenInsight(accountId, insight.id));
+  }
+
   // From the review queue: drop one suggested link and keep the rest.
   function unlinkInsight(insight, kind, id) {
     const field = kind === 'project' ? 'project_ids' : 'outcome_ids';
@@ -789,6 +793,7 @@ export default function App({ user, account, onSignOut }) {
               onUpdate={patchInsight}
               onValidate={approveInsight}
               onReject={rejectInsight}
+              onReopen={reopenInsight}
               onAdd={() =>
                 setModal({
                   kind: 'insight',
