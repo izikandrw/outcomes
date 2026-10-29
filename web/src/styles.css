@@ -12,6 +12,19 @@
   --target: #b7791f;
   --impact: #7c3aed;
   --danger: #c0392b;
+  /* Pill hues for insight types and impact areas. */
+  --hue-blue: #2563eb;
+  --hue-green: #15803d;
+  --hue-yellow: #a16207;
+  --hue-purple: #7c3aed;
+  --hue-red: #dc2626;
+  --hue-orange: #c2410c;
+  --hue-cyan: #0e7490;
+  --hue-pink: #db2777;
+  --hue-indigo: #4f46e5;
+  --hue-teal: #0f766e;
+  --hue-lime: #4d7c0f;
+  --hue-fuchsia: #a21caf;
   color-scheme: light dark;
 }
 
@@ -28,6 +41,18 @@
     --target: #e0a84a;
     --impact: #a78bfa;
     --danger: #ef6a5c;
+    --hue-blue: #60a5fa;
+    --hue-green: #4ade80;
+    --hue-yellow: #facc15;
+    --hue-purple: #a78bfa;
+    --hue-red: #f87171;
+    --hue-orange: #fb923c;
+    --hue-cyan: #22d3ee;
+    --hue-pink: #f472b6;
+    --hue-indigo: #818cf8;
+    --hue-teal: #2dd4bf;
+    --hue-lime: #a3e635;
+    --hue-fuchsia: #e879f9;
   }
 }
 
@@ -1381,8 +1406,8 @@ button.tag.insight-badge.empty {
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--accent);
-  background-color: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--pill, var(--accent));
+  background-color: color-mix(in srgb, var(--pill, var(--accent)) 14%, transparent);
   background-image:
     linear-gradient(45deg, transparent 50%, currentColor 50%),
     linear-gradient(135deg, currentColor 50%, transparent 50%);
@@ -1393,6 +1418,23 @@ button.tag.insight-badge.empty {
   background-repeat: no-repeat;
   cursor: pointer;
 }
+
+/* One hue per value so types and areas can be told apart at a glance. */
+.pill[data-value='acquisition'] { --pill: var(--hue-blue); }
+.pill[data-value='activation'] { --pill: var(--hue-green); }
+.pill[data-value='retention'] { --pill: var(--hue-yellow); }
+.pill[data-value='expansion'] { --pill: var(--hue-purple); }
+.pill[data-value='cost'] { --pill: var(--hue-red); }
+.pill[data-value='support_ticket'] { --pill: var(--hue-orange); }
+.pill[data-value='session_recording'] { --pill: var(--hue-cyan); }
+.pill[data-value='interview'] { --pill: var(--hue-pink); }
+.pill[data-value='funnel'] { --pill: var(--hue-indigo); }
+.pill[data-value='experiment'] { --pill: var(--hue-teal); }
+.pill[data-value='sales_call'] { --pill: var(--hue-green); }
+.pill[data-value='feature_request'] { --pill: var(--hue-fuchsia); }
+.pill[data-value='survey'] { --pill: var(--hue-yellow); }
+.pill[data-value='review'] { --pill: var(--hue-lime); }
+.pill[data-value='other'] { --pill: var(--muted); }
 
 .insight-table select.cell-input.pill.empty {
   color: var(--muted);
