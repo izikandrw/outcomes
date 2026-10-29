@@ -668,7 +668,19 @@ function NodeText({ x, y, lines, targetLine, lift = 0, onTargetClick }) {
 // project when it has one. A project linked to more than one outcome is still
 // drawn once — the other outcomes it drives get a cross-edge to that
 // same node instead of a duplicate.
+// A project shared by several outcomes is drawn under the deepest of them, so
+// every other outcome's link runs down into its top edge instead of climbing
+// into it from below. Outcome rows don't depend on where projects go, so a
+// first pass finds them and a second places the projects accordingly.
 function layout(outcomes, projects, impacts) {
+  const first = layoutPass(outcomes, projects, impacts, new Map());
+  const outcomeDepth = new Map(
+    first.nodes.filter((node) => node.type === 'outcome').map((node) => [node.data.id, node.depth])
+  );
+  return layoutPass(outcomes, projects, impacts, outcomeDepth);
+}
+
+function layoutPass(outcomes, projects, impacts, outcomeDepth) {
   const byParent = new Map();
   for (const outcome of outcomes) {
     const key = outcome.parent_outcome_id ?? null;
@@ -690,11 +702,19 @@ function layout(outcomes, projects, impacts) {
   }
 
   const primaryOutcomeOf = new Map(); // project.id -> outcome.id it's drawn under
+  const depthOf = (outcomeId) => outcomeDepth.get(outcomeId) ?? 0;
+  for (const outcome of outcomes) {
+    for (const project of projectsForOutcome(projects, outcome)) {
+      if (nestedUnder(project)) continue;
+      const current = primaryOutcomeOf.get(project.id);
+      if (current !== undefined && depthOf(outcome.id) <= depthOf(current)) continue;
+      primaryOutcomeOf.set(project.id, outcome.id);
+    }
+  }
   const projectsByOutcome = new Map(); // outcome.id -> project[] drawn under it
   for (const outcome of outcomes) {
     for (const project of projectsForOutcome(projects, outcome)) {
-      if (nestedUnder(project) || primaryOutcomeOf.has(project.id)) continue;
-      primaryOutcomeOf.set(project.id, outcome.id);
+      if (primaryOutcomeOf.get(project.id) !== outcome.id) continue;
       if (!projectsByOutcome.has(outcome.id)) projectsByOutcome.set(outcome.id, []);
       projectsByOutcome.get(outcome.id).push(project);
     }
@@ -924,10 +944,10 @@ function loweredPath(x1, y1, trunkX, x2, y2) {
   return `M${x1} ${y1} V${y1 + V_GAP / 4} H${trunkX} V${y2 - V_GAP / 2} H${x2} V${y2}`;
 }
 
-// A project cross-linked from an outcome it isn't primarily drawn under can
-// land in the same row as that outcome (or even a shallower one) rather than
-// strictly below it, since its row is fixed by whichever outcome claimed it
-// first. The normal top-to-bottom elbow assumes the target is below the
+// A project cross-linked from an outcome it isn't primarily drawn under sits
+// below that outcome, but a nested project's row is fixed by its parent
+// project, so it can land in the same row as the outcome (or even a shallower
+// one). The normal top-to-bottom elbow assumes the target is below the
 // source, so on overlapping rows it would cut a line straight through the
 // boxes in between. When rows overlap, dip under both boxes, clear of the
 // insight pills hanging off their bottom edges, so the connector never
