@@ -12,6 +12,7 @@
     "seed": "node scripts/seed.js",
     "collector": "node scripts/create-collector.js",
     "dev": "node --watch src/server.js",
+    "test": "node --test test/*.test.js",
     "web": "npm --prefix web run dev",
     "web:build": "npm --prefix web run build"
   },

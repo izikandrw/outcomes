@@ -1,0 +1,18 @@
+version: 1
+environment:
+  packages: [busybox, nodejs-22, npm]
+checks:
+  test:
+    description: >-
+      Runs the API's unit tests (npm test). They swap the database for a fake,
+      so no Postgres is needed.
+    timeout: 5m
+    when:
+      changed: ["src/**", "test/**", package.json, package-lock.json, ".chainguard/**"]
+    network:
+      egress: [registry.npmjs.org]
+    steps:
+      - name: install
+        cmd: npm ci --no-audit --no-fund
+      - name: test
+        cmd: npm test
