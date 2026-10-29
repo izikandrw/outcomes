@@ -2363,24 +2363,41 @@ button.team-chip.link:hover {
   border: 1px dashed currentColor;
 }
 
-.proposed-actions {
-  display: inline-flex;
-  gap: 12px;
+/* Each proposal is its own dashed box, so its buttons sit with it. */
+.review-links ul.proposed-links {
+  gap: 8px;
 }
 
-/* Right next to the suggested name, not pushed to the row's far edge, so
-   creating one reads as its own step rather than part of approving. */
-.review-links .proposed-actions .link-button {
-  margin-left: 0;
-  color: var(--accent);
+.review-links li.proposed-link {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
 }
 
-.review-links .proposed-actions .link-button + .link-button {
-  color: var(--muted);
+.proposed-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .review-card .proposed-description {
-  flex-basis: 100%;
+  font-size: 13px;
+}
+
+.proposed-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.review-links .proposed-actions .link-button {
+  margin-left: 0;
 }
 
 .reject-form {

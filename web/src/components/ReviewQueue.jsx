@@ -189,40 +189,45 @@ function ReviewCard({
         {proposals.length > 0 && (
           <>
             <span className="hint">{links.length === 0 ? 'Nothing it fits yet. Suggested to create' : 'Also suggested to create'}</span>
-            <ul>
-              {proposals.map((proposal, index) => (
-                <li key={`${proposal.kind}-${index}`} className="proposed-link">
-                  <span className={proposal.kind === 'project' ? 'tag project proposed' : 'tag proposed'}>
-                    New {proposal.kind === 'project' ? 'project' : 'outcome'}
-                  </span>
-                  <span className="review-link-name">{proposal.name}</span>
-                  {pending && (
-                    <span className="proposed-actions">
-                      <button
-                        type="button"
-                        className="link-button"
-                        title={`Create this ${proposal.kind} and link the insight to it. The insight stays in review.`}
-                        disabled={busy}
-                        onClick={() => onCreateProposed(insight, index)}
-                      >
-                        Create and link
-                      </button>
-                      <button
-                        type="button"
-                        className="link-button"
-                        aria-label={`Dismiss suggested ${proposal.kind} ${proposal.name}`}
-                        title="Dismiss this suggestion"
-                        disabled={busy}
-                        onClick={() => run(() => onDismissProposed(insight, index))}
-                      >
-                        Dismiss
-                      </button>
-                    </span>
-                  )}
-                  {proposal.rationale && <p className="hint proposed-description">{proposal.rationale}</p>}
-                  {proposal.description && <p className="hint proposed-description">{proposal.description}</p>}
-                </li>
-              ))}
+            <ul className="proposed-links">
+              {proposals.map((proposal, index) => {
+                const noun = proposal.kind === 'project' ? 'project' : 'outcome';
+                return (
+                  <li key={`${proposal.kind}-${index}`} className="proposed-link">
+                    <div className="proposed-head">
+                      <span className={proposal.kind === 'project' ? 'tag project proposed' : 'tag proposed'}>
+                        New {noun}
+                      </span>
+                      <span className="review-link-name">{proposal.name}</span>
+                    </div>
+                    {proposal.description && <p className="proposed-description">{proposal.description}</p>}
+                    {proposal.rationale && <p className="hint">Why: {proposal.rationale}</p>}
+                    {pending && (
+                      <div className="proposed-actions">
+                        <button
+                          type="button"
+                          className="ghost small"
+                          title={`Opens the new ${noun} form, filled in; saving it links this insight to it. The insight stays in review.`}
+                          disabled={busy}
+                          onClick={() => onCreateProposed(insight, index)}
+                        >
+                          Create {noun} and link
+                        </button>
+                        <button
+                          type="button"
+                          className="link-button"
+                          aria-label={`Dismiss suggested ${noun} ${proposal.name}`}
+                          title={`Drop this suggested ${noun}; the insight is unaffected`}
+                          disabled={busy}
+                          onClick={() => run(() => onDismissProposed(insight, index))}
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </>
         )}
