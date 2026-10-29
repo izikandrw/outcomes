@@ -15,6 +15,7 @@ import {
   targetRange,
 } from '../lib/links.js';
 import { groupByRule, issuesFor, validateTree } from '../lib/validation.js';
+import { useZoom, ZoomControls } from './Zoom.jsx';
 
 export const NODE_W = 160;
 export const NODE_H = 68;
@@ -59,6 +60,7 @@ export default function OutcomeTree({
   // shows a button to break the link.
   const [hoverEdge, setHoverEdge] = useState(null);
   const hoverEnds = hoverEdge?.ends;
+  const { zoom, scrollRef, svgRef, ...zoomActions } = useZoom({ storageKey: 'outcomes.mapZoom', width });
 
   useEffect(() => {
     if (!menu) return undefined;
@@ -92,167 +94,180 @@ export default function OutcomeTree({
   }
 
   return (
-    <div className="tree-scroll">
-      <section className="validation-panel" aria-label="Validation">
-        {counts.map(({ rule, items }) => (
-          <div
-            key={rule.id}
-            className={['validation-stat', items.length === 0 && 'ok'].filter(Boolean).join(' ')}
-            title={rule.description}
-          >
-            <span className="validation-count">
-              {rule.emoji} {items.length}
-            </span>
-            <span className="validation-label">{rule.title}</span>
-          </div>
-        ))}
-      </section>
-      <svg className="tree" width={width} height={height} role="tree" aria-label="Outcome tree">
-        <defs>
-          <marker
-            id="tree-arrow"
-            viewBox="0 0 8 8"
-            refX="7"
-            refY="4"
-            markerWidth="7"
-            markerHeight="7"
-            orient="auto-start-reverse"
-          >
-            <path className="tree-arrowhead" d="M0 1.5 L7 4 L0 6.5 z" />
-          </marker>
-          <marker
-            id="tree-arrow-impact"
-            viewBox="0 0 8 8"
-            refX="7"
-            refY="4"
-            markerWidth="7"
-            markerHeight="7"
-            orient="auto-start-reverse"
-          >
-            <path className="tree-arrowhead impact" d="M0 1.5 L7 4 L0 6.5 z" />
-          </marker>
-          <marker
-            id="tree-arrow-project"
-            viewBox="0 0 8 8"
-            refX="7"
-            refY="4"
-            markerWidth="7"
-            markerHeight="7"
-            orient="auto-start-reverse"
-          >
-            <path className="tree-arrowhead project" d="M0 1.5 L7 4 L0 6.5 z" />
-          </marker>
-        </defs>
+    <div>
+      <div className="tree-toolbar">
+        <section className="validation-panel" aria-label="Validation">
+          {counts.map(({ rule, items }) => (
+            <div
+              key={rule.id}
+              className={['validation-stat', items.length === 0 && 'ok'].filter(Boolean).join(' ')}
+              title={rule.description}
+            >
+              <span className="validation-count">
+                {rule.emoji} {items.length}
+              </span>
+              <span className="validation-label">{rule.title}</span>
+            </div>
+          ))}
+        </section>
+        <ZoomControls zoom={zoom} {...zoomActions} />
+      </div>
+      <div className="tree-scroll" ref={scrollRef}>
+        <svg
+          ref={svgRef}
+          className="tree"
+          width={width * zoom}
+          height={height * zoom}
+          viewBox={`0 0 ${width} ${height}`}
+          role="tree"
+          aria-label="Outcome tree"
+        >
+          <defs>
+            <marker
+              id="tree-arrow"
+              viewBox="0 0 8 8"
+              refX="7"
+              refY="4"
+              markerWidth="7"
+              markerHeight="7"
+              orient="auto-start-reverse"
+            >
+              <path className="tree-arrowhead" d="M0 1.5 L7 4 L0 6.5 z" />
+            </marker>
+            <marker
+              id="tree-arrow-impact"
+              viewBox="0 0 8 8"
+              refX="7"
+              refY="4"
+              markerWidth="7"
+              markerHeight="7"
+              orient="auto-start-reverse"
+            >
+              <path className="tree-arrowhead impact" d="M0 1.5 L7 4 L0 6.5 z" />
+            </marker>
+            <marker
+              id="tree-arrow-project"
+              viewBox="0 0 8 8"
+              refX="7"
+              refY="4"
+              markerWidth="7"
+              markerHeight="7"
+              orient="auto-start-reverse"
+            >
+              <path className="tree-arrowhead project" d="M0 1.5 L7 4 L0 6.5 z" />
+            </marker>
+          </defs>
 
-        {edges.map((edge) => (
-          <g
-            key={edge.key}
-            onMouseEnter={() => setHoverEdge(edge)}
-            onMouseLeave={() => setHoverEdge(null)}
-          >
-            <path
-              className={['tree-edge', edge.kind !== 'outcome' && edge.kind].filter(Boolean).join(' ')}
-              d={edge.d}
-              fill="none"
-              markerEnd={
-                edge.kind === 'project'
-                  ? 'url(#tree-arrow-project)'
-                  : edge.kind === 'impact'
-                    ? 'url(#tree-arrow-impact)'
-                    : 'url(#tree-arrow)'
-              }
-            />
-            {/* Wider invisible stroke so the thin line is easy to hover. */}
-            <path className="tree-edge-hit" d={edge.d} fill="none" />
-            {/* A target can't exist without its outcome, so that link has no break button. */}
-            {hoverEdge?.key === edge.key && edge.kind !== 'target' && (
-              <g
-                className="edge-unlink"
-                role="button"
-                tabIndex={0}
-                aria-label="Remove link"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setHoverEdge(null);
-                  onUnlink(edge);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
+          {edges.map((edge) => (
+            <g
+              key={edge.key}
+              onMouseEnter={() => setHoverEdge(edge)}
+              onMouseLeave={() => setHoverEdge(null)}
+            >
+              <path
+                className={['tree-edge', edge.kind !== 'outcome' && edge.kind].filter(Boolean).join(' ')}
+                d={edge.d}
+                fill="none"
+                markerEnd={
+                  edge.kind === 'project'
+                    ? 'url(#tree-arrow-project)'
+                    : edge.kind === 'impact'
+                      ? 'url(#tree-arrow-impact)'
+                      : 'url(#tree-arrow)'
+                }
+              />
+              {/* Wider invisible stroke so the thin line is easy to hover. */}
+              <path className="tree-edge-hit" d={edge.d} fill="none" />
+              {/* A target can't exist without its outcome, so that link has no break button. */}
+              {hoverEdge?.key === edge.key && edge.kind !== 'target' && (
+                <g
+                  className="edge-unlink"
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Remove link"
+                  onClick={(event) => {
+                    event.stopPropagation();
                     setHoverEdge(null);
                     onUnlink(edge);
-                  }
-                }}
-              >
-                <title>Remove link</title>
-                <circle cx={edge.button.x} cy={edge.button.y} r="9" />
-                <path
-                  d={`M${edge.button.x - 3.5} ${edge.button.y - 3.5}l7 7M${edge.button.x + 3.5} ${
-                    edge.button.y - 3.5
-                  }l-7 7`}
-                />
-              </g>
-            )}
-          </g>
-        ))}
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      setHoverEdge(null);
+                      onUnlink(edge);
+                    }
+                  }}
+                >
+                  <title>Remove link</title>
+                  <circle cx={edge.button.x} cy={edge.button.y} r="9" />
+                  <path
+                    d={`M${edge.button.x - 3.5} ${edge.button.y - 3.5}l7 7M${edge.button.x + 3.5} ${
+                      edge.button.y - 3.5
+                    }l-7 7`}
+                  />
+                </g>
+              )}
+            </g>
+          ))}
 
-        {nodes.map((node) => (
-          <g
-            key={`${node.type}-${node.data.id}`}
-            className={hoverEnds?.includes(`${node.type}-${node.data.id}`) ? 'edge-hover' : undefined}
-          >
-          {node.type === 'impact' ? (
-            <ImpactNode
-              key={`impact-${node.data.id}`}
-              impact={node.data}
-              issues={issuesFor(validation, 'impact', node.data)}
-              targets={targets}
-              onEdit={onEditImpact}
-              onViewTarget={onViewTarget}
-              onOpenMenu={openMenu}
-              onShowIssue={onShowIssue}
-              {...node}
-            />
-          ) : node.type === 'project' ? (
-            <ProjectNode
-              key={`project-${node.data.id}`}
-              project={node.data}
-              teams={teams}
-              teamEntries={teamsOnProject(projects, node.data)}
-              onOpenTeam={onOpenTeam}
-              onShowIssue={onShowIssue}
-              insightCount={insightsForProject(insights, node.data).length}
-              insightDollars={totalDollarImpact(insightsForProject(insights, node.data))}
-              issues={issuesFor(validation, 'project', node.data)}
-              onShowInsights={onShowInsights}
-              onEdit={onEditProject}
-              onAddChild={onAddChildProject}
-              {...node}
-            />
-          ) : (
-            <OutcomeNode
-              key={`outcome-${node.data.id}`}
-              outcome={node.data}
-              teams={teams}
-              projects={projects}
-              targets={targets}
-              measurements={measurements}
-              teamEntries={teamsOnOutcome(outcomes, projects, node.data)}
-              onOpenTeam={onOpenTeam}
-              onShowIssue={onShowIssue}
-              insightCount={insightsForOutcome(insights, node.data).length}
-              insightDollars={totalDollarImpact(insightsForOutcome(insights, node.data))}
-              issues={issuesFor(validation, 'outcome', node.data)}
-              onShowInsights={onShowInsights}
-              onEdit={onEdit}
-              onViewTarget={onViewTarget}
-              onOpenMenu={openMenu}
-              {...node}
-            />
-          )}
-          </g>
-        ))}
-      </svg>
+          {nodes.map((node) => (
+            <g
+              key={`${node.type}-${node.data.id}`}
+              className={hoverEnds?.includes(`${node.type}-${node.data.id}`) ? 'edge-hover' : undefined}
+            >
+            {node.type === 'impact' ? (
+              <ImpactNode
+                key={`impact-${node.data.id}`}
+                impact={node.data}
+                issues={issuesFor(validation, 'impact', node.data)}
+                targets={targets}
+                onEdit={onEditImpact}
+                onViewTarget={onViewTarget}
+                onOpenMenu={openMenu}
+                onShowIssue={onShowIssue}
+                {...node}
+              />
+            ) : node.type === 'project' ? (
+              <ProjectNode
+                key={`project-${node.data.id}`}
+                project={node.data}
+                teams={teams}
+                teamEntries={teamsOnProject(projects, node.data)}
+                onOpenTeam={onOpenTeam}
+                onShowIssue={onShowIssue}
+                insightCount={insightsForProject(insights, node.data).length}
+                insightDollars={totalDollarImpact(insightsForProject(insights, node.data))}
+                issues={issuesFor(validation, 'project', node.data)}
+                onShowInsights={onShowInsights}
+                onEdit={onEditProject}
+                onAddChild={onAddChildProject}
+                {...node}
+              />
+            ) : (
+              <OutcomeNode
+                key={`outcome-${node.data.id}`}
+                outcome={node.data}
+                teams={teams}
+                projects={projects}
+                targets={targets}
+                measurements={measurements}
+                teamEntries={teamsOnOutcome(outcomes, projects, node.data)}
+                onOpenTeam={onOpenTeam}
+                onShowIssue={onShowIssue}
+                insightCount={insightsForOutcome(insights, node.data).length}
+                insightDollars={totalDollarImpact(insightsForOutcome(insights, node.data))}
+                issues={issuesFor(validation, 'outcome', node.data)}
+                onShowInsights={onShowInsights}
+                onEdit={onEdit}
+                onViewTarget={onViewTarget}
+                onOpenMenu={openMenu}
+                {...node}
+              />
+            )}
+            </g>
+          ))}
+        </svg>
+      </div>
 
       {menu && (
         <div
