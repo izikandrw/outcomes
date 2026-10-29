@@ -39,6 +39,7 @@ export default function EntityInsights({ entity, insights, onOpen, onUpdate, onA
         <table className="insight-table">
           <thead>
             <tr>
+              <th>Verified</th>
               <th>Insight</th>
               <th>Type</th>
               <th>Area</th>
@@ -51,6 +52,9 @@ export default function EntityInsights({ entity, insights, onOpen, onUpdate, onA
             {insights.map((insight) => (
               <tr key={insight.id}>
                 <td>
+                  <VerifiedBadge status={insight.status} />
+                </td>
+                <td>
                   <TextCell
                     value={insight.name}
                     label="Insight name"
@@ -58,11 +62,6 @@ export default function EntityInsights({ entity, insights, onOpen, onUpdate, onA
                     bold
                     onCommit={(name) => save(insight, { name })}
                   />
-                  {insight.status === 'unvalidated' && (
-                    <span className="tag parent" title="Waiting for review; not counted as evidence yet">
-                      Suggested
-                    </span>
-                  )}
                 </td>
                 <td>
                   <select
@@ -202,6 +201,30 @@ function InsightDetail({ insight, position, onBack, onPrev, onNext, onEdit }) {
         </button>
       </div>
     </div>
+  );
+}
+
+// Whether a person has approved the insight. Collector suggestions stay
+// unverified, and don't count as evidence, until someone reviews them.
+function VerifiedBadge({ status }) {
+  if (status === 'unvalidated') {
+    return (
+      <span className="tag parent" title="Suggested by the collector; waiting for a person to review it">
+        Unverified
+      </span>
+    );
+  }
+  if (status === 'rejected') {
+    return (
+      <span className="tag parent warn" title="Rejected in review">
+        Rejected
+      </span>
+    );
+  }
+  return (
+    <span className="tag verified" title="Verified by a person">
+      ✓ Human
+    </span>
   );
 }
 

@@ -1009,6 +1009,11 @@ button.small {
   color: var(--danger, #c0392b);
 }
 
+.tag.verified {
+  background: color-mix(in srgb, var(--project) 16%, transparent);
+  color: var(--project);
+}
+
 .auth {
   max-width: 420px;
 }
@@ -1289,7 +1294,7 @@ button.tag.insight-badge.empty {
   letter-spacing: 0.04em;
 }
 
-.insight-table td:first-child {
+.insight-table td:nth-child(2) {
   white-space: normal;
 }
 
@@ -1333,16 +1338,16 @@ button.tag.insight-badge.empty {
   outline: none;
 }
 
-.insight-table td:first-child {
+.insight-table td:nth-child(2) {
   width: 100%;
   min-width: 16rem;
 }
 
 /* Fixed widths so selects, amounts and dates aren't clipped. */
-.insight-table td:nth-child(2) .cell-input { min-width: 7.5rem; }
-.insight-table td:nth-child(3) .cell-input { min-width: 9rem; }
-.insight-table td:nth-child(4) .cell-input { min-width: 5.5rem; }
-.insight-table td:nth-child(5) .cell-input { min-width: 8rem; }
+.insight-table td:nth-child(3) .cell-input { min-width: 7.5rem; }
+.insight-table td:nth-child(4) .cell-input { min-width: 9rem; }
+.insight-table td:nth-child(5) .cell-input { min-width: 5.5rem; }
+.insight-table td:nth-child(6) .cell-input { min-width: 8rem; }
 .insight-table td:last-child { padding-right: 0; }
 .insight-table td.row-actions { display: flex; gap: 6px; }
 
@@ -1404,7 +1409,7 @@ button.tag.insight-badge.empty {
 }
 
 /* Spare width goes to the name column rather than being spread between the rest. */
-.insight-table th:first-child {
+.insight-table th:nth-child(2) {
   width: 100%;
 }
 
