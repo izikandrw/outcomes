@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import * as api from '../api.js';
 import {
   REJECTION_REASONS,
   formatDollars,
@@ -6,7 +7,7 @@ import {
   rejectionReasonLabel,
 } from '../lib/links.js';
 import LinkedText from './LinkedText.jsx';
-import CollectionRuns from './CollectionRuns.jsx';
+import CollectionRuns, { formatTime } from './CollectionRuns.jsx';
 
 // Insights waiting for a person: mostly the insight collector's suggestions
 // (product/agents/insight-collector/spec.md). Each card shows the excerpt it
@@ -29,9 +30,18 @@ export default function ReviewQueue({
   onDismissProposed,
 }) {
   const [tab, setTab] = useState('pending');
+  const [lastRunAt, setLastRunAt] = useState(null);
   const pending = insights.filter((insight) => insight.status === 'unvalidated');
   const rejected = insights.filter((insight) => insight.status === 'rejected');
   const shown = tab === 'pending' ? pending : rejected;
+
+  // The Runs tab names when the collector last ran; runs come newest first.
+  useEffect(() => {
+    api
+      .listCollectionRuns(accountId)
+      .then((runs) => setLastRunAt(runs[0]?.started_at ?? null))
+      .catch(() => setLastRunAt(null));
+  }, [accountId, insights]);
 
   return (
     <>
@@ -44,7 +54,7 @@ export default function ReviewQueue({
             Rejected ({rejected.length})
           </button>
           <button type="button" aria-pressed={tab === 'runs'} onClick={() => setTab('runs')}>
-            Runs
+            Runs{lastRunAt && ` (${formatTime(lastRunAt)})`}
           </button>
         </div>
       </div>
