@@ -1,12 +1,12 @@
 const express = require('express');
 const pool = require('../db');
-const { belongsToAccount } = require('../lib/validateRef');
+const { belongsToAccount, missingFromAccount } = require('../lib/validateRef');
 
 const router = express.Router({ mergeParams: true });
 
 // Outcomes carry the ids of every project linked to them through
-// project_outcomes. Links are written from the project side; this is the
-// read-only mirror so an outcome can show what's driving it.
+// project_outcomes. Links can be written from either side: a project's
+// outcome_ids or an outcome's project_ids.
 const SELECT_OUTCOME = `
   SELECT o.*,
          COALESCE(
@@ -17,8 +17,19 @@ const SELECT_OUTCOME = `
     LEFT JOIN project_outcomes po ON po.outcome_id = o.id
 `;
 
+async function fetchOutcome(executor, outcomeId, accountId) {
+  const { rows } = await executor.query(
+    `${SELECT_OUTCOME} WHERE o.id = $1 AND o.account_id = $2 GROUP BY o.id`,
+    [outcomeId, accountId]
+  );
+  return rows[0] ?? null;
+}
+
+// Validates the refs and returns the normalised project_ids (undefined when the
+// request didn't mention them). Writes the response and returns false when
+// something doesn't check out.
 async function validateRefs(req, res) {
-  const { team_id, project_id, parent_outcome_id, impact_id } = req.body;
+  const { team_id, project_id, project_ids, parent_outcome_id, impact_id } = req.body;
   if (!team_id) {
     res.status(400).json({ error: 'team_id is required' });
     return false;
@@ -47,7 +58,34 @@ async function validateRefs(req, res) {
       return false;
     }
   }
-  return true;
+  if (project_ids === undefined) return { projectIds: undefined };
+  if (!Array.isArray(project_ids)) {
+    res.status(400).json({ error: 'project_ids must be an array' });
+    return false;
+  }
+  const projectIds = [...new Set(project_ids.map(String))];
+  const missing = await missingFromAccount('projects', projectIds, req.accountId);
+  if (missing.length > 0) {
+    res.status(400).json({ error: `project_ids not found in this account: ${missing.join(', ')}` });
+    return false;
+  }
+  return { projectIds };
+}
+
+// Replaces an outcome's project links with `projectIds`. Left alone when the
+// request didn't mention project_ids at all.
+async function replaceLinks(client, outcomeId, accountId, projectIds) {
+  if (projectIds === undefined) return;
+  await client.query('DELETE FROM project_outcomes WHERE outcome_id = $1 AND account_id = $2', [
+    outcomeId,
+    accountId,
+  ]);
+  if (projectIds.length === 0) return;
+  await client.query(
+    `INSERT INTO project_outcomes (account_id, project_id, outcome_id)
+     SELECT $1, unnest($2::bigint[]), $3`,
+    [accountId, projectIds, outcomeId]
+  );
 }
 
 router.get('/', async (req, res, next) => {
@@ -64,12 +102,9 @@ router.get('/', async (req, res, next) => {
 
 router.get('/:outcomeId', async (req, res, next) => {
   try {
-    const { rows } = await pool.query(
-      `${SELECT_OUTCOME} WHERE o.id = $1 AND o.account_id = $2 GROUP BY o.id`,
-      [req.params.outcomeId, req.accountId]
-    );
-    if (rows.length === 0) return res.status(404).json({ error: 'outcome not found' });
-    res.json(rows[0]);
+    const outcome = await fetchOutcome(pool, req.params.outcomeId, req.accountId);
+    if (!outcome) return res.status(404).json({ error: 'outcome not found' });
+    res.json(outcome);
   } catch (err) {
     next(err);
   }
@@ -78,11 +113,16 @@ router.get('/:outcomeId', async (req, res, next) => {
 router.post('/', async (req, res, next) => {
   const { name, description, team_id, project_id, parent_outcome_id, impact_id } = req.body;
   if (!name) return res.status(400).json({ error: 'name is required' });
+  let client;
   try {
-    if (!(await validateRefs(req, res))) return;
-    const { rows } = await pool.query(
+    const refs = await validateRefs(req, res);
+    if (!refs) return;
+
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rows } = await client.query(
       `INSERT INTO outcomes (account_id, team_id, project_id, parent_outcome_id, impact_id, name, description)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
       [
         req.accountId,
         team_id,
@@ -93,21 +133,32 @@ router.post('/', async (req, res, next) => {
         description || null,
       ]
     );
-    res.status(201).json({ ...rows[0], project_ids: [] });
+    await replaceLinks(client, rows[0].id, req.accountId, refs.projectIds);
+    await client.query('COMMIT');
+
+    res.status(201).json(await fetchOutcome(pool, rows[0].id, req.accountId));
   } catch (err) {
+    if (client) await client.query('ROLLBACK').catch(() => {});
     next(err);
+  } finally {
+    if (client) client.release();
   }
 });
 
 router.put('/:outcomeId', async (req, res, next) => {
   const { name, description, team_id, project_id, parent_outcome_id, impact_id } = req.body;
   if (!name) return res.status(400).json({ error: 'name is required' });
+  let client;
   try {
-    if (!(await validateRefs(req, res))) return;
-    const { rows } = await pool.query(
+    const refs = await validateRefs(req, res);
+    if (!refs) return;
+
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rows } = await client.query(
       `UPDATE outcomes SET name = $1, description = $2, team_id = $3, project_id = $4,
          parent_outcome_id = $5, impact_id = $6, updated_at = now()
-       WHERE id = $7 AND account_id = $8 RETURNING *`,
+       WHERE id = $7 AND account_id = $8 RETURNING id`,
       [
         name,
         description || null,
@@ -119,14 +170,19 @@ router.put('/:outcomeId', async (req, res, next) => {
         req.accountId,
       ]
     );
-    if (rows.length === 0) return res.status(404).json({ error: 'outcome not found' });
-    const { rows: linked } = await pool.query(
-      'SELECT project_id FROM project_outcomes WHERE outcome_id = $1 ORDER BY project_id',
-      [req.params.outcomeId]
-    );
-    res.json({ ...rows[0], project_ids: linked.map((row) => row.project_id) });
+    if (rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'outcome not found' });
+    }
+    await replaceLinks(client, rows[0].id, req.accountId, refs.projectIds);
+    await client.query('COMMIT');
+
+    res.json(await fetchOutcome(pool, req.params.outcomeId, req.accountId));
   } catch (err) {
+    if (client) await client.query('ROLLBACK').catch(() => {});
     next(err);
+  } finally {
+    if (client) client.release();
   }
 });
 
