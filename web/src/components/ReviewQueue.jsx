@@ -5,6 +5,7 @@ import {
   insightTypeLabel,
   rejectionReasonLabel,
 } from '../lib/links.js';
+import LinkedText from './LinkedText.jsx';
 
 // Insights waiting for a person: mostly the insight collector's suggestions
 // (product/agents/insight-collector/spec.md). Each card shows the excerpt it
@@ -212,5 +213,9 @@ function SourceLine({ insight }) {
     );
   }
   const reference = insight.source_external_id || insight.source;
-  return reference ? <p className="hint">{reference}</p> : null;
+  return reference ? (
+    <p className="hint">
+      <LinkedText text={reference} />
+    </p>
+  ) : null;
 }

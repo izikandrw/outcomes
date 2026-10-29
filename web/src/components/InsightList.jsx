@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { INSIGHT_TYPES, formatDollars, impactAreaLabel, insightTypeLabel } from '../lib/links.js';
 import { PencilIcon, PlusIcon, TrashIcon } from './icons.jsx';
+import LinkedText from './LinkedText.jsx';
 
 // Every insight in the account, filterable by text and type. Each row shows how
 // much work leans on it, since the point of an insight is to be reused.
@@ -75,7 +76,11 @@ export default function InsightList({ insights, onCreate, onEdit, onDelete }) {
                     )}
                     <span className="id">#{insight.id}</span>
                   </p>
-                  {insight.source && <p className="hint">{insight.source}</p>}
+                  {insight.source && (
+                    <p className="hint">
+                      <LinkedText text={insight.source} />
+                    </p>
+                  )}
                 </div>
                 <div className="actions">
                   <button

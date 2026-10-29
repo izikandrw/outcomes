@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ArrowLeftIcon, ExpandIcon, PencilIcon } from './icons.jsx';
+import LinkedText from './LinkedText.jsx';
 import { IMPACT_AREAS, INSIGHT_TYPES, formatDollars, impactAreaLabel, insightTypeLabel } from '../lib/links.js';
 
 // The insights behind one outcome or project, shown in a modal. Fields edit in
@@ -193,7 +194,7 @@ function InsightDetail({ insight, position, onBack, onPrev, onNext, onEdit }) {
       </section>
       <section>
         <h4>Source</h4>
-        <p className="detail-text">{insight.source || <span className="hint">No source given.</span>}</p>
+        <p className="detail-text">{insight.source ? <LinkedText text={insight.source} /> : <span className="hint">No source given.</span>}</p>
       </section>
       <div className="actions form-actions">
         <button type="button" onClick={onEdit}>
