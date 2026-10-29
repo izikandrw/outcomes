@@ -1014,6 +1014,25 @@ button.small {
   color: var(--project);
 }
 
+/* The verified badge doubles as its own dropdown. */
+select.tag.verify-select {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+select.tag.verify-select.parent {
+  border-color: var(--border);
+}
+
+select.tag.verify-select option,
+select.tag.verify-select optgroup {
+  color: var(--text);
+  background: var(--surface);
+}
+
 .auth {
   max-width: 420px;
 }

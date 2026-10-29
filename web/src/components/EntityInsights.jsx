@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { ArrowLeftIcon, ExpandIcon, PencilIcon } from './icons.jsx';
 import LinkedText from './LinkedText.jsx';
-import { IMPACT_AREAS, INSIGHT_TYPES, formatDollars, impactAreaLabel, insightTypeLabel } from '../lib/links.js';
+import { IMPACT_AREAS, INSIGHT_TYPES, REJECTION_REASONS, formatDollars, impactAreaLabel, insightTypeLabel } from '../lib/links.js';
 
 // The insights behind one outcome or project, shown in a modal. Fields edit in
 // place; the pencil goes to the full form, where links and details can be changed.
-export default function EntityInsights({ entity, insights, onOpen, onUpdate, onAdd }) {
+export default function EntityInsights({ entity, insights, onOpen, onUpdate, onValidate, onReject, onAdd }) {
   const [error, setError] = useState(null);
   const [readingId, setReadingId] = useState(null);
 
@@ -13,6 +13,17 @@ export default function EntityInsights({ entity, insights, onOpen, onUpdate, onA
     setError(null);
     try {
       await onUpdate(insight, patch);
+    } catch (err) {
+      setError(`Could not save: ${err.message}`);
+    }
+  }
+
+  // value is 'validated' or 'reject:<reason>', from the Verified column.
+  async function review(insight, value) {
+    setError(null);
+    try {
+      if (value === 'validated') await onValidate(insight);
+      else await onReject(insight, value.slice('reject:'.length));
     } catch (err) {
       setError(`Could not save: ${err.message}`);
     }
@@ -52,7 +63,10 @@ export default function EntityInsights({ entity, insights, onOpen, onUpdate, onA
             {insights.map((insight) => (
               <tr key={insight.id}>
                 <td>
-                  <VerifiedBadge status={insight.status} />
+                  <VerifiedSelect
+                    status={insight.status}
+                    onChange={(value) => review(insight, value)}
+                  />
                 </td>
                 <td>
                   <TextCell
@@ -204,27 +218,34 @@ function InsightDetail({ insight, position, onBack, onPrev, onNext, onEdit }) {
   );
 }
 
-// Whether a person has approved the insight. Collector suggestions stay
-// unverified, and don't count as evidence, until someone reviews them.
-function VerifiedBadge({ status }) {
-  if (status === 'unvalidated') {
-    return (
-      <span className="tag parent" title="Suggested by the collector; waiting for a person to review it">
-        Unverified
-      </span>
-    );
-  }
-  if (status === 'rejected') {
-    return (
-      <span className="tag parent warn" title="Rejected in review">
-        Rejected
-      </span>
-    );
-  }
+// Whether a person has approved the insight, and the control to change it.
+// Collector suggestions stay unverified, and don't count as evidence, until
+// someone verifies them; rejecting needs a reason, which feeds the collector's
+// evals. Nothing moves an insight back to unverified, so that's never offered.
+function VerifiedSelect({ status, onChange }) {
+  const verified = status === 'validated';
   return (
-    <span className="tag verified" title="Verified by a person">
-      ✓ Human
-    </span>
+    <select
+      className={`tag verify-select ${verified ? 'verified' : 'parent'}`}
+      aria-label="Verified"
+      title={verified ? 'Verified by a person' : 'Suggested by the collector; waiting for a person to review it'}
+      value={status}
+      onChange={(event) => onChange(event.target.value)}
+    >
+      {status === 'unvalidated' && (
+        <option value="unvalidated" disabled>
+          Unverified
+        </option>
+      )}
+      <option value="validated">✓ Human</option>
+      <optgroup label="Reject as…">
+        {REJECTION_REASONS.map((reason) => (
+          <option key={reason.id} value={`reject:${reason.id}`}>
+            {reason.label}
+          </option>
+        ))}
+      </optgroup>
+    </select>
   );
 }
 

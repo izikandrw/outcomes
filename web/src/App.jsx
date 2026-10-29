@@ -651,6 +651,8 @@ export default function App({ user, account, onSignOut }) {
               }
               onOpen={(insight) => setModal({ kind: 'insight', insight })}
               onUpdate={patchInsight}
+              onValidate={approveInsight}
+              onReject={rejectInsight}
               onAdd={() =>
                 setModal({
                   kind: 'insight',
