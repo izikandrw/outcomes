@@ -1,6 +1,6 @@
 const express = require('express');
 const pool = require('../db');
-const { belongsToAccount, missingFromAccount } = require('../lib/validateRef');
+const { belongsToAccount, missingFromAccount, redundantLinks, newRedundantLink } = require('../lib/validateRef');
 
 const router = express.Router({ mergeParams: true });
 
@@ -117,6 +117,7 @@ router.post('/', async (req, res, next) => {
 
     client = await pool.connect();
     await client.query('BEGIN');
+    const before = await redundantLinks(client, req.accountId);
     const { rows } = await client.query(
       `INSERT INTO outcomes (account_id, team_id, project_id, parent_outcome_id, impact_id, name, description)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
@@ -131,6 +132,12 @@ router.post('/', async (req, res, next) => {
       ]
     );
     await replaceLinks(client, rows[0].id, req.accountId, refs.projectIds);
+    // Checked after the write so a new parent counts as well as new projects.
+    const redundant = await newRedundantLink(client, req.accountId, before);
+    if (redundant) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: redundant });
+    }
     await client.query('COMMIT');
 
     res.status(201).json(await fetchOutcome(pool, rows[0].id, req.accountId));
@@ -152,6 +159,7 @@ router.put('/:outcomeId', async (req, res, next) => {
 
     client = await pool.connect();
     await client.query('BEGIN');
+    const before = await redundantLinks(client, req.accountId);
     const { rows } = await client.query(
       `UPDATE outcomes SET name = $1, description = $2, team_id = $3, project_id = $4,
          parent_outcome_id = $5, impact_id = $6, updated_at = now()
@@ -172,6 +180,12 @@ router.put('/:outcomeId', async (req, res, next) => {
       return res.status(404).json({ error: 'outcome not found' });
     }
     await replaceLinks(client, rows[0].id, req.accountId, refs.projectIds);
+    // Checked after the write so a new parent counts as well as new projects.
+    const redundant = await newRedundantLink(client, req.accountId, before);
+    if (redundant) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: redundant });
+    }
     await client.query('COMMIT');
 
     res.json(await fetchOutcome(pool, req.params.outcomeId, req.accountId));

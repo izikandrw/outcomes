@@ -36,4 +36,54 @@ async function wouldCycle(table, parentColumn, id, parentId) {
   return rows.length > 0;
 }
 
-module.exports = { belongsToAccount, missingFromAccount, wouldCycle };
+// Every place a project links to both an outcome and one of that outcome's
+// ancestors. The ancestor already reaches the project through the descendant,
+// so the direct link only duplicates it (and draws a second line on the map).
+// Links come from project_outcomes and the older outcomes.project_id column.
+// UNION rather than UNION ALL keeps the walk finite if parents ever loop.
+async function redundantLinks(executor, accountId) {
+  const { rows } = await executor.query(
+    `WITH RECURSIVE lineage AS (
+       SELECT id AS outcome_id, parent_outcome_id AS ancestor_id
+         FROM outcomes WHERE account_id = $1 AND parent_outcome_id IS NOT NULL
+       UNION
+       SELECT l.outcome_id, up.parent_outcome_id
+         FROM lineage l JOIN outcomes up ON up.id = l.ancestor_id
+        WHERE up.parent_outcome_id IS NOT NULL
+     ),
+     links AS (
+       SELECT project_id, outcome_id FROM project_outcomes WHERE account_id = $1
+       UNION
+       SELECT project_id, id FROM outcomes WHERE account_id = $1 AND project_id IS NOT NULL
+     )
+     SELECT p.id AS project_id, p.name AS project_name,
+            child.id AS outcome_id, child.name AS outcome_name,
+            anc.id AS ancestor_id, anc.name AS ancestor_name
+       FROM lineage l
+       JOIN links via_child ON via_child.outcome_id = l.outcome_id
+       JOIN links via_ancestor ON via_ancestor.outcome_id = l.ancestor_id
+                              AND via_ancestor.project_id = via_child.project_id
+       JOIN projects p ON p.id = via_child.project_id
+       JOIN outcomes child ON child.id = l.outcome_id
+       JOIN outcomes anc ON anc.id = l.ancestor_id`,
+    [accountId]
+  );
+  return rows;
+}
+
+// Run inside a write's transaction: `before` is redundantLinks() taken before
+// the write. Returns an error message naming the first link the write added,
+// or null. Links that were already redundant are left for someone to tidy up
+// rather than blocking unrelated edits.
+async function newRedundantLink(executor, accountId, before) {
+  const key = (row) => `${row.project_id}:${row.outcome_id}:${row.ancestor_id}`;
+  const existing = new Set(before.map(key));
+  const added = (await redundantLinks(executor, accountId)).find((row) => !existing.has(key(row)));
+  if (!added) return null;
+  return (
+    `"${added.project_name}" already rolls up to "${added.ancestor_name}" through "${added.outcome_name}", ` +
+    `so it can't link to both; link it to "${added.outcome_name}" only`
+  );
+}
+
+module.exports = { belongsToAccount, missingFromAccount, wouldCycle, redundantLinks, newRedundantLink };

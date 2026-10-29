@@ -1,6 +1,12 @@
 const express = require('express');
 const pool = require('../db');
-const { belongsToAccount, missingFromAccount, wouldCycle } = require('../lib/validateRef');
+const {
+  belongsToAccount,
+  missingFromAccount,
+  wouldCycle,
+  redundantLinks,
+  newRedundantLink,
+} = require('../lib/validateRef');
 
 const router = express.Router({ mergeParams: true });
 
@@ -139,6 +145,7 @@ router.post('/', async (req, res, next) => {
 
     client = await pool.connect();
     await client.query('BEGIN');
+    const before = await redundantLinks(client, req.accountId);
     const { rows } = await client.query(
       `INSERT INTO projects (account_id, team_id, parent_project_id, name, description, start_at, end_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
@@ -153,6 +160,11 @@ router.post('/', async (req, res, next) => {
       ]
     );
     await replaceLinks(client, rows[0].id, req.accountId, refs.outcomeIds ?? []);
+    const redundant = await newRedundantLink(client, req.accountId, before);
+    if (redundant) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: redundant });
+    }
     await client.query('COMMIT');
 
     res.status(201).json(await fetchProject(pool, rows[0].id, req.accountId));
@@ -178,6 +190,7 @@ router.put('/:projectId', async (req, res, next) => {
 
     client = await pool.connect();
     await client.query('BEGIN');
+    const before = await redundantLinks(client, req.accountId);
     const { rows } = await client.query(
       `UPDATE projects SET name = $1, description = $2, team_id = $3, parent_project_id = $4,
          start_at = $5, end_at = $6, updated_at = now()
@@ -198,6 +211,11 @@ router.put('/:projectId', async (req, res, next) => {
       return res.status(404).json({ error: 'project not found' });
     }
     await replaceLinks(client, rows[0].id, req.accountId, refs.outcomeIds);
+    const redundant = await newRedundantLink(client, req.accountId, before);
+    if (redundant) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: redundant });
+    }
     await client.query('COMMIT');
 
     res.json(await fetchProject(pool, req.params.projectId, req.accountId));

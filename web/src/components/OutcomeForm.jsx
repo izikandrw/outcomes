@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import MultiSelect from './MultiSelect.jsx';
 import TargetsSection from './TargetsSection.jsx';
-import { projectsForOutcome } from '../lib/links.js';
+import { projectsForOutcome, projectsLinkedInLineage } from '../lib/links.js';
 
 const EMPTY = {
   name: '',
@@ -23,6 +23,7 @@ export default function OutcomeForm({
   parent,
   parentOutcomeId,
   teams,
+  outcomes = [],
   projects,
   impacts = [],
   impactId,
@@ -68,6 +69,17 @@ export default function OutcomeForm({
     // projects is left out on purpose: a refetch mid-edit shouldn't wipe picks.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing, draft, parent, impactId]);
+
+  // A project already under this outcome's parent or child is carried through
+  // it, so it isn't offered. One picked before this rule stays listed so it can
+  // still be removed.
+  const inLineage = projectsLinkedInLineage(outcomes, projects, {
+    id: editing?.id,
+    parent_outcome_id: parentOutcomeId ?? null,
+  });
+  const linkable = projects.filter(
+    (project) => !inLineage.has(String(project.id)) || projectIds.has(String(project.id))
+  );
 
   function update(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -139,7 +151,7 @@ export default function OutcomeForm({
       <MultiSelect
         label="Projects"
         placeholder="Select projects…"
-        items={projects}
+        items={linkable}
         selected={projectIds}
         onChange={setProjectIds}
       />

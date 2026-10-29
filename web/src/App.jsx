@@ -870,6 +870,7 @@ export default function App({ user, account, onSignOut }) {
               parent={modal.parent}
               parentOutcomeId={modal.parentId}
               teams={teams}
+              outcomes={outcomes}
               projects={projects}
               impacts={impacts}
               impactId={modal.impactId}

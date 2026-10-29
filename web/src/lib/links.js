@@ -96,6 +96,24 @@ function teamEntries(directIds, indirectIds) {
   return entries;
 }
 
+// Projects an outcome can't link to directly because they already sit under
+// one of its ancestors or descendants; the server rejects that link, since the
+// ancestor reaches the project through the descendant anyway. `outcome` may be
+// a draft with only parent_outcome_id set, for one not yet created.
+export function projectsLinkedInLineage(outcomes, projects, outcome) {
+  const lineage = outcome.id == null ? [] : descendantsOf(outcomes, 'parent_outcome_id', outcome);
+  const seen = new Set([String(outcome.id)]);
+  let parentId = outcome.parent_outcome_id;
+  while (parentId != null && !seen.has(String(parentId))) {
+    seen.add(String(parentId));
+    const parent = outcomes.find((candidate) => same(candidate.id, parentId));
+    if (!parent) break;
+    lineage.push(parent);
+    parentId = parent.parent_outcome_id;
+  }
+  return new Set(lineage.flatMap((relative) => projectsForOutcome(projects, relative)).map((p) => String(p.id)));
+}
+
 // Teams working on a project: the team that owns it (direct), plus the teams
 // owning any project nested beneath it (indirect).
 export function teamsOnProject(projects, project) {

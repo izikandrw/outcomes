@@ -335,3 +335,52 @@ test('DELETE /:id 404s when the outcome is not in the account', async () => {
   assert.equal(res.status, 404);
   assert.deepEqual(res.body, { error: 'outcome not found' });
 });
+
+// Serves redundantLinks() its rows: `before` on the read taken before the
+// write, `after` on the one taken after it.
+function withRedundantLinks({ before = [], after = [] }, respond = fakeAccount({ insertedId: 5 })) {
+  let reads = 0;
+  return (sql, params) => {
+    if (/^WITH RECURSIVE lineage/.test(sql)) return { rows: reads++ === 0 ? before : after };
+    return respond(sql, params);
+  };
+}
+
+const redundant = {
+  project_id: '8',
+  project_name: 'Cooldown on new versions',
+  outcome_id: '6',
+  outcome_name: 'Agents see why an input was blocked',
+  ancestor_id: '5',
+  ancestor_name: 'Agents build against verified inputs',
+};
+
+test('PUT /:id rejects linking a project already carried by a child outcome', async () => {
+  db.respond = withRedundantLinks({ after: [redundant] });
+
+  const res = await request('PUT', '/5', { name: 'X', project_ids: [8] });
+
+  assert.equal(res.status, 400);
+  assert.match(res.body.error, /"Cooldown on new versions" already rolls up to "Agents build against verified inputs"/);
+  assert.ok(sqls().includes('ROLLBACK'));
+  assert.ok(!sqls().includes('COMMIT'));
+  assert.ok(sqls().includes('RELEASE'));
+});
+
+test('PUT /:id rejects a new parent that already links to one of its projects', async () => {
+  db.respond = withRedundantLinks({ after: [redundant] });
+
+  const res = await request('PUT', '/6', { name: 'X', parent_outcome_id: 5 });
+
+  assert.equal(res.status, 400);
+  assert.ok(sqls().includes('ROLLBACK'));
+});
+
+test('PUT /:id still saves when a redundant link was already there', async () => {
+  db.respond = withRedundantLinks({ before: [redundant], after: [redundant] });
+
+  const res = await request('PUT', '/5', { name: 'Renamed', project_ids: [8] });
+
+  assert.equal(res.status, 200);
+  assert.ok(sqls().includes('COMMIT'));
+});
