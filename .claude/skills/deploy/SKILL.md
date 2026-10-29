@@ -1,7 +1,6 @@
 ---
 name: deploy
 description: Commit current work, merge it into main, and push so Render and Vercel auto-deploy. Use when the user says "deploy", "ship it", or asks to release current changes to production.
-disable-model-invocation: true
 ---
 
 # Deploy
