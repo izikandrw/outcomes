@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   insightsForOutcome,
   insightsForProject,
@@ -59,7 +59,10 @@ export default function OutcomeTree({
   onOpenTeam,
   onShowIssue,
 }) {
-  const { nodes, edges, width, height: treeHeight } = layout(outcomes, projects, impacts);
+  const { nodes, edges, width, height: treeHeight } = useMemo(
+    () => layout(outcomes, projects, impacts),
+    [outcomes, projects, impacts]
+  );
   // Room below the bottom row for a long name's overlay.
   const dollarsOf = (node) =>
     node.type === 'impact'
@@ -711,15 +714,103 @@ function NodeText({ x, y, lines, targetLine, lift = 0, onTargetClick }) {
 // every other outcome's link runs down into its top edge instead of climbing
 // into it from below. Outcome rows don't depend on where projects go, so a
 // first pass finds them and a second places the projects accordingly.
+// Siblings then get reordered a few times to cut down crossing lines, and the
+// layout with the fewest crossings wins.
+const ORDER_PASSES = 4;
+
 function layout(outcomes, projects, impacts) {
-  const first = layoutPass(outcomes, projects, impacts, new Map());
+  const first = layoutPass(outcomes, projects, impacts, new Map(), new Map());
   const outcomeDepth = new Map(
     first.nodes.filter((node) => node.type === 'outcome').map((node) => [node.data.id, node.depth])
   );
-  return layoutPass(outcomes, projects, impacts, outcomeDepth);
+  let best = layoutPass(outcomes, projects, impacts, outcomeDepth, new Map());
+  let bestCrossings = countCrossings(best.edges);
+  let current = best;
+  for (let pass = 0; pass < ORDER_PASSES && bestCrossings > 0; pass += 1) {
+    current = layoutPass(outcomes, projects, impacts, outcomeDepth, siblingWeights(current));
+    const crossings = countCrossings(current.edges);
+    if (crossings < bestCrossings) {
+      best = current;
+      bestCrossings = crossings;
+    }
+  }
+  return best;
 }
 
-function layoutPass(outcomes, projects, impacts, outcomeDepth) {
+// Where each subtree would like to sit: the mean x of the nodes outside it
+// that it's linked to — its parent, plus the far end of any cross-link from a
+// node inside it. Sorting siblings by this pulls a subtree toward whatever it
+// reaches across to, so the line doesn't have to cut past its siblings.
+function siblingWeights({ nodes, edges }) {
+  const byKey = new Map(nodes.map((node) => [`${node.type}-${node.data.id}`, node]));
+  const chain = (key) => {
+    const keys = [];
+    for (let at = key; at && !keys.includes(at); at = byKey.get(at)?.parent) keys.push(at);
+    return keys;
+  };
+  const pulls = new Map(); // node key -> x positions it's drawn toward
+  for (const edge of edges) {
+    const [a, b] = edge.ends;
+    if (!byKey.has(a) || !byKey.has(b)) continue;
+    const up = chain(a);
+    const down = chain(b);
+    for (const [own, other, otherKey] of [
+      [up, down, b],
+      [down, up, a],
+    ]) {
+      for (const key of own) {
+        if (other.includes(key)) break;
+        if (!pulls.has(key)) pulls.set(key, []);
+        pulls.get(key).push(byKey.get(otherKey).x);
+      }
+    }
+  }
+  const weights = new Map();
+  for (const [key, node] of byKey) {
+    const xs = pulls.get(key);
+    weights.set(key, xs ? xs.reduce((sum, x) => sum + x, 0) / xs.length : node.x);
+  }
+  return weights;
+}
+
+// How many times one connector's vertical run cuts another's horizontal run.
+// Connectors sharing an end meet there by design, so they don't count.
+function countCrossings(edges) {
+  const runs = edges.map((edge) => {
+    const horizontal = [];
+    const vertical = [];
+    let x = 0;
+    let y = 0;
+    for (const [, cmd, args] of edge.d.matchAll(/([MVH])([^MVH]*)/g)) {
+      const value = args.trim().split(/\s+/).map(Number);
+      if (cmd === 'M') [x, y] = value;
+      else if (cmd === 'V') {
+        vertical.push([x, Math.min(y, value[0]), Math.max(y, value[0])]);
+        y = value[0];
+      } else {
+        horizontal.push([y, Math.min(x, value[0]), Math.max(x, value[0])]);
+        x = value[0];
+      }
+    }
+    return { ends: edge.ends, horizontal, vertical };
+  });
+  const cuts = (a, b) =>
+    a.horizontal.reduce(
+      (count, [y, x1, x2]) =>
+        count + b.vertical.filter(([x, y1, y2]) => x > x1 && x < x2 && y > y1 && y < y2).length,
+      0
+    );
+  let crossings = 0;
+  for (let i = 0; i < runs.length; i += 1) {
+    for (let j = i + 1; j < runs.length; j += 1) {
+      if (runs[i].ends.some((end) => runs[j].ends.includes(end))) continue;
+      crossings += cuts(runs[i], runs[j]) + cuts(runs[j], runs[i]);
+    }
+  }
+  return crossings;
+}
+
+function layoutPass(outcomes, projects, impacts, outcomeDepth, weights) {
   const byParent = new Map();
   for (const outcome of outcomes) {
     const key = outcome.parent_outcome_id ?? null;
@@ -774,8 +865,14 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth) {
   const placed = new Set(); // guards against a parent cycle the API doesn't reject
   const placedProjects = new Set();
   let maxDepth = 0;
+  // Keeps each kind of child together (the trunk to lowered projects relies
+  // on them sitting right of the outcomes) but orders them within it.
+  const byWeight = (kind, items) => {
+    const weightOf = (entity) => weights.get(`${kind}-${entity.id}`);
+    return [...items].sort((a, b) => (weightOf(a) ?? 0) - (weightOf(b) ?? 0));
+  };
 
-  function place(item, depth, left) {
+  function place(item, depth, left, parent = null) {
     maxDepth = Math.max(maxDepth, depth);
     const y = PAD + depth * LEVEL_H;
     const entity = item.data;
@@ -784,25 +881,34 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth) {
     if (item.kind === 'impact') {
       placedImpacts.add(entity.id);
       children = [
-        ...(impactsByParent.get(String(entity.id)) ?? [])
-          .filter((child) => !placedImpacts.has(child.id))
-          .map((child) => ({ kind: 'impact', data: child })),
+        ...byWeight(
+          'impact',
+          (impactsByParent.get(String(entity.id)) ?? []).filter((child) => !placedImpacts.has(child.id))
+        ).map((child) => ({ kind: 'impact', data: child })),
         // Only top-level outcomes hang off an impact; their children follow
         // them down the outcome tree.
-        ...outcomesForImpact(outcomes, entity)
-          .filter((child) => child.parent_outcome_id == null && !placed.has(child.id))
-          .map((child) => ({ kind: 'outcome', data: child })),
+        ...byWeight(
+          'outcome',
+          outcomesForImpact(outcomes, entity).filter(
+            (child) => child.parent_outcome_id == null && !placed.has(child.id)
+          )
+        ).map((child) => ({ kind: 'outcome', data: child })),
       ];
     } else if (item.kind === 'project') {
       placedProjects.add(entity.id);
-      children = (projectsByParent.get(String(entity.id)) ?? [])
-        .filter((child) => !placedProjects.has(child.id))
-        .map((child) => ({ kind: 'project', data: child }));
+      children = byWeight(
+        'project',
+        (projectsByParent.get(String(entity.id)) ?? []).filter((child) => !placedProjects.has(child.id))
+      ).map((child) => ({ kind: 'project', data: child }));
     } else {
       placed.add(entity.id);
-      const childOutcomes = (byParent.get(entity.id) ?? []).filter((child) => !placed.has(child.id));
-      const childProjects = (projectsByOutcome.get(entity.id) ?? []).filter(
-        (child) => !placedProjects.has(child.id)
+      const childOutcomes = byWeight(
+        'outcome',
+        (byParent.get(entity.id) ?? []).filter((child) => !placed.has(child.id))
+      );
+      const childProjects = byWeight(
+        'project',
+        (projectsByOutcome.get(entity.id) ?? []).filter((child) => !placedProjects.has(child.id))
       );
       // Beside child outcomes, the projects drop a further row so each kind
       // reads as its own grouping instead of sharing one bracket.
@@ -823,7 +929,7 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth) {
     } else {
       let childLeft = left;
       for (const child of children) {
-        const position = place(child, depth + (child.lowered ? 2 : 1), childLeft);
+        const position = place(child, depth + (child.lowered ? 2 : 1), childLeft, `${item.kind}-${entity.id}`);
         childPositions.push({ ...position, kind: child.kind, lowered: child.lowered });
         childLeft = position.right + H_GAP;
       }
@@ -831,7 +937,7 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth) {
       x = (childPositions[0].x + childPositions[childPositions.length - 1].x) / 2;
     }
 
-    nodes.push({ type: item.kind, data: entity, x, y, depth });
+    nodes.push({ type: item.kind, data: entity, x, y, depth, parent });
     const lowered = childPositions.filter((child) => child.lowered);
     // Lowered projects sit right of every outcome subtree, so a trunk over
     // their centre drops through the outcome row without touching a node.
@@ -866,12 +972,12 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth) {
   const impactRoots = impacts.filter(
     (impact) => impact.parent_impact_id == null || !presentImpacts.has(String(impact.parent_impact_id))
   );
-  for (const root of impactRoots) {
+  for (const root of byWeight('impact', impactRoots)) {
     if (placedImpacts.has(root.id)) continue;
     const position = place({ kind: 'impact', data: root }, 0, left);
     left = position.right + H_GAP * 2;
   }
-  for (const root of roots) {
+  for (const root of byWeight('outcome', roots)) {
     if (placed.has(root.id)) continue;
     const position = place({ kind: 'outcome', data: root }, 0, left);
     left = position.right + H_GAP * 2;
