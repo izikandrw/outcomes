@@ -1,0 +1,23 @@
+version: 1
+environment:
+  packages: [busybox, nodejs-22, npm]
+checks:
+  build:
+    description: >-
+      Builds the web app the way a Vercel deploy does (vite build), and
+      syntax-checks the API and MCP server, which ship as plain JavaScript.
+    timeout: 10m
+    when:
+      changed: ["web/**", "src/**", "scripts/**", "mcp/**", package.json, package-lock.json, ".chainguard/**"]
+    network:
+      egress: [registry.npmjs.org]
+    steps:
+      - name: install web
+        cmd: npm --prefix web ci --no-audit --no-fund
+      - name: build web
+        cmd: npm run web:build
+      - name: check api and mcp
+        script: |
+          find src scripts mcp/src -name '*.js' | while read -r f; do
+            node --check "$f" || exit 1
+          done
