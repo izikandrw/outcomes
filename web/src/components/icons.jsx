@@ -24,6 +24,12 @@ export const PlusIcon = () => (
   </Icon>
 );
 
+export const MinusIcon = () => (
+  <Icon>
+    <path d="M3.25 8h9.5" />
+  </Icon>
+);
+
 export const PencilIcon = () => (
   <Icon>
     <path d="M11.1 2.9a1.55 1.55 0 0 1 2.2 2.2L6.1 12.3l-2.9.8.8-2.9z" />

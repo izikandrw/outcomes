@@ -1901,11 +1901,30 @@ button.team-chip.link:hover {
   cursor: pointer;
 }
 
+/* Validation stats on the left, zoom controls on the right. */
+.tree-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+
 .validation-panel {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin: 0 0 12px;
+}
+
+.zoom-controls {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.zoom-controls .zoom-level {
+  min-width: 52px;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .validation-stat {
