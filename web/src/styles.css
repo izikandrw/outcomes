@@ -838,12 +838,6 @@ button.small {
   padding: 5px 10px;
 }
 
-/* An outcome with no target can't be settled by evidence. The dashed outline
-   says so without changing the fill, which the root node relies on. */
-.tree-node.unquantified rect {
-  stroke-dasharray: 4 3;
-}
-
 /* Projects drive outcomes rather than breaking down into them, so they get
    their own color instead of the outcome accent. */
 .tree-node.project rect {

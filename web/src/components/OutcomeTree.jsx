@@ -329,12 +329,9 @@ function OutcomeNode({
   const quantified = targetsForOutcome(targets, outcome);
   const { lines, targetLine } = nodeLabel(outcome.name, quantified);
   const readings = measurementsForOutcome(measurements, targets, outcome);
-  // An outcome with no target can't be settled by evidence, so it is
-  // drawn differently rather than looking finished.
   const className = [
     'tree-node',
     outcome.parent_outcome_id == null && 'root',
-    quantified.length === 0 && 'unquantified',
     issues.length > 0 && 'has-issue',
   ]
     .filter(Boolean)
