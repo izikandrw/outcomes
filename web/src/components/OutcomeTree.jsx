@@ -29,6 +29,9 @@ export const PAD = 20;
 const BADGE_REACH = 11;
 const LINE_CLEARANCE = 8;
 export const LINE_H = 15;
+// From a node's bottom edge, where the insight pill is centred, to the first
+// line of a revealed name below it: the pill's half-height plus a gap.
+const PILL_CLEARANCE = 24;
 export const MAX_CHARS = 21;
 const MAX_LINES = 3;
 
@@ -52,8 +55,8 @@ export default function OutcomeTree({
   onShowIssue,
 }) {
   const { nodes, edges, width, height: treeHeight } = layout(outcomes, projects, impacts);
-  // Room below the bottom row for a long name's overlay and the pill on its edge.
-  const height = Math.max(treeHeight, ...nodes.map((node) => node.y + fullNameHeight(node.data.name) + PAD));
+  // Room below the bottom row for a long name's overlay.
+  const height = Math.max(treeHeight, ...nodes.map((node) => node.y + fullNameLayout(node).height + PAD));
   const validation = validateTree({ outcomes, projects, insights, impacts });
   const counts = groupByRule(validation, { impacts, outcomes, projects });
   // { entity, kind, left, top } — kind is 'outcome' or 'impact'. Anchored in
@@ -65,9 +68,7 @@ export default function OutcomeTree({
   const hoverEnds = hoverEdge?.ends;
   // The key of the node under the pointer whose name is cut short. Its whole
   // name is laid over it under its badges, pill and add button, and it is
-  // drawn after every other node so neighbours can't cover that. Pointing
-  // straight at a badge or the pill doesn't reveal it, so the pill doesn't
-  // jump out from under the pointer.
+  // drawn after every other node so neighbours can't cover that.
   const [revealKey, setRevealKey] = useState(null);
   const keyOf = (node) => `${node.type}-${node.data.id}`;
   const drawOrder = [...nodes].sort((a, b) => (keyOf(a) === revealKey) - (keyOf(b) === revealKey));
@@ -226,10 +227,7 @@ export default function OutcomeTree({
             <g
               key={`${node.type}-${node.data.id}`}
               className={hoverEnds?.includes(`${node.type}-${node.data.id}`) ? 'edge-hover' : undefined}
-              onMouseOver={(event) => {
-                if (event.target.closest('.node-issue, .node-insights')) return;
-                setRevealKey(isTruncated(nodeLines(node, targets)) ? keyOf(node) : null);
-              }}
+              onMouseEnter={() => setRevealKey(isTruncated(nodeLines(node, targets)) ? keyOf(node) : null)}
               onMouseLeave={() => setRevealKey(null)}
             >
             {node.type === 'impact' ? (
@@ -391,7 +389,7 @@ function OutcomeNode({
       <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, outcome)} />
       <InsightPill
         x={x}
-        y={revealed ? y + fullNameHeight(outcome.name) - NODE_H : y}
+        y={y}
         count={insightCount}
         dollars={insightDollars}
         label={outcome.name}
@@ -612,7 +610,7 @@ function ProjectNode({
       <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, project)} />
       <InsightPill
         x={x}
-        y={revealed ? y + fullNameHeight(project.name) - NODE_H : y}
+        y={y}
         count={insightCount}
         dollars={insightDollars}
         label={project.name}
@@ -1009,21 +1007,33 @@ function nodeLines(node, targets) {
   return nodeLabel(node.data.name, quantified).lines;
 }
 
-// How tall a node's whole-name overlay is: as tall as the node, or taller when
-// the name needs more lines.
-function fullNameHeight(name) {
-  return Math.max(NODE_H, wrapLabel(name, MAX_CHARS, Infinity).length * LINE_H + 2 * LINE_H);
+// Where each line of a node's whole name goes, and how tall its overlay is. The
+// first lines sit exactly where the node draws them; the rest continue below
+// the row the insight pill straddles, leaving it clear, and the overlay grows
+// down to hold them. Impacts have no pill, so their lines simply continue.
+function fullNameLayout({ type, data, y }) {
+  const lines = wrapLabel(data.name, MAX_CHARS, Infinity);
+  const hasPill = type !== 'impact';
+  const first = y + NODE_H / 2 - (hasPill ? LABEL_LIFT : 0) - LINE_H;
+  const belowPill = y + NODE_H + PILL_CLEARANCE;
+  const placed = lines.map((line, index) => ({
+    line,
+    y:
+      hasPill && index >= MAX_LINES
+        ? belowPill + (index - MAX_LINES) * LINE_H
+        : first + index * LINE_H,
+  }));
+  const height = Math.max(NODE_H, placed.at(-1).y + LINE_H - y);
+  return { placed, height };
 }
 
 // A truncated node's whole name, laid over the node in its own colors and
 // growing downward as far as the name needs. It is drawn inside the node, so
 // hovering any of it keeps the node hovered and clicking it edits the node. The
-// badges, the add button and the insight pill sit above it, the pill moved
-// down to its bottom edge.
+// badges, the add button and the insight pill stay put and sit above it.
 function FullName({ node }) {
   const { type, data, x, y } = node;
-  const lines = wrapLabel(data.name, MAX_CHARS, Infinity);
-  const height = fullNameHeight(data.name);
+  const { placed, height } = fullNameLayout(node);
   const className = [
     'tree-node tree-node-full',
     type !== 'outcome' && type,
@@ -1035,10 +1045,10 @@ function FullName({ node }) {
   return (
     <g className={className} aria-hidden="true">
       <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={height} rx="10" />
-      <text x={x} y={y + height / 2} textAnchor="middle" dominantBaseline="middle">
-        {lines.map((line, index) => (
-          <tspan key={index} x={x} dy={index === 0 ? -((lines.length - 1) * LINE_H) / 2 : LINE_H}>
-            {line}
+      <text textAnchor="middle" dominantBaseline="middle">
+        {placed.map((item, index) => (
+          <tspan key={index} x={x} y={item.y}>
+            {item.line}
           </tspan>
         ))}
       </text>
