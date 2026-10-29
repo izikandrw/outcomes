@@ -1016,6 +1016,8 @@ button.small {
 
 /* The verified badge doubles as its own dropdown. */
 select.tag.verify-select {
+  /* The name column takes all spare width, so hold room for the label and arrow. */
+  min-width: 7.5rem;
   font: inherit;
   font-size: 12px;
   font-weight: 600;
