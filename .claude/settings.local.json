@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git push origin primary primary:main)"
+      "Bash(git push origin primary primary:main)",
+      "Bash(git push origin HEAD:main)"
     ]
   }
 }
