@@ -1506,7 +1506,7 @@ button.tag.insight-badge.empty {
 .insight-table td:nth-child(5) .cell-input { min-width: 5.5rem; }
 .insight-table td:nth-child(6) .cell-input { min-width: 8rem; }
 .insight-table td:last-child { padding-right: 0; }
-.insight-table td.row-actions { display: flex; gap: 6px; }
+.insight-table .row-actions { display: flex; gap: 6px; }
 
 /* Type and area selects read as tags; the chevron is drawn in currentColor. */
 .insight-table select.cell-input.pill {

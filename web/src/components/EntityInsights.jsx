@@ -172,25 +172,27 @@ export default function EntityInsights({ entity, insights: unsorted, onOpen, onU
                     }
                   />
                 </td>
-                <td className="row-actions">
-                  <button
-                    type="button"
-                    className="icon-button"
-                    aria-label={`Read insight ${insight.id}`}
-                    title="Read full text"
-                    onClick={() => setReadingId(insight.id)}
-                  >
-                    <ExpandIcon />
-                  </button>
-                  <button
-                    type="button"
-                    className="icon-button"
-                    aria-label={`Edit insight ${insight.id}`}
-                    title="Edit all details"
-                    onClick={() => onOpen(insight)}
-                  >
-                    <PencilIcon />
-                  </button>
+                <td>
+                  <div className="row-actions">
+                    <button
+                      type="button"
+                      className="icon-button"
+                      aria-label={`Read insight ${insight.id}`}
+                      title="Read full text"
+                      onClick={() => setReadingId(insight.id)}
+                    >
+                      <ExpandIcon />
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-button"
+                      aria-label={`Edit insight ${insight.id}`}
+                      title="Edit all details"
+                      onClick={() => onOpen(insight)}
+                    >
+                      <PencilIcon />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
