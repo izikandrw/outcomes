@@ -1,14 +1,20 @@
+import { useEffect } from 'react';
 import { groupByRule, validateTree } from '../lib/validation.js';
 
 // Lists every node that breaks a delivery rule (see lib/validation.js), one
 // section per rule, using the same emoji the tree badges them with.
-export default function PotentialIssues({ impacts = [], outcomes, projects, teams, insights = [], onEdit, onEditImpact, onEditProject }) {
+export default function PotentialIssues({ impacts = [], outcomes, projects, teams, insights = [], onEdit, onEditImpact, onEditProject, focus }) {
   const nameOf = (collection, id) => collection.find((item) => item.id === id)?.name ?? null;
   const groups = groupByRule(validateTree({ outcomes, projects, insights, impacts }), {
     impacts,
     outcomes,
     projects,
   });
+
+  // focus: { ruleId } from a header issue count — bring that rule's section into view.
+  useEffect(() => {
+    if (focus) document.getElementById(`issue-${focus.ruleId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [focus]);
 
   const editorFor = (kind) => ({ impact: onEditImpact, outcome: onEdit, project: onEditProject })[kind];
 
@@ -19,7 +25,7 @@ export default function PotentialIssues({ impacts = [], outcomes, projects, team
   return (
     <div className="issues">
       {groups.map(({ rule, items }) => (
-        <section key={rule.id} className="issue-section">
+        <section key={rule.id} id={`issue-${rule.id}`} className="issue-section">
           <h2>
             {rule.emoji} {rule.title} ({items.length})
           </h2>

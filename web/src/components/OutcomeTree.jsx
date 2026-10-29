@@ -13,7 +13,7 @@ import {
   formatQuarter,
   targetRange,
 } from '../lib/links.js';
-import { groupByRule, issuesFor, validateTree } from '../lib/validation.js';
+import { issuesFor, validateTree } from '../lib/validation.js';
 import { useZoom, ZoomControls } from './Zoom.jsx';
 
 export const NODE_W = 160;
@@ -75,7 +75,6 @@ export default function OutcomeTree({
     ...nodes.map((node) => node.y + fullNameLayout({ ...node, dollars: dollarsOf(node) }).height + PAD)
   );
   const validation = validateTree({ outcomes, projects, insights, impacts });
-  const counts = groupByRule(validation, { impacts, outcomes, projects });
   // { entity, kind, left, top } — kind is 'outcome' or 'impact'. Anchored in
   // viewport coordinates so the menu is never clipped by the scroll container.
   const [menu, setMenu] = useState(null);
@@ -142,20 +141,6 @@ export default function OutcomeTree({
   return (
     <div>
       <div className="tree-toolbar">
-        <section className="validation-panel" aria-label="Validation">
-          {counts.map(({ rule, items }) => (
-            <div
-              key={rule.id}
-              className={['validation-stat', items.length === 0 && 'ok'].filter(Boolean).join(' ')}
-              title={rule.description}
-            >
-              <span className="validation-count">
-                {rule.emoji} {items.length}
-              </span>
-              <span className="validation-label">{rule.title}</span>
-            </div>
-          ))}
-        </section>
         <ZoomControls zoom={zoom} {...zoomActions} />
       </div>
       <div className="tree-scroll" ref={scrollRef}>

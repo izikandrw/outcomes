@@ -18,6 +18,7 @@ import TeamForm from './components/TeamForm.jsx';
 import TeamHome from './components/TeamHome.jsx';
 import TeamTree from './components/TeamTree.jsx';
 import OutcomeList from './components/OutcomeList.jsx';
+import IssueCounts from './components/IssueCounts.jsx';
 import IssueExplainer from './components/IssueExplainer.jsx';
 import OutcomeTree from './components/OutcomeTree.jsx';
 import PotentialIssues from './components/PotentialIssues.jsx';
@@ -68,6 +69,9 @@ export default function App({ user, account, onSignOut }) {
   // Once the header scrolls out of view a compact copy of the nav pins to the top.
   const headerRef = useRef(null);
   const [headerHidden, setHeaderHidden] = useState(false);
+  // The rule a header issue count was clicked for; Potential Issues scrolls to
+  // its section. A fresh object each click, so a repeat click scrolls again.
+  const [issueFocus, setIssueFocus] = useState(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => setHeaderHidden(!entry.isIntersecting));
@@ -187,6 +191,12 @@ export default function App({ user, account, onSignOut }) {
   function changeView(next) {
     setView(next);
     localStorage.setItem(STORED_VIEW, next);
+  }
+
+  function openIssues(rule) {
+    changePage('outcomes');
+    changeView('issues');
+    setIssueFocus({ ruleId: rule.id });
   }
 
   async function saveTeam(team) {
@@ -566,6 +576,7 @@ export default function App({ user, account, onSignOut }) {
       <header ref={headerRef}>
         <h1>Outcomes</h1>
         <TopNav page={page === 'team' ? 'teams' : page} onChange={changePage} counts={{ review: pendingReview }} />
+        <IssueCounts impacts={impacts} outcomes={outcomes} projects={projects} insights={evidence} onOpen={openIssues} />
         <AccountMenu
           user={user}
           account={account}
@@ -584,6 +595,7 @@ export default function App({ user, account, onSignOut }) {
             }}
             counts={{ review: pendingReview }}
           />
+          <IssueCounts impacts={impacts} outcomes={outcomes} projects={projects} insights={evidence} onOpen={openIssues} />
         </div>
       )}
 
@@ -738,6 +750,7 @@ export default function App({ user, account, onSignOut }) {
               onEdit={openEdit}
               onEditImpact={openEditImpact}
               onEditProject={openEditProject}
+              focus={issueFocus}
             />
           )}
         </section>

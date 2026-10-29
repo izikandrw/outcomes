@@ -989,6 +989,9 @@ button.small {
 
 /* A compact copy of the nav, pinned once the header scrolls out of view. */
 .pinned-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   position: fixed;
   top: 10px;
   left: 50%;
@@ -1009,6 +1012,16 @@ button.small {
 .pinned-nav .top-nav button {
   padding: 4px 10px;
   font-size: 13px;
+}
+
+.pinned-nav .issue-counts {
+  flex-wrap: nowrap;
+  padding-right: 4px;
+}
+
+.pinned-nav .issue-count {
+  padding: 2px 7px;
+  font-size: 12px;
 }
 
 /* Roadmap */
@@ -1944,24 +1957,14 @@ button.team-chip.link:hover {
   cursor: pointer;
 }
 
-/* Validation stats on the left, zoom controls on the right. */
 .tree-toolbar {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
+  justify-content: flex-end;
   margin: 0 0 12px;
-}
-
-.validation-panel {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
 }
 
 .zoom-controls {
   flex-shrink: 0;
-  margin-left: auto;
 }
 
 .zoom-controls .zoom-level {
@@ -1970,36 +1973,40 @@ button.team-chip.link:hover {
   font-variant-numeric: tabular-nums;
 }
 
-.validation-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 130px;
-  padding: 8px 12px;
-  border: 1px solid var(--danger);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
-  cursor: pointer;
+/* Header counts of nodes breaking each delivery rule; red until it hits zero. */
+.issue-counts {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
-.validation-stat.ok {
+.issue-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid var(--danger);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.issue-count.ok {
   border-color: var(--border);
   background: var(--surface);
-}
-
-.validation-count {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--danger);
-}
-
-.validation-stat.ok .validation-count {
   color: var(--muted);
+  font-weight: 500;
 }
 
-.validation-label {
-  font-size: 12px;
-  color: var(--muted);
+.issue-count:hover {
+  border-color: var(--danger);
+}
+
+.issue-count.ok:hover {
+  border-color: var(--muted);
 }
 
 .issue-rule {
