@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
+import MultiSelect from './MultiSelect.jsx';
 import TargetsSection from './TargetsSection.jsx';
+import { projectsForOutcome } from '../lib/links.js';
 
 const EMPTY = {
   name: '',
   description: '',
   team_id: '',
-  project_id: '',
   impact_id: '',
 };
 
@@ -32,6 +33,7 @@ export default function OutcomeForm({
   onDelete,
 }) {
   const [form, setForm] = useState(EMPTY);
+  const [projectIds, setProjectIds] = useState(new Set());
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
 
@@ -41,9 +43,9 @@ export default function OutcomeForm({
         name: editing.name ?? '',
         description: editing.description ?? '',
         team_id: editing.team_id ?? '',
-        project_id: editing.project_id ?? '',
         impact_id: editing.impact_id ?? '',
       });
+      setProjectIds(new Set(projectsForOutcome(projects, editing).map((project) => String(project.id))));
     } else {
       // Adding a child from the tree: inherit the parent's team.
       setForm((current) => ({
@@ -51,8 +53,11 @@ export default function OutcomeForm({
         team_id: parent?.team_id ? String(parent.team_id) : current.team_id,
         impact_id: impactId ? String(impactId) : '',
       }));
+      setProjectIds(new Set());
     }
     setError(null);
+    // projects is left out on purpose: a refetch mid-edit shouldn't wipe picks.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing, parent, impactId]);
 
   // Default to the only team so the common single-team case needs no picking.
@@ -78,11 +83,17 @@ export default function OutcomeForm({
         name: form.name.trim(),
         description: form.description.trim() || null,
         team_id: Number(form.team_id),
-        project_id: form.project_id ? Number(form.project_id) : null,
+        // Links live in project_outcomes; the older single-project column is
+        // folded into them, so clear it or a removed pick would keep showing.
+        project_id: null,
+        project_ids: [...projectIds].map(Number),
         parent_outcome_id: parentOutcomeId ? Number(parentOutcomeId) : null,
         impact_id: !parentOutcomeId && form.impact_id ? Number(form.impact_id) : null,
       });
-      if (!editing) setForm((current) => ({ ...EMPTY, team_id: current.team_id }));
+      if (!editing) {
+        setForm((current) => ({ ...EMPTY, team_id: current.team_id }));
+        setProjectIds(new Set());
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -112,36 +123,27 @@ export default function OutcomeForm({
         />
       </label>
 
-      <div className="row">
-        <label>
-          <span className="label-text">
-            Team <span className="required">required</span>
-          </span>
-          <select value={form.team_id} onChange={(event) => update('team_id', event.target.value)}>
-            <option value="">Select a team…</option>
-            {teams.map((team) => (
-              <option key={team.id} value={team.id}>
-                {team.name}
-              </option>
-            ))}
-          </select>
-        </label>
+      <label>
+        <span className="label-text">
+          Team <span className="required">required</span>
+        </span>
+        <select value={form.team_id} onChange={(event) => update('team_id', event.target.value)}>
+          <option value="">Select a team…</option>
+          {teams.map((team) => (
+            <option key={team.id} value={team.id}>
+              {team.name}
+            </option>
+          ))}
+        </select>
+      </label>
 
-        <label>
-          Project
-          <select
-            value={form.project_id}
-            onChange={(event) => update('project_id', event.target.value)}
-          >
-            <option value="">None</option>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+      <MultiSelect
+        label="Projects"
+        placeholder="Select projects…"
+        items={projects}
+        selected={projectIds}
+        onChange={setProjectIds}
+      />
 
       {!parentOutcomeId && impacts.length > 0 && (
         <label>

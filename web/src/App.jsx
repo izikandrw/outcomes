@@ -223,13 +223,23 @@ export default function App({ user, account, onSignOut }) {
   // modal only closes once the save has actually landed.
   async function saveOutcome(outcome) {
     const editing = modal?.outcome;
+    let saved;
     if (editing) {
-      const updated = await api.updateOutcome(accountId, editing.id, outcome);
-      setOutcomes((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      saved = await api.updateOutcome(accountId, editing.id, outcome);
+      setOutcomes((current) => current.map((item) => (item.id === saved.id ? saved : item)));
     } else {
-      const created = await api.createOutcome(accountId, outcome);
-      setOutcomes((current) => [...current, created]);
+      saved = await api.createOutcome(accountId, outcome);
+      setOutcomes((current) => [...current, saved]);
     }
+    // The form writes the project links, so mirror them onto each project's
+    // outcome_ids, which is what the map and lists read.
+    const linked = new Set(saved.project_ids.map(String));
+    setProjects((current) =>
+      current.map((project) => {
+        const others = (project.outcome_ids ?? []).filter((id) => String(id) !== String(saved.id));
+        return { ...project, outcome_ids: linked.has(String(project.id)) ? [...others, saved.id] : others };
+      })
+    );
     setModal(null);
   }
 

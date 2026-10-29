@@ -7,6 +7,7 @@ const fields = {
   description: z.string().optional().describe('Optional detail'),
   team_id: id.describe('Team accountable for the outcome'),
   project_id: id.optional().describe("Optional home project"),
+  project_ids: z.array(id).optional().describe('Projects that drive this outcome'),
   parent_outcome_id: id.optional().describe('Optional parent outcome; omit for a top-level outcome'),
   impact_id: id
     .optional()
@@ -36,13 +37,14 @@ export function registerOutcomeTools(server) {
     {
       title: 'Update outcome',
       description:
-        'Update an outcome. The API replaces the whole record, so this fetches the current outcome and applies only the fields you pass.',
+        'Update an outcome. The API replaces the whole record, so this fetches the current outcome and applies only the fields you pass. project_ids, when passed, replaces the full set of linked projects.',
       inputSchema: {
         outcome_id: id,
         name: fields.name.optional(),
         description: z.string().nullable().optional().describe('Pass null to clear'),
         team_id: id.optional(),
         project_id: id.nullable().optional().describe('Pass null to clear'),
+        project_ids: z.array(id).optional().describe('The complete new set of linked projects'),
         parent_outcome_id: id.nullable().optional().describe('Pass null to make top-level'),
         impact_id: id.nullable().optional().describe('Top-level outcomes only. Pass null to clear'),
       },
@@ -59,7 +61,8 @@ export function registerOutcomeTools(server) {
       return text(
         await api(outcomePath, {
           method: 'PUT',
-          body: { name, description, team_id, project_id, parent_outcome_id, impact_id: impact },
+          // project_ids is only sent when passed; omitting it leaves the links alone.
+          body: { name, description, team_id, project_id, project_ids: changes.project_ids, parent_outcome_id, impact_id: impact },
         })
       );
     }
