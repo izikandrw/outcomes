@@ -11,6 +11,18 @@ import { registerHealthTools } from './tools/health.js';
 
 const server = new McpServer({ name: 'outcomes', version: '1.0.0' });
 
+// OUTCOMES_TOOLSET=collector runs the server for the insight collector agent
+// (product/agents/insight-collector/): only what it needs to read the account
+// and suggest insights. The API enforces the same limits for a 'collector'
+// user; a smaller tool list just keeps the model from reaching for the rest.
+const COLLECTOR_TOOLS = new Set([
+  'list_outcomes', 'get_outcome', 'list_projects', 'get_project', 'list_insights', 'get_insight', 'suggest_insight',
+]);
+if (process.env.OUTCOMES_TOOLSET === 'collector') {
+  const register = server.registerTool.bind(server);
+  server.registerTool = (name, ...rest) => (COLLECTOR_TOOLS.has(name) ? register(name, ...rest) : undefined);
+}
+
 registerTeamTools(server);
 registerImpactTools(server);
 registerOutcomeTools(server);

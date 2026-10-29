@@ -10,6 +10,7 @@
     "start": "node src/server.js",
     "migrate": "node scripts/migrate.js",
     "seed": "node scripts/seed.js",
+    "collector": "node scripts/create-collector.js",
     "dev": "node --watch src/server.js",
     "web": "npm --prefix web run dev",
     "web:build": "npm --prefix web run build"

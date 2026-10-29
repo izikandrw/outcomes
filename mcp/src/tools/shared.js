@@ -16,16 +16,23 @@ export async function update(itemPath, changes, writable) {
 }
 
 // Registers list/get/delete for a collection; create and update differ enough
-// per resource to stay explicit.
-export function registerReadAndDelete(server, { collection, singular, idField, listDescription }) {
+// per resource to stay explicit. `listFilters` (a zod shape) become optional
+// query-string parameters on the list tool.
+export function registerReadAndDelete(server, { collection, singular, idField, listDescription, listFilters }) {
   server.registerTool(
     `list_${collection}`,
     {
       title: `List ${collection}`,
       description: listDescription,
+      ...(listFilters ? { inputSchema: listFilters } : {}),
       annotations: { readOnlyHint: true },
     },
-    async () => text(await api(`/${collection}`))
+    async (args = {}) => {
+      const query = new URLSearchParams(
+        Object.entries(args).filter(([key, value]) => listFilters?.[key] && value !== undefined)
+      ).toString();
+      return text(await api(`/${collection}${query ? `?${query}` : ''}`));
+    }
   );
 
   server.registerTool(

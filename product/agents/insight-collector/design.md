@@ -44,7 +44,7 @@ Each source gets a connector that turns whatever the tool returns into one commo
   text:          '...the content the model will read...',
   occurred_at:   '2026-09-14T15:00:00Z',
   customer:      'Globex',               // when known
-  firsthand:     true,                   // false when someone is relaying what a customer said (common in Jira)
+  firsthand:     true,                   // false when only someone else's paraphrase is there (common in Jira)
   metadata:      { deal_value: 48000, stage: 'closed_lost', reporter: '...' }
 }
 ```
@@ -166,15 +166,18 @@ Built: a **Review** page (nav badge shows how many are waiting) with a card per 
 
 ## 4. Two builds: v0 in Claude Code, v1 headless
 
-### v0: Claude Code + MCP + a skill (days, not weeks)
+### v0: Claude Code + MCP + a skill (built)
 
 Before writing pipeline code, run the job inside Claude Code:
 
-1. Add insight tools to the existing `mcp/` server: `list_insights`, `create_insight` (always sends `status: 'unvalidated'`), `list_projects`. `list_outcomes` already exists.
-2. Write a skill, `.claude/skills/collect-insights/SKILL.md`, holding the extraction and linking rules from 2.2 and 2.5.
-3. Run it: *"collect insights from ~/Downloads/feedback.csv"*. For Jira, add Atlassian's MCP server so Claude Code can query issues directly. For Attention, start from exported transcripts.
+1. The MCP server's **collector toolset** (`OUTCOMES_TOOLSET=collector`) exposes only `list_outcomes`, `list_projects`, `list_insights`, the `get_*` tools and `suggest_insight`. `suggest_insight` requires the verbatim excerpt and source reference, takes up to 3 links each with a rationale, and always sends `status: 'unvalidated'`. A duplicate comes back as `skipped`, not as an error.
+2. It signs in as the account's **collector user** (`npm run collector` creates it and prints the `claude mcp add outcomes-collector …` command), so least privilege holds even in v0: the API refuses anything but reading and suggesting.
+3. The skill, `.claude/skills/collect-insights/SKILL.md`, holds the rules from 2.2–2.5. It verifies each excerpt with a fixed-string search of the source file before suggesting it, in place of the pipeline's verify step.
+4. Run it: *"collect insights from agent/samples/feedback-log.csv"*. For Jira, add Atlassian's MCP server; for Attention, start from exported transcripts.
 
 This **is** an autonomous agent (Claude Code chooses the tools), and that's fine for v0, because you're watching it work. v0 is for learning what good output looks like, finding the edge cases, and **harvesting the first eval cases**. It's not a product: it doesn't scale, can't be scheduled, and isn't measured.
+
+**First run** (`agent/samples/feedback-log.csv`, 10 rows): 15 turns, about $0.37. It suggested 6 insights and correctly skipped the 4 non-insights, including our rep's opinion and a row containing a prompt injection, which it reported. It left the audit-log request unlinked, and it flagged the "$90k account" figure as a close call. Two things to act on: it called a customer's verbatim words inside a rep's note *relayed* where the sample notes said *firsthand* (ruled: verbatim quotes are firsthand, now in `insight.md` and the skill), and it found that date-only `observed_at` values were stored at server-local midnight (fixed: the API now treats them as UTC, like the web form).
 
 ### v1: headless workflow in `agent/`
 

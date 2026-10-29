@@ -3,7 +3,10 @@ import { api } from '../client.js';
 import { id, text, path, update, registerReadAndDelete } from './shared.js';
 
 // Mirrors TYPES and IMPACT_AREAS in src/routes/insights.js.
-const type = z.enum(['support_ticket', 'session_recording', 'interview', 'funnel', 'experiment', 'other']);
+const type = z.enum([
+  'support_ticket', 'session_recording', 'interview', 'funnel', 'experiment',
+  'sales_call', 'feature_request', 'survey', 'review', 'other',
+]);
 const impactArea = z.enum(['acquisition', 'activation', 'retention', 'expansion', 'cost', 'other']);
 
 const fields = {
@@ -32,7 +35,13 @@ export function registerInsightTools(server) {
     singular: 'insight',
     idField: 'insight_id',
     listDescription:
-      'List every insight in the account, each with the outcomes and projects it is evidence for (outcome_ids, project_ids).',
+      'List insights in the account, each with the outcomes and projects it is evidence for (outcome_ids, project_ids), its status and, for suggestions, where it came from (source_system, source_external_id, source_excerpt). Only validated insights are evidence.',
+    listFilters: {
+      status: z
+        .enum(['unvalidated', 'validated', 'rejected'])
+        .optional()
+        .describe('Only insights with this status. Omit for all.'),
+    },
   });
 
   server.registerTool(
@@ -40,10 +49,80 @@ export function registerInsightTools(server) {
     {
       title: 'Create insight',
       description:
-        'Record an insight: a single, sourced observation that is evidence an outcome or project is worth pursuing.',
+        'Record an insight a person has asked you to record: a single, sourced observation that is evidence an outcome or project is worth pursuing. It counts as evidence straight away. For an insight you found yourself in a source document, use suggest_insight instead.',
       inputSchema: fields,
     },
     async (args) => text(await api('/insights', { method: 'POST', body: args }))
+  );
+
+  // The insight collector's write path (product/agents/insight-collector/).
+  // Everything it creates waits in the review queue as unvalidated, carries the
+  // verbatim excerpt it rests on, and says why each link was made.
+  server.registerTool(
+    'suggest_insight',
+    {
+      title: 'Suggest insight',
+      description:
+        'Suggest an insight you found in a source document. It goes to the review queue as unvalidated and is not evidence until a person approves it. ' +
+        'Suggesting the same excerpt from the same source document twice, or one a reviewer already rejected, is skipped.',
+      inputSchema: {
+        name: fields.name,
+        description: z.string().optional().describe('Context: who, how many, what happened'),
+        type,
+        observed_at: fields.observed_at,
+        dollar_impact: fields.dollar_impact,
+        impact_area: impactArea.optional(),
+        source_system: z.string().min(1).describe('Where it came from: csv, google_sheets, attention, jira, ...'),
+        source_external_id: z
+          .string()
+          .min(1)
+          .describe('Finds the original within that system, stable across runs: "file.csv · row 12", "PROD-2291", "Globex call · 14:20"'),
+        source_url: z.string().optional().describe('Link to the original, when there is one'),
+        source_excerpt: z
+          .string()
+          .min(1)
+          .describe('The exact words from the source the insight rests on, copied character for character. Never paraphrased.'),
+        firsthand: z
+          .boolean()
+          .describe("True if the excerpt is a customer's own words or actions, including words quoted verbatim in someone's notes; false if it is someone else's paraphrase"),
+        links: z
+          .array(
+            z.object({
+              kind: z.enum(['outcome', 'project']),
+              id,
+              rationale: z.string().min(1).describe('One sentence: why this insight is evidence for it'),
+            })
+          )
+          .max(3)
+          .optional()
+          .describe('Up to 3 outcomes or projects this is evidence for. Empty when nothing fits.'),
+      },
+    },
+    async ({ links = [], ...insight }) => {
+      const pick = (kind) => links.filter((link) => link.kind === kind);
+      const rationales = (kind) => Object.fromEntries(pick(kind).map((link) => [link.id, link.rationale]));
+      try {
+        return text(
+          await api('/insights', {
+            method: 'POST',
+            body: {
+              ...insight,
+              status: 'unvalidated',
+              source: `${insight.source_system}: ${insight.source_external_id}`,
+              outcome_ids: pick('outcome').map((link) => link.id),
+              project_ids: pick('project').map((link) => link.id),
+              link_rationales: { outcomes: rationales('outcome'), projects: rationales('project') },
+            },
+          })
+        );
+      } catch (err) {
+        // The API's unique index on (source, excerpt) answers 409 "duplicate value".
+        if (err.message === 'duplicate value') {
+          return text({ skipped: 'already suggested from this source, or rejected before', source_external_id: insight.source_external_id });
+        }
+        throw err;
+      }
+    }
   );
 
   server.registerTool(

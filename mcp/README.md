@@ -12,13 +12,17 @@ Every resource has `list_*`, `get_*`, `create_*`, `update_*` and `delete_*`, exc
 | impacts | nest via `parent_impact_id` |
 | outcomes | `impact_id` only on top-level outcomes; nesting an outcome drops it |
 | projects | `outcome_ids` links the outcomes a project drives; passing it on update replaces the set |
-| insights | `outcome_ids` / `project_ids` link evidence; passing either on update replaces that set |
+| insights | `outcome_ids` / `project_ids` link evidence; passing either on update replaces that set. `list_insights` takes an optional `status`. `create_insight` records evidence a person asked for; `suggest_insight` is the insight collector's: it requires the verbatim excerpt and source reference, takes up to 3 links each with a rationale, and always lands `unvalidated` in the review queue (a duplicate is skipped, not an error) |
 | targets | exactly one of `outcome_id` / `impact_id`; `update_target` can't move a target to another parent |
 | measurements | `list_measurements` (optionally by `target_id`, oldest first), `record_measurement`, `update_measurement`, `delete_measurement` |
 
 `review_portfolio` answers "are we working on the right things?" (`product/jtbds/delivery.md`): chimerical impacts, unvalidated outcomes (`min_insights`, default 1), chimerical outcomes and projects with no outcome. Links roll up through nesting.
 
 New resources go in `src/tools/` and are registered in `src/server.js`; `src/tools/shared.js` has the list/get/delete and partial-update helpers.
+
+## The insight collector's toolset
+
+`OUTCOMES_TOOLSET=collector` registers only `list_outcomes`, `get_outcome`, `list_projects`, `get_project`, `list_insights`, `get_insight` and `suggest_insight`: what the insight collector agent (`product/agents/insight-collector/`, skill `.claude/skills/collect-insights/`) needs to read the account and suggest insights. Pair it with the account's `collector` user, which the API holds to the same limits: `npm run collector` creates that user and prints the `claude mcp add outcomes-collector …` command.
 
 ## Run
 

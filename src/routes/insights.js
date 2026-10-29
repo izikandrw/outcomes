@@ -118,7 +118,9 @@ async function readBody(req, res) {
     type: type || 'other',
     description: description || null,
     source: source || null,
-    observedAt: observed_at || null,
+    // A bare date means that day in UTC, like the web form sends; Postgres would
+    // otherwise read it as midnight in the server's timezone.
+    observedAt: /^\d{4}-\d{2}-\d{2}$/.test(observed_at ?? '') ? `${observed_at}T00:00:00Z` : observed_at || null,
     dollarImpact: dollar_impact === undefined || dollar_impact === null || dollar_impact === '' ? null : Number(dollar_impact),
     impactArea: impact_area || null,
     teamId: team_id || null,
