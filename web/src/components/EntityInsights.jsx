@@ -3,11 +3,50 @@ import { ArrowLeftIcon, ExpandIcon, PencilIcon } from './icons.jsx';
 import LinkedText from './LinkedText.jsx';
 import { IMPACT_AREAS, INSIGHT_TYPES, REJECTION_REASONS, formatDollars, impactAreaLabel, insightTypeLabel } from '../lib/links.js';
 
+// Columns the table can be sorted by, and the value each sorts on. A missing
+// value (null) always sorts last, whichever way the column is ordered.
+const SORT_KEYS = {
+  status: (insight) => (insight.status === 'validated' ? 0 : insight.status === 'unvalidated' ? 1 : 2),
+  name: (insight) => insight.name.toLowerCase(),
+  type: (insight) => insightTypeLabel(insight.type).toLowerCase(),
+  area: (insight) => (insight.impact_area ? impactAreaLabel(insight.impact_area).toLowerCase() : null),
+  impact: (insight) => (insight.dollar_impact != null ? Number(insight.dollar_impact) : null),
+  observed: (insight) => (insight.observed_at ? new Date(insight.observed_at).getTime() : null),
+};
+
+function sortInsights(insights, sort) {
+  if (!sort) return insights;
+  const key = SORT_KEYS[sort.column];
+  const direction = sort.descending ? -1 : 1;
+  return [...insights].sort((a, b) => {
+    const x = key(a);
+    const y = key(b);
+    if (x === y) return a.id - b.id;
+    if (x === null) return 1;
+    if (y === null) return -1;
+    return (x < y ? -1 : 1) * direction;
+  });
+}
+
 // The insights behind one outcome or project, shown in a modal. Fields edit in
 // place; the pencil goes to the full form, where links and details can be changed.
-export default function EntityInsights({ entity, insights, onOpen, onUpdate, onValidate, onReject, onAdd }) {
+// Clicking a column heading sorts by it; clicking again reverses the order.
+export default function EntityInsights({ entity, insights: unsorted, onOpen, onUpdate, onValidate, onReject, onAdd }) {
   const [error, setError] = useState(null);
   const [readingId, setReadingId] = useState(null);
+  const [sort, setSort] = useState(null);
+  const insights = sortInsights(unsorted, sort);
+
+  function sortBy(column) {
+    setSort((current) => ({
+      column,
+      descending: current?.column === column ? !current.descending : false,
+    }));
+  }
+
+  const heading = (column, label, className) => (
+    <SortHeading column={column} label={label} className={className} sort={sort} onSort={sortBy} />
+  );
 
   async function save(insight, patch) {
     setError(null);
@@ -50,12 +89,12 @@ export default function EntityInsights({ entity, insights, onOpen, onUpdate, onV
         <table className="insight-table">
           <thead>
             <tr>
-              <th>Verified</th>
-              <th>Insight</th>
-              <th>Type</th>
-              <th>Area</th>
-              <th className="num">Impact</th>
-              <th>Observed</th>
+              {heading('status', 'Verified')}
+              {heading('name', 'Insight')}
+              {heading('type', 'Type')}
+              {heading('area', 'Area')}
+              {heading('impact', 'Impact', 'num')}
+              {heading('observed', 'Observed')}
               <th />
             </tr>
           </thead>
@@ -165,6 +204,22 @@ export default function EntityInsights({ entity, insights, onOpen, onUpdate, onV
         </button>
       </div>
     </div>
+  );
+}
+
+// A column heading that sorts the table, with an arrow showing the current order.
+function SortHeading({ column, label, className, sort, onSort }) {
+  const active = sort?.column === column;
+  const ariaSort = active ? (sort.descending ? 'descending' : 'ascending') : 'none';
+  return (
+    <th className={className} aria-sort={ariaSort}>
+      <button type="button" className={`sort-heading${active ? ' active' : ''}`} onClick={() => onSort(column)}>
+        {label}
+        <span className="sort-arrow" aria-hidden="true">
+          {active ? (sort.descending ? '↓' : '↑') : '↕'}
+        </span>
+      </button>
+    </th>
   );
 }
 

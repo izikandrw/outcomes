@@ -1349,6 +1349,39 @@ button.tag.insight-badge.empty {
   font-variant-numeric: tabular-nums;
 }
 
+/* Column headings are buttons that sort the table; the arrow shows on hover
+   and stays on the column currently sorted. */
+.insight-table .sort-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.insight-table .sort-heading:hover,
+.insight-table .sort-heading.active {
+  color: var(--text);
+}
+
+.insight-table .sort-arrow {
+  opacity: 0;
+  font-size: 0.85em;
+}
+
+.insight-table .sort-heading:hover .sort-arrow,
+.insight-table .sort-heading:focus-visible .sort-arrow,
+.insight-table .sort-heading.active .sort-arrow {
+  opacity: 1;
+}
+
 .insight-table .hint {
   margin: 0.15rem 0 0;
 }
