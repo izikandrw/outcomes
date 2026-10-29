@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { IMPACT_AREAS, INSIGHT_TYPES } from '../lib/links.js';
+import MultiSelect from './MultiSelect.jsx';
 
 // Creates an insight or edits one in place. Evidence is linked to the outcomes
 // and projects it supports from here (a new insight started from an outcome
@@ -141,8 +142,20 @@ export default function InsightForm({ editing, outcome, project, teams, outcomes
         </select>
       </label>
 
-      <LinkPicker legend="Supports outcomes" items={outcomes} selected={outcomeIds} onChange={setOutcomeIds} />
-      <LinkPicker legend="Supports projects" items={projects} selected={projectIds} onChange={setProjectIds} />
+      <MultiSelect
+        label="Supports outcomes"
+        placeholder="Select outcomes…"
+        items={outcomes}
+        selected={outcomeIds}
+        onChange={setOutcomeIds}
+      />
+      <MultiSelect
+        label="Supports projects"
+        placeholder="Select projects…"
+        items={projects}
+        selected={projectIds}
+        onChange={setProjectIds}
+      />
 
       {error && <p className="error">{error}</p>}
 
@@ -160,35 +173,6 @@ export default function InsightForm({ editing, outcome, project, teams, outcomes
         </button>
       </div>
     </form>
-  );
-}
-
-function LinkPicker({ legend, items, selected, onChange }) {
-  function toggle(id) {
-    const next = new Set(selected);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    onChange(next);
-  }
-
-  return (
-    <fieldset className="link-picker">
-      <legend>{legend}</legend>
-      {items.length === 0 ? (
-        <span className="hint">None yet.</span>
-      ) : (
-        items.map((item) => (
-          <label key={item.id} className="check">
-            <input
-              type="checkbox"
-              checked={selected.has(String(item.id))}
-              onChange={() => toggle(String(item.id))}
-            />
-            {item.name}
-          </label>
-        ))
-      )}
-    </fieldset>
   );
 }
 
