@@ -51,7 +51,9 @@ export default function OutcomeTree({
   onOpenTeam,
   onShowIssue,
 }) {
-  const { nodes, edges, width, height } = layout(outcomes, projects, impacts);
+  const { nodes, edges, width, height: treeHeight } = layout(outcomes, projects, impacts);
+  // Room below the bottom row for a long name's overlay and the pill on its edge.
+  const height = Math.max(treeHeight, ...nodes.map((node) => node.y + fullNameHeight(node.data.name) + PAD));
   const validation = validateTree({ outcomes, projects, insights, impacts });
   const counts = groupByRule(validation, { impacts, outcomes, projects });
   // { entity, kind, left, top } — kind is 'outcome' or 'impact'. Anchored in
@@ -62,8 +64,10 @@ export default function OutcomeTree({
   const [hoverEdge, setHoverEdge] = useState(null);
   const hoverEnds = hoverEdge?.ends;
   // The key of the node under the pointer whose name is cut short. Its whole
-  // name is laid over it under its add button, and it is drawn after every
-  // other node so neighbours can't cover that.
+  // name is laid over it under its badges, pill and add button, and it is
+  // drawn after every other node so neighbours can't cover that. Pointing
+  // straight at a badge or the pill doesn't reveal it, so the pill doesn't
+  // jump out from under the pointer.
   const [revealKey, setRevealKey] = useState(null);
   const keyOf = (node) => `${node.type}-${node.data.id}`;
   const drawOrder = [...nodes].sort((a, b) => (keyOf(a) === revealKey) - (keyOf(b) === revealKey));
@@ -222,7 +226,10 @@ export default function OutcomeTree({
             <g
               key={`${node.type}-${node.data.id}`}
               className={hoverEnds?.includes(`${node.type}-${node.data.id}`) ? 'edge-hover' : undefined}
-              onMouseEnter={() => setRevealKey(isTruncated(nodeLines(node, targets)) ? keyOf(node) : null)}
+              onMouseOver={(event) => {
+                if (event.target.closest('.node-issue, .node-insights')) return;
+                setRevealKey(isTruncated(nodeLines(node, targets)) ? keyOf(node) : null);
+              }}
               onMouseLeave={() => setRevealKey(null)}
             >
             {node.type === 'impact' ? (
@@ -380,9 +387,16 @@ function OutcomeNode({
         onTargetClick={() => onViewTarget(quantified[0])}
       />
 
-      <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, outcome)} />
-      <InsightPill x={x} y={y} count={insightCount} dollars={insightDollars} label={outcome.name} onOpen={() => onShowInsights(outcome, 'outcome')} />
       {revealed && <FullName node={{ type: 'outcome', data: outcome, x, y }} />}
+      <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, outcome)} />
+      <InsightPill
+        x={x}
+        y={revealed ? y + fullNameHeight(outcome.name) - NODE_H : y}
+        count={insightCount}
+        dollars={insightDollars}
+        label={outcome.name}
+        onOpen={() => onShowInsights(outcome, 'outcome')}
+      />
       {/* Revealed on hover or keyboard focus; opens the add menu. */}
       <g
         className="node-add"
@@ -438,9 +452,9 @@ function ImpactNode({ impact, revealed, x, y, depth, targets, issues, onShowIssu
         targetLine={targetLine}
         onTargetClick={() => onViewTarget(quantified[0])}
       />
+      {revealed && <FullName node={{ type: 'impact', data: impact, x, y }} />}
       <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, impact)} />
 
-      {revealed && <FullName node={{ type: 'impact', data: impact, x, y }} />}
       <g
         className="node-add"
         role="button"
@@ -594,9 +608,16 @@ function ProjectNode({
         </g>
       )}
 
-      <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, project)} />
-      <InsightPill x={x} y={y} count={insightCount} dollars={insightDollars} label={project.name} onOpen={() => onShowInsights(project, 'project')} />
       {revealed && <FullName node={{ type: 'project', data: project, x, y }} />}
+      <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, project)} />
+      <InsightPill
+        x={x}
+        y={revealed ? y + fullNameHeight(project.name) - NODE_H : y}
+        count={insightCount}
+        dollars={insightDollars}
+        label={project.name}
+        onOpen={() => onShowInsights(project, 'project')}
+      />
       <g
         className="node-add"
         role="button"
@@ -988,13 +1009,21 @@ function nodeLines(node, targets) {
   return nodeLabel(node.data.name, quantified).lines;
 }
 
+// How tall a node's whole-name overlay is: as tall as the node, or taller when
+// the name needs more lines.
+function fullNameHeight(name) {
+  return Math.max(NODE_H, wrapLabel(name, MAX_CHARS, Infinity).length * LINE_H + 2 * LINE_H);
+}
+
 // A truncated node's whole name, laid over the node in its own colors and
-// growing downward as far as the name needs. It ignores the pointer, so a click
-// still lands on the node underneath; only the add button sits above it.
+// growing downward as far as the name needs. It is drawn inside the node, so
+// hovering any of it keeps the node hovered and clicking it edits the node. The
+// badges, the add button and the insight pill sit above it, the pill moved
+// down to its bottom edge.
 function FullName({ node }) {
   const { type, data, x, y } = node;
   const lines = wrapLabel(data.name, MAX_CHARS, Infinity);
-  const height = Math.max(NODE_H, lines.length * LINE_H + 2 * LINE_H);
+  const height = fullNameHeight(data.name);
   const className = [
     'tree-node tree-node-full',
     type !== 'outcome' && type,

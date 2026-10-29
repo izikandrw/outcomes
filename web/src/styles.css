@@ -514,10 +514,10 @@ body.modal-open {
   stroke-width: 2;
 }
 
-/* Hovering a truncated name lays the whole of it over the node. It ignores the
-   pointer, so a click still lands on the node underneath. */
+/* Hovering a truncated name lays the whole of it over the node. It is part of
+   the node, so the pointer stays on the node across all of it and a click on it
+   edits the node. */
 .tree-node-full {
-  pointer-events: none;
   filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.12));
 }
 
