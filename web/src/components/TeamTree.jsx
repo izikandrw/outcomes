@@ -69,7 +69,7 @@ export default function TeamTree({ teams, outcomes, projects, onCreate, onOpenTe
             <marker
               id="tree-arrow"
               viewBox="0 0 8 8"
-              refX="7"
+              refX="5"
               refY="4"
               markerWidth="7"
               markerHeight="7"

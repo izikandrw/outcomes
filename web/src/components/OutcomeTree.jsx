@@ -154,10 +154,14 @@ export default function OutcomeTree({
           aria-label="Outcome tree"
         >
           <defs>
+            {/* Anchored short of the tip, where the head is still wider than
+                the 1.5px line, so the line's square end is hidden inside it
+                instead of poking out past the point. Edges stop 3px short of
+                a node to leave room for the tip. */}
             <marker
               id="tree-arrow"
               viewBox="0 0 8 8"
-              refX="7"
+              refX="5"
               refY="4"
               markerWidth="7"
               markerHeight="7"
@@ -168,7 +172,7 @@ export default function OutcomeTree({
             <marker
               id="tree-arrow-impact"
               viewBox="0 0 8 8"
-              refX="7"
+              refX="5"
               refY="4"
               markerWidth="7"
               markerHeight="7"
@@ -179,7 +183,7 @@ export default function OutcomeTree({
             <marker
               id="tree-arrow-project"
               viewBox="0 0 8 8"
-              refX="7"
+              refX="5"
               refY="4"
               markerWidth="7"
               markerHeight="7"
@@ -1134,18 +1138,18 @@ function crossLinkPath(from, to, nodes, channels) {
   const rowsOverlap = from.y < to.y + NODE_H && to.y < from.y + NODE_H;
   if (rowsOverlap) {
     const dipY = Math.max(from.y, to.y) + NODE_H + BADGE_REACH + LINE_CLEARANCE;
-    return `M${from.x} ${from.y + NODE_H} V${dipY} H${to.x} V${to.y + NODE_H}`;
+    return `M${from.x} ${from.y + NODE_H} V${dipY} H${to.x} V${to.y + NODE_H + 3}`;
   }
   const down = from.y < to.y;
   const between = nodes.filter((node) => (node.y - from.y) * (node.y - to.y) < 0);
   if (between.length === 0) {
     return down
       ? elbowPath(from.x, from.y + NODE_H, to.x, to.y - 3)
-      : elbowPath(from.x, from.y - 3, to.x, to.y + NODE_H);
+      : elbowPath(from.x, from.y - 3, to.x, to.y + NODE_H + 3);
   }
 
   const startY = down ? from.y + NODE_H : from.y - 3;
-  const endY = down ? to.y - 3 : to.y + NODE_H;
+  const endY = down ? to.y - 3 : to.y + NODE_H + 3;
   const startGap = down ? from.y + NODE_H + V_GAP / 2 : from.y - V_GAP / 2;
   const endGap = down ? to.y - V_GAP / 2 : to.y + NODE_H + V_GAP / 2;
   const group = `outcome-${from.data.id}`;
