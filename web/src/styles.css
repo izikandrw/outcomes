@@ -686,6 +686,12 @@ body.modal-open {
   color: var(--muted);
 }
 
+/* Names the field a chip's value belongs to, e.g. "Source blog". */
+.tag-key {
+  font-weight: 500;
+  opacity: 0.75;
+}
+
 .tag.measurement {
   background: color-mix(in srgb, var(--muted) 12%, transparent);
   color: var(--muted);

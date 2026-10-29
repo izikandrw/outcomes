@@ -146,10 +146,24 @@ function ReviewCard({
     <li className="review-card">
       <h3>{insight.name}</h3>
       <p className="meta">
-        <span className="tag">{insightTypeLabel(insight.type)}</span>
-        {insight.source_system && <span className="tag project">{insight.source_system}</span>}
-        {insight.firsthand === true && <span className="tag project">Firsthand</span>}
-        {insight.firsthand === false && <span className="tag project">Relayed</span>}
+        <span className="tag project" title="What kind of evidence this is">
+          <span className="tag-key">Type</span> {insightTypeLabel(insight.type)}
+        </span>
+        {insight.source_system && (
+          <span className="tag project" title="Where the collector found it; the link below opens the original">
+            <span className="tag-key">Source</span> {insight.source_system}
+          </span>
+        )}
+        {insight.firsthand === true && (
+          <span className="tag project" title="The customer's own words or actions, including their words quoted verbatim by someone else">
+            <span className="tag-key">Voice</span> Firsthand
+          </span>
+        )}
+        {insight.firsthand === false && (
+          <span className="tag project" title="Someone else's paraphrase or summary of what the customer said">
+            <span className="tag-key">Voice</span> Relayed
+          </span>
+        )}
         {insight.dollar_impact != null && <span className="tag">{formatDollars(insight.dollar_impact)}</span>}
         {insight.edited_in_review && <span className="tag parent">Edited</span>}
         {insight.observed_at && (
