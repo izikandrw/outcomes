@@ -61,6 +61,9 @@ export default function OutcomeTree({
   // shows a button to break the link.
   const [hoverEdge, setHoverEdge] = useState(null);
   const hoverEnds = hoverEdge?.ends;
+  // The node under the pointer whose name is cut short; its whole name is laid
+  // over it, drawn after every node so neighbours can't cover it.
+  const [revealNode, setRevealNode] = useState(null);
   const { zoom, scrollRef, svgRef, ...zoomActions } = useZoom({ storageKey: 'outcomes.mapZoom', width });
 
   useEffect(() => {
@@ -216,6 +219,8 @@ export default function OutcomeTree({
             <g
               key={`${node.type}-${node.data.id}`}
               className={hoverEnds?.includes(`${node.type}-${node.data.id}`) ? 'edge-hover' : undefined}
+              onMouseEnter={() => setRevealNode(isTruncated(nodeLines(node, targets)) ? node : null)}
+              onMouseLeave={() => setRevealNode(null)}
             >
             {node.type === 'impact' ? (
               <ImpactNode
@@ -264,6 +269,7 @@ export default function OutcomeTree({
             )}
             </g>
           ))}
+          {revealNode && <FullName node={revealNode} />}
         </svg>
       </div>
 
@@ -358,7 +364,6 @@ function OutcomeNode({
         }
       }}
     >
-      {isTruncated(lines) && <title>{outcome.name}</title>}
       <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={NODE_H} rx="10" />
       <NodeText
         x={x}
@@ -418,7 +423,6 @@ function ImpactNode({ impact, x, y, depth, targets, issues, onShowIssue, onEdit,
         }
       }}
     >
-      {isTruncated(lines) && <title>{impact.name}</title>}
       <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={NODE_H} rx="10" />
       <NodeText
         x={x}
@@ -559,7 +563,6 @@ function ProjectNode({
         }
       }}
     >
-      {isTruncated(lines) && <title>{project.name}</title>}
       <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={NODE_H} rx="10" />
       <text x={x} y={y + NODE_H / 2 - LABEL_LIFT} textAnchor="middle" dominantBaseline="middle">
         {lines.map((line, index) => (
@@ -941,10 +944,47 @@ function crossLinkPath(from, to) {
   return elbowPath(from.x, from.y - 3, to.x, to.y + NODE_H);
 }
 
-// Whether wrapLabel had to cut the text short; only then does a node's hover
-// tooltip show the whole name.
+// Whether wrapLabel had to cut the text short; only then does hovering a node
+// reveal its whole name.
 function isTruncated(lines) {
   return lines.at(-1)?.endsWith('…') ?? false;
+}
+
+// The name lines a node draws, as its own component wraps them.
+function nodeLines(node, targets) {
+  if (node.type === 'project') return wrapLabel(node.data.name, MAX_CHARS, MAX_LINES);
+  const quantified =
+    node.type === 'impact' ? targetsForImpact(targets, node.data) : targetsForOutcome(targets, node.data);
+  return nodeLabel(node.data.name, quantified).lines;
+}
+
+// A truncated node's whole name, laid over the node in its own colors and
+// growing downward as far as the name needs. It ignores the pointer, so a click
+// still lands on the node underneath.
+function FullName({ node }) {
+  const { type, data, x, y } = node;
+  const lines = wrapLabel(data.name, MAX_CHARS, Infinity);
+  const height = Math.max(NODE_H, lines.length * LINE_H + 2 * LINE_H);
+  const className = [
+    'tree-node tree-node-full',
+    type !== 'outcome' && type,
+    type === 'outcome' && data.parent_outcome_id == null && 'root',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return (
+    <g className={className} aria-hidden="true">
+      <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={height} rx="10" />
+      <text x={x} y={y + height / 2} textAnchor="middle" dominantBaseline="middle">
+        {lines.map((line, index) => (
+          <tspan key={index} x={x} dy={index === 0 ? -((lines.length - 1) * LINE_H) / 2 : LINE_H}>
+            {line}
+          </tspan>
+        ))}
+      </text>
+    </g>
+  );
 }
 
 // SVG has no text wrapping, so lines are split on an approximate character

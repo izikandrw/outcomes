@@ -514,6 +514,17 @@ body.modal-open {
   stroke-width: 2;
 }
 
+/* Hovering a truncated name lays the whole of it over the node. It ignores the
+   pointer, so a click still lands on the node underneath. */
+.tree-node-full {
+  pointer-events: none;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.12));
+}
+
+.tree-node-full rect {
+  stroke-width: 2;
+}
+
 .tree-node:focus-visible {
   outline: none;
 }
