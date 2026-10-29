@@ -317,7 +317,7 @@ button.with-icon {
 }
 
 .modal.wide {
-  width: min(860px, calc(100vw - 32px));
+  width: min(1400px, calc(100vw - 32px));
 }
 
 .modal::backdrop {
@@ -1214,12 +1214,13 @@ button.tag.insight-badge.empty {
 }
 
 .insight-table td:first-child {
-  min-width: 10rem;
+  width: 100%;
+  min-width: 16rem;
 }
 
 /* Fixed widths so selects, amounts and dates aren't clipped. */
 .insight-table td:nth-child(2) .cell-input { min-width: 7.5rem; }
-.insight-table td:nth-child(3) .cell-input { min-width: 6.5rem; }
+.insight-table td:nth-child(3) .cell-input { min-width: 9rem; }
 .insight-table td:nth-child(4) .cell-input { min-width: 5.5rem; }
 .insight-table td:nth-child(5) .cell-input { min-width: 8rem; }
 .insight-table td:last-child { padding-right: 0; }
