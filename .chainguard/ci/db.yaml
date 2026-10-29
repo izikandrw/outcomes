@@ -1,0 +1,38 @@
+version: 1
+environment:
+  packages: [busybox, nodejs-22, npm, curl]
+  services: [postgres]
+  vars:
+    # "localhost" makes src/db.js skip SSL, like local dev.
+    DATABASE_URL: postgres://postgres@localhost:5432/outcomes
+checks:
+  migrate:
+    description: >-
+      Builds a fresh database from create_db.sql, applies every migration the
+      way a Render deploy does (npm run migrate && npm start), reruns them to
+      prove a redeploy is a no-op, and boots the API against the result.
+    timeout: 10m
+    when:
+      changed: [create_db.sql, "migrations/**", scripts/migrate.js, "src/**", package.json, package-lock.json, ".chainguard/**"]
+    network:
+      egress: [registry.npmjs.org]
+    steps:
+      - name: install
+        cmd: npm ci --no-audit --no-fund
+      - name: create schema
+        script: |
+          createdb outcomes
+          psql -v ON_ERROR_STOP=1 -q -d outcomes -f create_db.sql
+      - name: migrate
+        cmd: npm run migrate
+      - name: migrate again
+        cmd: npm run migrate
+      - name: boot api
+        script: |
+          PORT=3000 node src/server.js > /tmp/api.log 2>&1 &
+          for i in $(seq 50); do
+            curl -fsS http://127.0.0.1:3000/health && exit 0
+            sleep 0.2
+          done
+          cat /tmp/api.log
+          exit 1

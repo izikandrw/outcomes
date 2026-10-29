@@ -1,0 +1,8 @@
+version: 1
+name: postgres
+packages: [busybox, postgresql-18, postgresql-18-client, su-exec]
+cmd: [sh, ./postgres.sh]
+timeout: 60s
+exports:
+  PGHOST: 127.0.0.1
+  PGUSER: postgres
