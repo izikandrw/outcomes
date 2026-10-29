@@ -1964,7 +1964,7 @@ button.team-chip.link:hover {
   font-size: 13px;
 }
 
-/* Hovering a relationship line softly lights up the two nodes it joins. */
+/* Hovering a relationship line lights it up, along with the two nodes it joins. */
 .tree-edge-hit {
   stroke: transparent;
   stroke-width: 12;
@@ -1973,6 +1973,22 @@ button.team-chip.link:hover {
 
 .tree-edge-hit:hover {
   cursor: default;
+}
+
+.edge-hover .tree-edge {
+  stroke: var(--muted);
+  stroke-width: 2.25;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 55%, transparent));
+}
+
+.edge-hover .tree-edge.project {
+  stroke: var(--project);
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--project) 55%, transparent));
+}
+
+.edge-hover .tree-edge.impact {
+  stroke: var(--impact);
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--impact) 55%, transparent));
 }
 
 .edge-hover .tree-node rect {

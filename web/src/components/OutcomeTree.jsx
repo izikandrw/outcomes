@@ -165,6 +165,7 @@ export default function OutcomeTree({
           {edges.map((edge) => (
             <g
               key={edge.key}
+              className={hoverEdge?.key === edge.key ? 'edge-hover' : undefined}
               onMouseEnter={() => setHoverEdge(edge)}
               onMouseLeave={() => setHoverEdge(null)}
             >
