@@ -28,6 +28,8 @@ export const PAD = 20;
 // bottom edges, and the gap a connector keeps from them.
 const BADGE_REACH = 11;
 const LINE_CLEARANCE = 8;
+// How far a cross-link's vertical run keeps from the sides of nodes it passes.
+const CHANNEL_CLEARANCE = 4;
 export const LINE_H = 15;
 // From a node's bottom edge, where the insight pill is centred, to the first
 // line of a revealed name below it: the pill's half-height plus a gap.
@@ -863,6 +865,7 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth) {
   const projectNodeById = new Map(
     nodes.filter((node) => node.type === 'project').map((node) => [node.data.id, node])
   );
+  const channels = []; // vertical runs cross-links have taken through intermediate rows
   for (const outcome of outcomes) {
     for (const project of projectsForOutcome(projects, outcome)) {
       if (String(primaryOutcomeOf.get(project.id)) === String(outcome.id)) continue;
@@ -871,7 +874,7 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth) {
       if (!from || !to) continue;
       edges.push({
         key: `${outcome.id}-project-${project.id}-cross`,
-        d: crossLinkPath(from, to),
+        d: crossLinkPath(from, to, nodes, channels),
         kind: 'project',
         ends: [`outcome-${outcome.id}`, `project-${project.id}`],
         from: { kind: 'outcome', id: outcome.id },
@@ -983,14 +986,65 @@ function crossLinkButton(from, to) {
   return { x: to.x, y: to.y + NODE_H + V_GAP / 4 };
 }
 
-function crossLinkPath(from, to) {
+// A cross-link can span several rows. Its sideways runs stay in the row gaps
+// next to each end, and it passes the rows in between down a column clear of
+// their nodes, so it never runs behind a box: straight down from the source if
+// that column is clear, else straight down into the target, else through the
+// nearest gap between nodes.
+function crossLinkPath(from, to, nodes, channels) {
   const rowsOverlap = from.y < to.y + NODE_H && to.y < from.y + NODE_H;
   if (rowsOverlap) {
     const dipY = Math.max(from.y, to.y) + NODE_H + BADGE_REACH + LINE_CLEARANCE;
     return `M${from.x} ${from.y + NODE_H} V${dipY} H${to.x} V${to.y + NODE_H}`;
   }
-  if (from.y < to.y) return elbowPath(from.x, from.y + NODE_H, to.x, to.y - 3);
-  return elbowPath(from.x, from.y - 3, to.x, to.y + NODE_H);
+  const down = from.y < to.y;
+  const between = nodes.filter((node) => (node.y - from.y) * (node.y - to.y) < 0);
+  if (between.length === 0) {
+    return down
+      ? elbowPath(from.x, from.y + NODE_H, to.x, to.y - 3)
+      : elbowPath(from.x, from.y - 3, to.x, to.y + NODE_H);
+  }
+
+  const startY = down ? from.y + NODE_H : from.y - 3;
+  const endY = down ? to.y - 3 : to.y + NODE_H;
+  const startGap = down ? from.y + NODE_H + V_GAP / 2 : from.y - V_GAP / 2;
+  const endGap = down ? to.y - V_GAP / 2 : to.y + NODE_H + V_GAP / 2;
+  const group = `outcome-${from.data.id}`;
+  const [top, bottom] = [Math.min(startGap, endGap), Math.max(startGap, endGap)];
+
+  const blocked = [];
+  for (const node of [...between].sort((a, b) => a.x - b.x)) {
+    const lo = node.x - NODE_W / 2 - CHANNEL_CLEARANCE;
+    const hi = node.x + NODE_W / 2 + CHANNEL_CLEARANCE;
+    const last = blocked[blocked.length - 1];
+    if (last && lo <= last[1]) last[1] = Math.max(last[1], hi);
+    else blocked.push([lo, hi]);
+  }
+  const clear = (x) =>
+    blocked.every(([lo, hi]) => x < lo || x > hi) &&
+    channels.every(
+      (other) =>
+        other.group === group || Math.abs(other.x - x) >= LANE_GAP || other.bottom < top || bottom < other.top
+    );
+  const take = (x) => {
+    channels.push({ group, x, top, bottom });
+    return x;
+  };
+
+  if (clear(from.x)) return `M${take(from.x)} ${startY} V${endGap} H${to.x} V${endY}`;
+  if (clear(to.x)) return `M${from.x} ${startY} V${startGap} H${take(to.x)} V${endY}`;
+  // The middle of each gap between the nodes in the way, or past either side
+  // of them all, nudged a lane over if another source's run already took it.
+  const bases = blocked.slice(1).map(([lo], i) => (blocked[i][1] + lo) / 2);
+  bases.push(blocked[0][0] - LINE_CLEARANCE, blocked[blocked.length - 1][1] + LINE_CLEARANCE);
+  const cost = (x) => Math.abs(x - from.x) + Math.abs(x - to.x);
+  const channelX = take(
+    bases
+      .flatMap((x) => [x, x + LANE_GAP, x - LANE_GAP])
+      .filter(clear)
+      .sort((a, b) => cost(a) - cost(b))[0] ?? bases[bases.length - 1]
+  );
+  return `M${from.x} ${startY} V${startGap} H${channelX} V${endGap} H${to.x} V${endY}`;
 }
 
 // Whether wrapLabel had to cut the text short; only then does hovering a node
