@@ -779,9 +779,12 @@ function layout(outcomes, projects, impacts) {
       const childProjects = (projectsByOutcome.get(entity.id) ?? []).filter(
         (child) => !placedProjects.has(child.id)
       );
+      // Beside child outcomes, the projects drop a further row so each kind
+      // reads as its own grouping instead of sharing one bracket.
+      const lowered = childOutcomes.length > 0;
       children = [
         ...childOutcomes.map((child) => ({ kind: 'outcome', data: child })),
-        ...childProjects.map((project) => ({ kind: 'project', data: project })),
+        ...childProjects.map((project) => ({ kind: 'project', data: project, lowered })),
       ];
     }
 
@@ -795,8 +798,8 @@ function layout(outcomes, projects, impacts) {
     } else {
       let childLeft = left;
       for (const child of children) {
-        const position = place(child, depth + 1, childLeft);
-        childPositions.push({ ...position, kind: child.kind });
+        const position = place(child, depth + (child.lowered ? 2 : 1), childLeft);
+        childPositions.push({ ...position, kind: child.kind, lowered: child.lowered });
         childLeft = position.right + H_GAP;
       }
       right = childLeft - H_GAP;
@@ -804,15 +807,23 @@ function layout(outcomes, projects, impacts) {
     }
 
     nodes.push({ type: item.kind, data: entity, x, y, depth });
+    const lowered = childPositions.filter((child) => child.lowered);
+    // Lowered projects sit right of every outcome subtree, so a trunk over
+    // their centre drops through the outcome row without touching a node.
+    const trunkX = lowered.length > 0 ? (lowered[0].x + lowered[lowered.length - 1].x) / 2 : null;
     for (const child of childPositions) {
       edges.push({
         key: `${item.kind}-${entity.id}-${child.kind}-${child.id}`,
-        d: elbowPath(x, y + NODE_H, child.x, child.y - 3),
+        d: child.lowered
+          ? loweredPath(x, y + NODE_H, trunkX, child.x, child.y - 3)
+          : elbowPath(x, y + NODE_H, child.x, child.y - 3),
         kind: child.kind,
         ends: [`${item.kind}-${entity.id}`, `${child.kind}-${child.id}`],
         from: { kind: item.kind, id: entity.id },
         to: { kind: child.kind, id: child.id },
-        button: { x: child.x, y: y + NODE_H + V_GAP / 2 + V_GAP / 4 },
+        button: child.lowered
+          ? { x: child.x, y: child.y - V_GAP / 4 }
+          : { x: child.x, y: y + NODE_H + V_GAP / 2 + V_GAP / 4 },
       });
     }
 
@@ -881,6 +892,14 @@ export function elbowPath(x1, y1, x2, y2) {
   if (x1 === x2) return `M${x1} ${y1} V${y2}`;
   const midY = (y1 + y2) / 2;
   return `M${x1} ${y1} V${midY} H${x2} V${y2}`;
+}
+
+// Connector into a project two rows down: jogs sideways a quarter into the
+// first gap, above the child outcomes' bracket so it never crosses their
+// drops, runs down the trunk past the outcome row, then fans out in the gap
+// above the projects as a bracket of its own.
+function loweredPath(x1, y1, trunkX, x2, y2) {
+  return `M${x1} ${y1} V${y1 + V_GAP / 4} H${trunkX} V${y2 - V_GAP / 2} H${x2} V${y2}`;
 }
 
 // A project cross-linked from an outcome it isn't primarily drawn under can
