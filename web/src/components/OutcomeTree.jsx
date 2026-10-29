@@ -971,9 +971,6 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth, weights) {
         ends: [`${item.kind}-${entity.id}`, `${child.kind}-${child.id}`],
         from: { kind: item.kind, id: entity.id },
         to: { kind: child.kind, id: child.id },
-        button: child.lowered
-          ? { x: child.x, y: child.y - V_GAP / 4 }
-          : { x: child.x, y: y + NODE_H + V_GAP / 2 + V_GAP / 4 },
       });
     }
 
@@ -1022,12 +1019,12 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth, weights) {
         ends: [`outcome-${outcome.id}`, `project-${project.id}`],
         from: { kind: 'outcome', id: outcome.id },
         to: { kind: 'project', id: project.id },
-        button: crossLinkButton(from, to),
       });
     }
   }
 
   spreadLanes(edges);
+  for (const edge of edges) edge.button = pathMidpoint(edge.d);
 
   return {
     nodes,
@@ -1045,6 +1042,32 @@ export function elbowPath(x1, y1, x2, y2) {
   if (x1 === x2) return `M${x1} ${y1} V${y2}`;
   const midY = (y1 + y2) / 2;
   return `M${x1} ${y1} V${midY} H${x2} V${y2}`;
+}
+
+// The point halfway along a connector, where its remove button sits.
+export function pathMidpoint(d) {
+  const points = [];
+  let x = 0;
+  let y = 0;
+  for (const [, cmd, args] of d.matchAll(/([MVH])([^MVH]*)/g)) {
+    const values = args.trim().split(/\s+/).map(Number);
+    if (cmd === 'M') [x, y] = values;
+    else if (cmd === 'V') y = values[0];
+    else x = values[0];
+    points.push([x, y]);
+  }
+  const lengths = points.slice(1).map(([px, py], i) => Math.abs(px - points[i][0]) + Math.abs(py - points[i][1]));
+  let remaining = lengths.reduce((sum, length) => sum + length, 0) / 2;
+  for (let i = 0; i < lengths.length; i += 1) {
+    if (remaining <= lengths[i]) {
+      const t = lengths[i] ? remaining / lengths[i] : 0;
+      const [x1, y1] = points[i];
+      const [x2, y2] = points[i + 1];
+      return { x: x1 + (x2 - x1) * t, y: y1 + (y2 - y1) * t };
+    }
+    remaining -= lengths[i];
+  }
+  return { x, y };
 }
 
 // Connectors from different sources can jog sideways at the same (or nearly
@@ -1117,18 +1140,6 @@ function loweredPath(x1, y1, trunkX, x2, y2) {
 // boxes in between. When rows overlap, dip under both boxes, clear of the
 // insight pills hanging off their bottom edges, so the connector never
 // crosses node interiors or badges.
-// A point on the last vertical run into the project, clear of the shared
-// horizontal run so each cross-link gets its own button.
-function crossLinkButton(from, to) {
-  const rowsOverlap = from.y < to.y + NODE_H && to.y < from.y + NODE_H;
-  if (rowsOverlap) {
-    const dipY = Math.max(from.y, to.y) + NODE_H + BADGE_REACH + LINE_CLEARANCE;
-    return { x: to.x, y: (dipY + to.y + NODE_H) / 2 + 1 };
-  }
-  if (from.y < to.y) return { x: to.x, y: to.y - V_GAP / 4 };
-  return { x: to.x, y: to.y + NODE_H + V_GAP / 4 };
-}
-
 // A cross-link can span several rows. Its sideways runs stay in the row gaps
 // next to each end, and it passes the rows in between down a column clear of
 // their nodes, so it never runs behind a box: straight down from the source if
