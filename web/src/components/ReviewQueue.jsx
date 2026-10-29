@@ -16,8 +16,10 @@ import CollectionRuns, { formatTime } from './CollectionRuns.jsx';
 // as evidence until it is approved. Besides links to existing outcomes and
 // projects, the collector may propose ones that don't exist yet; the reviewer
 // creates one (which links the insight to it but leaves it in review) or
-// dismisses it, or approves the insight and creates all of them at once. The
-// Runs tab shows the collector's traces.
+// dismisses it, or approves the insight and creates all of them at once.
+// Whatever was proposed, the reviewer can also create an outcome or project of
+// their own and link the insight to it. The Runs tab shows the collector's
+// traces.
 export default function ReviewQueue({
   accountId,
   insights,
@@ -28,6 +30,7 @@ export default function ReviewQueue({
   onEdit,
   onUnlink,
   onCreateProposed,
+  onCreateOwn,
   onDismissProposed,
   onAcceptAll,
 }) {
@@ -81,6 +84,7 @@ export default function ReviewQueue({
               onEdit={onEdit}
               onUnlink={onUnlink}
               onCreateProposed={onCreateProposed}
+              onCreateOwn={onCreateOwn}
               onDismissProposed={onDismissProposed}
               onAcceptAll={onAcceptAll}
             />
@@ -100,6 +104,7 @@ function ReviewCard({
   onEdit,
   onUnlink,
   onCreateProposed,
+  onCreateOwn,
   onDismissProposed,
   onAcceptAll,
 }) {
@@ -230,6 +235,22 @@ function ReviewCard({
               })}
             </ul>
           </>
+        )}
+        {pending && (
+          <div className="proposed-actions">
+            {['outcome', 'project'].map((noun) => (
+              <button
+                key={noun}
+                type="button"
+                className="ghost small"
+                title={`Opens a blank new ${noun} form; saving it links this insight to it. The insight stays in review.`}
+                disabled={busy}
+                onClick={() => onCreateOwn(insight, noun)}
+              >
+                New {noun} and link
+              </button>
+            ))}
+          </div>
         )}
       </div>
 

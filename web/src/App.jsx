@@ -385,6 +385,18 @@ export default function App({ user, account, onSignOut }) {
     }
   }
 
+  // From the review queue, whether or not the collector proposed anything: the
+  // reviewer creates an outcome or project of their own, and saving it links
+  // the insight the same way (with no proposal to drop).
+  function createForInsight(insight, kind) {
+    const fromProposal = { insightId: insight.id, index: null };
+    if (kind === 'project') {
+      setModal({ kind: 'project', project: null, parent: null, fromProposal });
+    } else {
+      setModal({ kind: 'outcome', outcome: null, parent: null, parentId: null, fromProposal });
+    }
+  }
+
   // Once the proposed outcome or project exists: link the insight to it with
   // the collector's rationale, and drop the proposal. The modal has already
   // closed, so a failure here shows on the page rather than inviting a second
@@ -392,7 +404,7 @@ export default function App({ user, account, onSignOut }) {
   async function linkProposal({ insightId, index }, kind, created) {
     const insight = insights.find((item) => item.id === insightId);
     if (!insight) return;
-    const proposal = insight.proposed_links[index];
+    const proposal = index == null ? null : insight.proposed_links[index];
     const field = kind === 'project' ? 'project_ids' : 'outcome_ids';
     const rationales = { outcomes: {}, projects: {} };
     if (proposal?.rationale) rationales[kind === 'project' ? 'projects' : 'outcomes'][created.id] = proposal.rationale;
@@ -400,7 +412,7 @@ export default function App({ user, account, onSignOut }) {
       await patchInsight(insight, {
         [field]: [...insight[field].map(Number), Number(created.id)],
         link_rationales: rationales,
-        proposed_links: insight.proposed_links.filter((_, i) => i !== index),
+        ...(index == null ? {} : { proposed_links: insight.proposed_links.filter((_, i) => i !== index) }),
       });
       setError(null);
     } catch (err) {
@@ -647,6 +659,7 @@ export default function App({ user, account, onSignOut }) {
                   onEdit={(insight) => setModal({ kind: 'insight', insight })}
                   onUnlink={unlinkInsight}
                   onCreateProposed={createFromProposal}
+                  onCreateOwn={createForInsight}
                   onDismissProposed={dismissProposal}
                   onAcceptAll={acceptAllProposals}
                 />
