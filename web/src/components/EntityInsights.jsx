@@ -31,7 +31,7 @@ function sortInsights(insights, sort) {
 // The insights behind one outcome or project, shown in a modal. Fields edit in
 // place; the pencil goes to the full form, where links and details can be changed.
 // Clicking a column heading sorts by it; clicking again reverses the order.
-export default function EntityInsights({ entity, insights: unsorted, onOpen, onUpdate, onValidate, onReject, onAdd }) {
+export default function EntityInsights({ entity, insights: unsorted, onOpen, onUpdate, onValidate, onReject, onReopen, onAdd }) {
   const [error, setError] = useState(null);
   const [readingId, setReadingId] = useState(null);
   const [sort, setSort] = useState(null);
@@ -57,11 +57,12 @@ export default function EntityInsights({ entity, insights: unsorted, onOpen, onU
     }
   }
 
-  // value is 'validated' or 'reject:<reason>', from the Verified column.
+  // value is 'unvalidated', 'validated' or 'reject:<reason>', from the Verified column.
   async function review(insight, value) {
     setError(null);
     try {
-      if (value === 'validated') await onValidate(insight);
+      if (value === 'unvalidated') await onReopen(insight);
+      else if (value === 'validated') await onValidate(insight);
       else await onReject(insight, value.slice('reject:'.length));
     } catch (err) {
       setError(`Could not save: ${err.message}`);
@@ -281,7 +282,7 @@ function InsightDetail({ insight, position, onBack, onPrev, onNext, onEdit }) {
 // Whether a person has approved the insight, and the control to change it.
 // Collector suggestions stay unverified, and don't count as evidence, until
 // someone verifies them; rejecting needs a reason, which feeds the collector's
-// evals. Nothing moves an insight back to unverified, so that's never offered.
+// evals. Choosing Unverified undoes a review and puts it back in the queue.
 function VerifiedSelect({ status, onChange }) {
   const verified = status === 'validated';
   return (
@@ -292,11 +293,7 @@ function VerifiedSelect({ status, onChange }) {
       value={status}
       onChange={(event) => onChange(event.target.value)}
     >
-      {status === 'unvalidated' && (
-        <option value="unvalidated" disabled>
-          Unverified
-        </option>
-      )}
+      <option value="unvalidated">Unverified</option>
       <option value="validated">✓ Human</option>
       <optgroup label="Reject as…">
         {REJECTION_REASONS.map((reason) => (

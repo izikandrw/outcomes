@@ -12,7 +12,7 @@ Insights have a type.
 
 Insights can carry a dollar impact: the estimated amount of money the observation represents, such as revenue at risk or cost incurred. It is optional, since not every observation can be priced.
 
-Insights have a status: unvalidated, validated or rejected. Only a validated insight is evidence. An unvalidated insight is a suggestion — typically one the insight collector agent pulled out of an external source (see `product/agents/insight-collector/`) — waiting for a person to approve or reject it. Insights people record themselves are validated from the start. A rejected insight is kept, not deleted, so the same suggestion isn't made again; it never counts as evidence.
+Insights have a status: unvalidated, validated or rejected. Only a validated insight is evidence. An unvalidated insight is a suggestion — typically one the insight collector agent pulled out of an external source (see `product/agents/insight-collector/`) — waiting for a person to approve or reject it. Insights people record themselves are validated from the start. A rejected insight is kept, not deleted, so the same suggestion isn't made again; it never counts as evidence. A person can undo a review, approval or rejection, which sends the insight back to unvalidated.
 
 Insights can carry their provenance: the external system they came from (a spreadsheet, Attention, Jira…), a link or id that finds the original there, the verbatim excerpt the observation rests on, and whether it is firsthand (the customer said or did it) or relayed by someone else. The source material itself stays in the external tool; the insight points back to it.
 
