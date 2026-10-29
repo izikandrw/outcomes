@@ -2330,8 +2330,20 @@ button.team-chip.link:hover {
   border: 1px dashed currentColor;
 }
 
-.proposed-link .link-button + .link-button {
+.proposed-actions {
+  display: inline-flex;
+  gap: 12px;
+}
+
+/* Right next to the suggested name, not pushed to the row's far edge, so
+   creating one reads as its own step rather than part of approving. */
+.review-links .proposed-actions .link-button {
   margin-left: 0;
+  color: var(--accent);
+}
+
+.review-links .proposed-actions .link-button + .link-button {
+  color: var(--muted);
 }
 
 .review-card .proposed-description {

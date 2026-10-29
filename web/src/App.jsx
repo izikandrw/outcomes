@@ -399,6 +399,46 @@ export default function App({ user, account, onSignOut }) {
     }
   }
 
+  // From the review queue, in one step: create every outcome and project the
+  // collector proposed, link the insight to each with its rationale, then
+  // approve it. There is no form to pick a team, so each takes the insight's
+  // team, or the only team. A proposal whose name matches an existing outcome
+  // or project links to that instead, so two insights proposing the same
+  // missing outcome don't create it twice. Throws so the card can show it.
+  async function acceptAllProposals(insight) {
+    const teamId = insight.team_id ?? (teams.length === 1 ? teams[0].id : null);
+    if (!teamId) throw new Error('No team to create them in. Use Create and link on each suggestion instead.');
+    const sameName = (item, name) => item.name.trim().toLowerCase() === name.trim().toLowerCase();
+    const ids = { outcome_ids: insight.outcome_ids.map(Number), project_ids: insight.project_ids.map(Number) };
+    const rationales = { outcomes: {}, projects: {} };
+    // Tracked locally too, since state from earlier creates in this loop hasn't landed yet.
+    const known = { outcome: [...outcomes], project: [...projects] };
+    for (const proposal of insight.proposed_links) {
+      const isProject = proposal.kind === 'project';
+      let target = known[proposal.kind].find((item) => sameName(item, proposal.name));
+      if (!target) {
+        const fields = {
+          name: proposal.name.trim(),
+          description: proposal.description?.trim() || null,
+          team_id: Number(teamId),
+        };
+        if (isProject) {
+          target = await api.createProject(accountId, { ...fields, outcome_ids: [] });
+          setProjects((current) => [...current, target]);
+        } else {
+          target = await api.createOutcome(accountId, { ...fields, project_ids: [] });
+          setOutcomes((current) => [...current, target]);
+        }
+        known[proposal.kind].push(target);
+      }
+      const field = isProject ? 'project_ids' : 'outcome_ids';
+      if (!ids[field].includes(Number(target.id))) ids[field].push(Number(target.id));
+      if (proposal.rationale) rationales[isProject ? 'projects' : 'outcomes'][target.id] = proposal.rationale;
+    }
+    await patchInsight(insight, { ...ids, link_rationales: rationales, proposed_links: [] });
+    await approveInsight(insight);
+  }
+
   function dismissProposal(insight, index) {
     return patchInsight(insight, { proposed_links: insight.proposed_links.filter((_, i) => i !== index) });
   }
@@ -586,6 +626,7 @@ export default function App({ user, account, onSignOut }) {
                   onUnlink={unlinkInsight}
                   onCreateProposed={createFromProposal}
                   onDismissProposed={dismissProposal}
+                  onAcceptAll={acceptAllProposals}
                 />
               )}
             </section>

@@ -15,8 +15,9 @@ import CollectionRuns, { formatTime } from './CollectionRuns.jsx';
 // the observation and the links without leaving the page. Nothing here counts
 // as evidence until it is approved. Besides links to existing outcomes and
 // projects, the collector may propose ones that don't exist yet; the reviewer
-// creates one (which links the insight to it) or dismisses it. The Runs tab
-// shows the collector's traces.
+// creates one (which links the insight to it but leaves it in review) or
+// dismisses it, or approves the insight and creates all of them at once. The
+// Runs tab shows the collector's traces.
 export default function ReviewQueue({
   accountId,
   insights,
@@ -28,6 +29,7 @@ export default function ReviewQueue({
   onUnlink,
   onCreateProposed,
   onDismissProposed,
+  onAcceptAll,
 }) {
   const [tab, setTab] = useState('pending');
   const [lastRunAt, setLastRunAt] = useState(null);
@@ -80,6 +82,7 @@ export default function ReviewQueue({
               onUnlink={onUnlink}
               onCreateProposed={onCreateProposed}
               onDismissProposed={onDismissProposed}
+              onAcceptAll={onAcceptAll}
             />
           ))}
         </ul>
@@ -98,6 +101,7 @@ function ReviewCard({
   onUnlink,
   onCreateProposed,
   onDismissProposed,
+  onAcceptAll,
 }) {
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState('not_an_insight');
@@ -192,13 +196,12 @@ function ReviewCard({
                     New {proposal.kind === 'project' ? 'project' : 'outcome'}
                   </span>
                   <span className="review-link-name">{proposal.name}</span>
-                  {proposal.rationale && <span className="hint">{proposal.rationale}</span>}
                   {pending && (
-                    <>
+                    <span className="proposed-actions">
                       <button
                         type="button"
                         className="link-button"
-                        title={`Create this ${proposal.kind} and link the insight to it`}
+                        title={`Create this ${proposal.kind} and link the insight to it. The insight stays in review.`}
                         disabled={busy}
                         onClick={() => onCreateProposed(insight, index)}
                       >
@@ -214,8 +217,9 @@ function ReviewCard({
                       >
                         Dismiss
                       </button>
-                    </>
+                    </span>
                   )}
+                  {proposal.rationale && <p className="hint proposed-description">{proposal.rationale}</p>}
                   {proposal.description && <p className="hint proposed-description">{proposal.description}</p>}
                 </li>
               ))}
@@ -274,9 +278,26 @@ function ReviewCard({
               </button>
             </>
           )}
-          <button type="button" disabled={busy} onClick={() => run(() => onApprove(insight))}>
+          <button
+            type="button"
+            className={pending && proposals.length > 0 ? 'ghost' : undefined}
+            disabled={busy}
+            onClick={() => run(() => onApprove(insight))}
+          >
             {pending ? 'Approve' : 'Approve anyway'}
           </button>
+          {pending && proposals.length > 0 && (
+            <button
+              type="button"
+              title={`Approve, and create and link the ${proposals.length} suggested ${
+                proposals.length === 1 ? proposals[0].kind : 'outcomes and projects'
+              }`}
+              disabled={busy}
+              onClick={() => run(() => onAcceptAll(insight))}
+            >
+              Approve + create suggested
+            </button>
+          )}
         </div>
       )}
     </li>
