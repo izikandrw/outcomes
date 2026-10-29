@@ -14,9 +14,12 @@ const EMPTY = {
 // the parent outcome is set via the clickable tag in the modal header, so
 // this form only owns the remaining fields. Only a top-level outcome (no
 // parent) links to an impact; children inherit it from their ancestor.
-// `editing` is null when creating, or the outcome being changed.
+// `editing` is null when creating, or the outcome being changed. `draft`
+// prefills name and description when creating one the insight collector
+// proposed.
 export default function OutcomeForm({
   editing,
+  draft,
   parent,
   parentOutcomeId,
   teams,
@@ -50,6 +53,8 @@ export default function OutcomeForm({
       // Adding a child from the tree: inherit the parent's team.
       setForm((current) => ({
         ...EMPTY,
+        name: draft?.name ?? '',
+        description: draft?.description ?? '',
         team_id: parent?.team_id ? String(parent.team_id) : current.team_id,
         impact_id: impactId ? String(impactId) : '',
       }));
@@ -58,7 +63,7 @@ export default function OutcomeForm({
     setError(null);
     // projects is left out on purpose: a refetch mid-edit shouldn't wipe picks.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editing, parent, impactId]);
+  }, [editing, draft, parent, impactId]);
 
   // Default to the only team so the common single-team case needs no picking.
   useEffect(() => {

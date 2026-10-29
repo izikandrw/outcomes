@@ -11,6 +11,7 @@ const TYPES = [
 const IMPACT_AREAS = ['acquisition', 'activation', 'retention', 'expansion', 'cost', 'other'];
 const STATUSES = ['unvalidated', 'validated', 'rejected'];
 const REJECTION_REASONS = ['not_an_insight', 'inaccurate', 'wrong_link', 'duplicate', 'other'];
+const MAX_PROPOSED_LINKS = 3;
 
 // The insight collector agent signs in with this role. It may only suggest
 // insights; a person validates them (see product/agents/insight-collector/).
@@ -56,7 +57,10 @@ async function fetchInsight(executor, insightId, accountId) {
 // Validates the body. Writes the response and returns null when something
 // doesn't check out; otherwise returns the normalised values.
 async function readBody(req, res) {
-  const { name, type, description, source, observed_at, dollar_impact, impact_area, team_id, outcome_ids, project_ids, link_rationales } = req.body;
+  const {
+    name, type, description, source, observed_at, dollar_impact, impact_area, team_id,
+    outcome_ids, project_ids, link_rationales, proposed_links,
+  } = req.body;
 
   if (!name) {
     res.status(400).json({ error: 'name is required' });
@@ -113,6 +117,9 @@ async function readBody(req, res) {
     }
   }
 
+  const proposedLinks = readProposedLinks(proposed_links, res);
+  if (proposedLinks === null) return null;
+
   return {
     name,
     type: type || 'other',
@@ -127,7 +134,33 @@ async function readBody(req, res) {
     outcomeIds: links.outcome_ids,
     projectIds: links.project_ids,
     rationales,
+    proposedLinks,
   };
+}
+
+// Outcomes or projects the collector thinks are missing, each with why this
+// insight is evidence for it. A reviewer creates one (and links the insight to
+// it) or dismisses it. undefined when the request didn't mention the field.
+function readProposedLinks(proposed, res) {
+  if (proposed === undefined) return undefined;
+  if (!Array.isArray(proposed) || proposed.length > MAX_PROPOSED_LINKS) {
+    res.status(400).json({ error: `proposed_links must be an array of at most ${MAX_PROPOSED_LINKS}` });
+    return null;
+  }
+  const normalised = [];
+  for (const entry of proposed) {
+    const { kind, name, description, rationale } = entry ?? {};
+    if (!['outcome', 'project'].includes(kind) || typeof name !== 'string' || !name.trim()) {
+      res.status(400).json({ error: 'each proposed link needs kind (outcome or project) and a name' });
+      return null;
+    }
+    if ([description, rationale].some((value) => value != null && typeof value !== 'string')) {
+      res.status(400).json({ error: 'proposed link description and rationale must be text' });
+      return null;
+    }
+    normalised.push({ kind, name: name.trim(), description: description?.trim() || null, rationale: rationale?.trim() || null });
+  }
+  return normalised;
 }
 
 // Where an insight came from. Set once, when it is created: an edit in the UI
@@ -234,8 +267,8 @@ router.post('/', async (req, res, next) => {
     await client.query('BEGIN');
     const { rows } = await client.query(
       `INSERT INTO insights (account_id, team_id, name, type, description, source, observed_at, dollar_impact, impact_area,
-         status, source_system, source_url, source_external_id, source_excerpt, firsthand, collection_run_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id`,
+         status, source_system, source_url, source_external_id, source_excerpt, firsthand, collection_run_id, proposed_links)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id`,
       [
         req.accountId,
         input.teamId,
@@ -253,6 +286,7 @@ router.post('/', async (req, res, next) => {
         provenance.sourceExcerpt,
         provenance.firsthand,
         provenance.collectionRunId,
+        JSON.stringify(input.proposedLinks ?? []),
       ]
     );
     await replaceAllLinks(client, rows[0].id, req.accountId, {
@@ -284,6 +318,7 @@ router.put('/:insightId', forbidCollector, async (req, res, next) => {
       // reviewers have to fix the collector's output is a quality signal.
       `UPDATE insights SET name = $1, type = $2, description = $3, source = $4, observed_at = $5,
          dollar_impact = $6, impact_area = $7, team_id = $8, updated_at = now(),
+         proposed_links = COALESCE($11::jsonb, proposed_links),
          edited_in_review = edited_in_review OR status = 'unvalidated'
        WHERE id = $9 AND account_id = $10 RETURNING id`,
       [
@@ -297,6 +332,7 @@ router.put('/:insightId', forbidCollector, async (req, res, next) => {
         input.teamId,
         req.params.insightId,
         req.accountId,
+        input.proposedLinks === undefined ? null : JSON.stringify(input.proposedLinks),
       ]
     );
     if (rows.length === 0) {

@@ -97,7 +97,7 @@ This is the single most important design idea in the whole agent: **don't ask th
 A second model call. The input is the candidate plus a **catalog** of the account's outcomes and projects (id, name, description, parent), pulled fresh from the API at the start of the run. The output is 0–3 links, each `{ kind: 'outcome' | 'project', id, rationale }`.
 
 - Code checks every returned id against the catalog, so a made-up id is dropped (same idea as 2.3).
-- "No good match" is a valid answer. The insight is saved unlinked and shown in the queue as *"possible missing outcome."*
+- "No good match" is a valid answer. The insight is saved unlinked and shown in the queue as *"possible missing outcome."* When the missing outcome or project is clear, the agent proposes it (`insights.proposed_links`: kind, name, description, rationale). The review card shows it as *New outcome* / *New project* with **Create and link**, which opens the create form prefilled and, on save, links the insight with the proposal's rationale, and **Dismiss**.
 - The catalog is identical for every candidate in a run, so it goes in a **prompt-cached** prefix. We pay full price for it once per run, and cached reads after that cost about 10% as much.
 - Why separate from extract: they fail in different ways and we want to measure them separately (see `evals.md`). An insight can be right with the link wrong.
 
