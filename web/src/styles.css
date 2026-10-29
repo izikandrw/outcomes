@@ -1343,6 +1343,24 @@ button.tag.insight-badge.empty {
   font-weight: 600;
 }
 
+/* Long names wrap to two lines, then truncate; focusing shows the whole name. */
+.insight-table .cell-input.clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  cursor: text;
+}
+
+.insight-table textarea.cell-input {
+  display: block;
+  resize: none;
+  overflow: hidden;
+  line-height: inherit;
+}
+
 .insight-table .cell-input.num {
   text-align: right;
 }
