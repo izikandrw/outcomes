@@ -987,6 +987,30 @@ button.small {
   color: var(--accent);
 }
 
+/* A compact copy of the nav, pinned once the header scrolls out of view. */
+.pinned-nav {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  padding: 4px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.08);
+}
+
+.pinned-nav .top-nav {
+  margin-right: 0;
+}
+
+.pinned-nav .top-nav button {
+  padding: 4px 10px;
+  font-size: 13px;
+}
+
 /* Roadmap */
 .roadmap {
   display: flex;

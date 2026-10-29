@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import * as api from './api.js';
 import ImpactForm from './components/ImpactForm.jsx';
 import InsightForm from './components/InsightForm.jsx';
@@ -65,6 +65,15 @@ export default function App({ user, account, onSignOut }) {
   const [teamId, setTeamId] = useState(() => localStorage.getItem(STORED_TEAM));
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Once the header scrolls out of view a compact copy of the nav pins to the top.
+  const headerRef = useRef(null);
+  const [headerHidden, setHeaderHidden] = useState(false);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(([entry]) => setHeaderHidden(!entry.isIntersecting));
+    observer.observe(headerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   const loadAccountData = useCallback(async (id) => {
     if (!id) {
@@ -547,7 +556,7 @@ export default function App({ user, account, onSignOut }) {
 
   return (
     <div className="app">
-      <header>
+      <header ref={headerRef}>
         <h1>Outcomes</h1>
         <TopNav page={page === 'team' ? 'teams' : page} onChange={changePage} counts={{ review: pendingReview }} />
         <AccountMenu
@@ -557,6 +566,19 @@ export default function App({ user, account, onSignOut }) {
           onSignOut={onSignOut}
         />
       </header>
+
+      {headerHidden && (
+        <div className="pinned-nav">
+          <TopNav
+            page={page === 'team' ? 'teams' : page}
+            onChange={(next) => {
+              changePage(next);
+              window.scrollTo({ top: 0 });
+            }}
+            counts={{ review: pendingReview }}
+          />
+        </div>
+      )}
 
       {error && <p className="error banner">{error}</p>}
 
