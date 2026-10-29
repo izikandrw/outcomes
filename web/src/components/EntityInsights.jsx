@@ -79,7 +79,7 @@ export default function EntityInsights({ entity, insights, onOpen, onUpdate, onV
                 </td>
                 <td>
                   <select
-                    className="cell-input"
+                    className="cell-input pill"
                     aria-label="Type"
                     value={insight.type}
                     onChange={(event) => save(insight, { type: event.target.value })}
@@ -93,7 +93,7 @@ export default function EntityInsights({ entity, insights, onOpen, onUpdate, onV
                 </td>
                 <td>
                   <select
-                    className="cell-input"
+                    className={insight.impact_area ? 'cell-input pill' : 'cell-input pill empty'}
                     aria-label="Area"
                     value={insight.impact_area ?? ''}
                     onChange={(event) => save(insight, { impact_area: event.target.value || null })}
