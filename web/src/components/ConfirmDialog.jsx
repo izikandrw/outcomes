@@ -4,6 +4,9 @@ import { useEffect, useRef } from 'react';
 // showModal() it lands in the top layer above any edit modal already open.
 export default function ConfirmDialog({ title, message, confirmLabel = 'Delete', onConfirm, onCancel }) {
   const ref = useRef(null);
+  // Only a press that starts and ends on the backdrop cancels, so dragging a
+  // selection out of the dialog leaves it open.
+  const pressedBackdrop = useRef(false);
 
   useEffect(() => {
     const dialog = ref.current;
@@ -22,8 +25,12 @@ export default function ConfirmDialog({ title, message, confirmLabel = 'Delete',
         event.preventDefault();
         onCancel();
       }}
+      onPointerDown={(event) => {
+        pressedBackdrop.current = event.target === ref.current;
+      }}
       onClick={(event) => {
-        if (event.target === ref.current) onCancel();
+        if (event.target === ref.current && pressedBackdrop.current) onCancel();
+        pressedBackdrop.current = false;
       }}
     >
       <div className="modal-body">

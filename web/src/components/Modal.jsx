@@ -26,13 +26,29 @@ export default function Modal({ title, header, wide, onClose, children }) {
   }
 
   // A click reaches the <dialog> itself only when it lands on the backdrop —
-  // anything inside the modal hits .modal-body first.
+  // anything inside the modal hits .modal-body first. The press must start on
+  // the backdrop too: dragging a text selection out of the modal ends with a
+  // click on the dialog, and that shouldn't close it.
+  const pressedBackdrop = useRef(false);
+
+  function pointerDown(event) {
+    pressedBackdrop.current = event.target === ref.current;
+  }
+
   function click(event) {
-    if (event.target === ref.current) onClose();
+    if (event.target === ref.current && pressedBackdrop.current) onClose();
+    pressedBackdrop.current = false;
   }
 
   return (
-    <dialog ref={ref} className={`modal${wide ? ' wide' : ''}`} aria-label={title} onCancel={cancel} onClick={click}>
+    <dialog
+      ref={ref}
+      className={`modal${wide ? ' wide' : ''}`}
+      aria-label={title}
+      onCancel={cancel}
+      onPointerDown={pointerDown}
+      onClick={click}
+    >
       <div className="modal-body">
         <div className="modal-head">
           {header ?? <h2>{title}</h2>}
