@@ -61,9 +61,12 @@ export default function OutcomeTree({
   // shows a button to break the link.
   const [hoverEdge, setHoverEdge] = useState(null);
   const hoverEnds = hoverEdge?.ends;
-  // The node under the pointer whose name is cut short; its whole name is laid
-  // over it, drawn after every node so neighbours can't cover it.
-  const [revealNode, setRevealNode] = useState(null);
+  // The key of the node under the pointer whose name is cut short. Its whole
+  // name is laid over it under its add button, and it is drawn after every
+  // other node so neighbours can't cover that.
+  const [revealKey, setRevealKey] = useState(null);
+  const keyOf = (node) => `${node.type}-${node.data.id}`;
+  const drawOrder = [...nodes].sort((a, b) => (keyOf(a) === revealKey) - (keyOf(b) === revealKey));
   const { zoom, scrollRef, svgRef, ...zoomActions } = useZoom({ storageKey: 'outcomes.mapZoom', width });
 
   useEffect(() => {
@@ -215,17 +218,18 @@ export default function OutcomeTree({
             </g>
           ))}
 
-          {nodes.map((node) => (
+          {drawOrder.map((node) => (
             <g
               key={`${node.type}-${node.data.id}`}
               className={hoverEnds?.includes(`${node.type}-${node.data.id}`) ? 'edge-hover' : undefined}
-              onMouseEnter={() => setRevealNode(isTruncated(nodeLines(node, targets)) ? node : null)}
-              onMouseLeave={() => setRevealNode(null)}
+              onMouseEnter={() => setRevealKey(isTruncated(nodeLines(node, targets)) ? keyOf(node) : null)}
+              onMouseLeave={() => setRevealKey(null)}
             >
             {node.type === 'impact' ? (
               <ImpactNode
                 key={`impact-${node.data.id}`}
                 impact={node.data}
+                revealed={keyOf(node) === revealKey}
                 issues={issuesFor(validation, 'impact', node.data)}
                 targets={targets}
                 onEdit={onEditImpact}
@@ -238,6 +242,7 @@ export default function OutcomeTree({
               <ProjectNode
                 key={`project-${node.data.id}`}
                 project={node.data}
+                revealed={keyOf(node) === revealKey}
                 teamEntries={teamsOnProject(projects, node.data)}
                 onOpenTeam={onOpenTeam}
                 onShowIssue={onShowIssue}
@@ -253,6 +258,7 @@ export default function OutcomeTree({
               <OutcomeNode
                 key={`outcome-${node.data.id}`}
                 outcome={node.data}
+                revealed={keyOf(node) === revealKey}
                 targets={targets}
                 teamEntries={teamsOnOutcome(outcomes, projects, node.data)}
                 onOpenTeam={onOpenTeam}
@@ -269,7 +275,6 @@ export default function OutcomeTree({
             )}
             </g>
           ))}
-          {revealNode && <FullName node={revealNode} />}
         </svg>
       </div>
 
@@ -324,6 +329,7 @@ export default function OutcomeTree({
 
 function OutcomeNode({
   outcome,
+  revealed,
   x,
   y,
   depth,
@@ -374,6 +380,9 @@ function OutcomeNode({
         onTargetClick={() => onViewTarget(quantified[0])}
       />
 
+      <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, outcome)} />
+      <InsightPill x={x} y={y} count={insightCount} dollars={insightDollars} label={outcome.name} onOpen={() => onShowInsights(outcome, 'outcome')} />
+      {revealed && <FullName node={{ type: 'outcome', data: outcome, x, y }} />}
       {/* Revealed on hover or keyboard focus; opens the add menu. */}
       <g
         className="node-add"
@@ -396,15 +405,13 @@ function OutcomeNode({
           }v10`}
         />
       </g>
-      <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, outcome)} />
-      <InsightPill x={x} y={y} count={insightCount} dollars={insightDollars} label={outcome.name} onOpen={() => onShowInsights(outcome, 'outcome')} />
     </g>
   );
 }
 
 // The business result at the top of the tree. Click edits it; the hover "+"
 // adds a child impact, an outcome driving it, or a target measuring it.
-function ImpactNode({ impact, x, y, depth, targets, issues, onShowIssue, onEdit, onViewTarget, onOpenMenu }) {
+function ImpactNode({ impact, revealed, x, y, depth, targets, issues, onShowIssue, onEdit, onViewTarget, onOpenMenu }) {
   const quantified = targetsForImpact(targets, impact);
   const { lines, targetLine } = nodeLabel(impact.name, quantified);
 
@@ -433,6 +440,7 @@ function ImpactNode({ impact, x, y, depth, targets, issues, onShowIssue, onEdit,
       />
       <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, impact)} />
 
+      {revealed && <FullName node={{ type: 'impact', data: impact, x, y }} />}
       <g
         className="node-add"
         role="button"
@@ -532,6 +540,7 @@ function InsightPill({ x, y, count, dollars, label, onOpen }) {
 // project directly, since that is the only thing that can hang under one.
 function ProjectNode({
   project,
+  revealed,
   x,
   y,
   depth,
@@ -585,6 +594,9 @@ function ProjectNode({
         </g>
       )}
 
+      <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, project)} />
+      <InsightPill x={x} y={y} count={insightCount} dollars={insightDollars} label={project.name} onOpen={() => onShowInsights(project, 'project')} />
+      {revealed && <FullName node={{ type: 'project', data: project, x, y }} />}
       <g
         className="node-add"
         role="button"
@@ -609,8 +621,6 @@ function ProjectNode({
           }v10`}
         />
       </g>
-      <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, project)} />
-      <InsightPill x={x} y={y} count={insightCount} dollars={insightDollars} label={project.name} onOpen={() => onShowInsights(project, 'project')} />
     </g>
   );
 }
@@ -960,7 +970,7 @@ function nodeLines(node, targets) {
 
 // A truncated node's whole name, laid over the node in its own colors and
 // growing downward as far as the name needs. It ignores the pointer, so a click
-// still lands on the node underneath.
+// still lands on the node underneath; only the add button sits above it.
 function FullName({ node }) {
   const { type, data, x, y } = node;
   const lines = wrapLabel(data.name, MAX_CHARS, Infinity);
