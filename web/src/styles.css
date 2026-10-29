@@ -1007,6 +1007,15 @@ button.small {
   padding: 8px 0 8px 14px;
 }
 
+/* Unscheduled projects have no dates, so they drop the timeline rail too. */
+.roadmap-unscheduled ul {
+  border-left: none;
+}
+
+.roadmap-unscheduled .roadmap-item {
+  padding-left: 0;
+}
+
 .roadmap-date {
   flex: 0 0 150px;
   font-size: 13px;

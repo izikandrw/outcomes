@@ -33,7 +33,7 @@ export default function Roadmap({ projects, outcomes, teams, insights, onEditPro
     const driven = outcomesForProject(outcomes, project);
     return (
       <li key={project.id} className="roadmap-item">
-        <span className="roadmap-date">{formatRange(project)}</span>
+        {anchor(project) && <span className="roadmap-date">{formatRange(project)}</span>}
         <div className="roadmap-body">
           <button type="button" className="link-button" onClick={() => onEditProject(project)}>
             {project.name}
@@ -70,7 +70,7 @@ export default function Roadmap({ projects, outcomes, teams, insights, onEditPro
         </section>
       ))}
       {unscheduled.length > 0 && (
-        <section className="roadmap-group" aria-label="Unscheduled">
+        <section className="roadmap-group roadmap-unscheduled" aria-label="Unscheduled">
           <h2>Unscheduled</h2>
           <ul>{unscheduled.map(renderProject)}</ul>
         </section>
@@ -94,8 +94,7 @@ function monthLabel(key) {
 function formatRange({ start_at, end_at }) {
   if (start_at && end_at) return `${formatDay(start_at)} – ${formatDay(end_at)}`;
   if (start_at) return `from ${formatDay(start_at)}`;
-  if (end_at) return `by ${formatDay(end_at)}`;
-  return '—';
+  return `by ${formatDay(end_at)}`;
 }
 
 function formatDay(value) {
