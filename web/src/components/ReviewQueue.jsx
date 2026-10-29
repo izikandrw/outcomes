@@ -6,13 +6,14 @@ import {
   rejectionReasonLabel,
 } from '../lib/links.js';
 import LinkedText from './LinkedText.jsx';
+import CollectionRuns from './CollectionRuns.jsx';
 
 // Insights waiting for a person: mostly the insight collector's suggestions
 // (product/agents/insight-collector/spec.md). Each card shows the excerpt it
 // rests on and why it was linked where it was, so the reviewer can check both
 // the observation and the links without leaving the page. Nothing here counts
-// as evidence until it is approved.
-export default function ReviewQueue({ insights, outcomes, projects, onApprove, onReject, onEdit, onUnlink }) {
+// as evidence until it is approved. The Runs tab shows the collector's traces.
+export default function ReviewQueue({ accountId, insights, outcomes, projects, onApprove, onReject, onEdit, onUnlink }) {
   const [tab, setTab] = useState('pending');
   const pending = insights.filter((insight) => insight.status === 'unvalidated');
   const rejected = insights.filter((insight) => insight.status === 'rejected');
@@ -28,9 +29,14 @@ export default function ReviewQueue({ insights, outcomes, projects, onApprove, o
           <button type="button" aria-pressed={tab === 'rejected'} onClick={() => setTab('rejected')}>
             Rejected ({rejected.length})
           </button>
+          <button type="button" aria-pressed={tab === 'runs'} onClick={() => setTab('runs')}>
+            Runs
+          </button>
         </div>
       </div>
-      {shown.length === 0 ? (
+      {tab === 'runs' ? (
+        <CollectionRuns accountId={accountId} />
+      ) : shown.length === 0 ? (
         <p className="empty">
           {tab === 'pending'
             ? 'Nothing to review. Suggested insights from the insight collector show up here.'

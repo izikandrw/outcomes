@@ -521,6 +521,7 @@ export default function App({ user, account, onSignOut }) {
                 <p className="empty">Loading…</p>
               ) : (
                 <ReviewQueue
+                  accountId={accountId}
                   insights={insights}
                   outcomes={outcomes}
                   projects={projects}

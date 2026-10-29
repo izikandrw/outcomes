@@ -8,6 +8,7 @@ import { registerProjectTools } from './tools/projects.js';
 import { registerInsightTools } from './tools/insights.js';
 import { registerTargetTools, registerMeasurementTools } from './tools/targets.js';
 import { registerHealthTools } from './tools/health.js';
+import { registerRunTools } from './tools/runs.js';
 
 const server = new McpServer({ name: 'outcomes', version: '1.0.0' });
 
@@ -17,6 +18,7 @@ const server = new McpServer({ name: 'outcomes', version: '1.0.0' });
 // user; a smaller tool list just keeps the model from reaching for the rest.
 const COLLECTOR_TOOLS = new Set([
   'list_outcomes', 'get_outcome', 'list_projects', 'get_project', 'list_insights', 'get_insight', 'suggest_insight',
+  'start_collection_run', 'record_document', 'finish_collection_run',
 ]);
 if (process.env.OUTCOMES_TOOLSET === 'collector') {
   const register = server.registerTool.bind(server);
@@ -31,6 +33,7 @@ registerInsightTools(server);
 registerTargetTools(server);
 registerMeasurementTools(server);
 registerHealthTools(server);
+registerRunTools(server);
 
 // stdout carries the protocol; log to stderr only.
 await server.connect(new StdioServerTransport());

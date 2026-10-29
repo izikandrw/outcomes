@@ -213,14 +213,18 @@ It runs from the CLI first, then on a schedule (a Render cron job, matching the 
 | Credentials for external tools | Per-account tokens, stored encrypted, read-only scopes (Jira: read; Attention: read). |
 | Runaway cost | Per-run limits on document count and tokens. Every run's cost goes in `collection_runs`. |
 
-## 6. Observability
+## 6. Observability: run traces (built, migration `014`)
 
-Every run writes:
+The review queue only shows what the agent suggested. To find its mistakes you also need what it *passed over* and why, so every run leaves a trace in production:
 
-- a `collection_runs` row (counts, tokens, model, prompt version, errors), and
-- a trace file (JSONL), one line per document: input ids, raw model output, what verify/dedupe dropped and why, and what was written.
+- **`collection_runs`**: one row per run. Source, what one document is, the model, the instruction version (`prompt_version`, e.g. `collect-insights v2`), status, the agent's own `summary`, and `stats`: counts by decision, worked out by the server from the recorded documents rather than taken on the agent's word.
+- **`collection_run_documents`**: one row per document read. The text exactly as the agent judged it, its `decision` (`suggested`, `no_insight`, `already_collected`), a `reason` (required for `no_insight`), and the ids of the insights it suggested from it. Suggestions also carry `collection_run_id`.
 
-When a reviewer rejects something, the first question is *which step got it wrong?* The trace answers it. Bad traces become eval cases (see `evals.md`).
+The collector writes it through `start_collection_run`, `record_document` and `finish_collection_run`, which are in its toolset; the skill calls them on every run. A finished run takes no more documents. You read it on the **Review → Runs** tab: each run's facts and summary, then every document with the agent's decision and reason, its suggestions with the reviewer's verdict next to them (approved, approved after edits, rejected with reason, waiting), and the document text. `list_collection_runs` and `get_collection_run` give Claude the same view through the full MCP toolset.
+
+When a reviewer rejects something, the first question is *which step got it wrong?* The trace answers it. **Download document.json** on any document produces an eval case's input in the `agent/evals/cases/` shape; you then write its `expected.json` yourself (see `evals.md`, "Closing the loop with production").
+
+The v1 pipeline (milestone 4) writes the same tables, plus raw model output per step.
 
 ## Open questions
 

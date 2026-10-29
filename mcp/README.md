@@ -16,13 +16,15 @@ Every resource has `list_*`, `get_*`, `create_*`, `update_*` and `delete_*`, exc
 | targets | exactly one of `outcome_id` / `impact_id`; `update_target` can't move a target to another parent |
 | measurements | `list_measurements` (optionally by `target_id`, oldest first), `record_measurement`, `update_measurement`, `delete_measurement` |
 
+`list_collection_runs` / `get_collection_run` read the insight collector's run traces: every document a run read, its decision and reason, and how its suggestions fared in review.
+
 `review_portfolio` answers "are we working on the right things?" (`product/jtbds/delivery.md`): chimerical impacts, unvalidated outcomes (`min_insights`, default 1), chimerical outcomes and projects with no outcome. Links roll up through nesting.
 
 New resources go in `src/tools/` and are registered in `src/server.js`; `src/tools/shared.js` has the list/get/delete and partial-update helpers.
 
 ## The insight collector's toolset
 
-`OUTCOMES_TOOLSET=collector` registers only `list_outcomes`, `get_outcome`, `list_projects`, `get_project`, `list_insights`, `get_insight` and `suggest_insight`: what the insight collector agent (`product/agents/insight-collector/`, skill `.claude/skills/collect-insights/`) needs to read the account and suggest insights. Pair it with the account's `collector` user, which the API holds to the same limits: `npm run collector` creates that user and prints the `claude mcp add outcomes-collector …` command.
+`OUTCOMES_TOOLSET=collector` registers only `list_outcomes`, `get_outcome`, `list_projects`, `get_project`, `list_insights`, `get_insight`, `suggest_insight`, and the run-trace tools `start_collection_run`, `record_document` and `finish_collection_run`: what the insight collector agent (`product/agents/insight-collector/`, skill `.claude/skills/collect-insights/`) needs to read the account and suggest insights. Pair it with the account's `collector` user, which the API holds to the same limits: `npm run collector` creates that user and prints the `claude mcp add outcomes-collector …` command.
 
 ## Run
 

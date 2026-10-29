@@ -96,6 +96,7 @@ export function registerInsightTools(server) {
           .max(3)
           .optional()
           .describe('Up to 3 outcomes or projects this is evidence for. Empty when nothing fits.'),
+        collection_run_id: id.optional().describe('The run this suggestion belongs to (start_collection_run)'),
       },
     },
     async ({ links = [], ...insight }) => {

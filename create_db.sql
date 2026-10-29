@@ -106,12 +106,31 @@ CREATE TABLE collection_runs (
     model          TEXT,
     prompt_version TEXT,
     stats          JSONB NOT NULL DEFAULT '{}',
+    summary        TEXT, -- the collector's own account of the run
     error          TEXT,
     started_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
     finished_at    TIMESTAMPTZ
 );
 
 CREATE INDEX idx_collection_runs_account_id ON collection_runs(account_id);
+
+-- What the collector did with each document a run read: the text it judged,
+-- its decision and why, and the insights it suggested from it.
+CREATE TABLE collection_run_documents (
+    id          BIGSERIAL PRIMARY KEY,
+    account_id  BIGINT NOT NULL REFERENCES accounts(id),
+    run_id      BIGINT NOT NULL REFERENCES collection_runs(id) ON DELETE CASCADE,
+    external_id TEXT NOT NULL,
+    title       TEXT,
+    text        TEXT NOT NULL,
+    decision    TEXT NOT NULL CHECK (decision IN ('suggested', 'no_insight', 'already_collected')),
+    reason      TEXT,
+    insight_ids BIGINT[] NOT NULL DEFAULT '{}',
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_collection_run_documents_account_id ON collection_run_documents(account_id);
+CREATE INDEX idx_collection_run_documents_run_id ON collection_run_documents(run_id);
 
 -- An insight is a single sourced observation. team_id is optional: the team
 -- that recorded it, if any. Any outcome or project may link to it. Only a

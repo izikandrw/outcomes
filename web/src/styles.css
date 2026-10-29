@@ -2295,3 +2295,64 @@ button.team-chip.link:hover {
   background: var(--accent);
   color: #fff;
 }
+
+/* Collection runs: the insight collector's traces, under Review. */
+.runs-table td {
+  vertical-align: middle;
+}
+
+.run-trace {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.run-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.run-facts dt {
+  color: var(--muted);
+}
+
+.run-facts dd {
+  margin: 0;
+}
+
+.run-summary {
+  margin: 0;
+  white-space: pre-wrap;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.run-heading {
+  margin: 8px 0 0;
+  font-size: 15px;
+}
+
+.run-suggestions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.run-text {
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--muted) 8%, transparent);
+  border-radius: 6px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
