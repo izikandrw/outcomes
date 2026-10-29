@@ -311,10 +311,12 @@ function VerifiedSelect({ status, onChange }) {
 // changed. Escape puts back what was there.
 // `display`, when given, is what shows while the cell isn't focused.
 // `multiline` wraps the text to two lines (then truncates) until focused, when
-// it becomes a textarea that grows to fit the whole value.
+// it becomes a textarea that grows to fit the whole value. Hovering truncated
+// text shows all of it over the cell, so reading it doesn't mean editing it.
 function TextCell({ value, label, type = 'text', step, required, bold, num, multiline, display, onCommit }) {
   const [draft, setDraft] = useState(null);
   const [focused, setFocused] = useState(false);
+  const [truncated, setTruncated] = useState(false);
   const shown = draft ?? String(value);
 
   function commit() {
@@ -329,15 +331,22 @@ function TextCell({ value, label, type = 'text', step, required, bold, num, mult
 
   if (multiline && !focused) {
     return (
-      <div
-        className={`${className} clamp`}
-        role="textbox"
-        tabIndex={0}
-        aria-label={label}
-        title={shown}
-        onFocus={() => setFocused(true)}
-      >
-        {shown}
+      <div className="clamp-wrap">
+        <div
+          className={`${className} clamp`}
+          role="textbox"
+          tabIndex={0}
+          aria-label={label}
+          onMouseEnter={(event) => setTruncated(event.currentTarget.scrollHeight > event.currentTarget.clientHeight)}
+          onFocus={() => setFocused(true)}
+        >
+          {shown}
+        </div>
+        {truncated && (
+          <div className={`${className} clamp-full`} aria-hidden="true">
+            {shown}
+          </div>
+        )}
       </div>
     );
   }
