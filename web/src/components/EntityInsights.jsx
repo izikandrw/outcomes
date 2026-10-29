@@ -56,6 +56,7 @@ export default function EntityInsights({ entity, insights, onOpen, onUpdate, onA
                     label="Insight name"
                     required
                     bold
+                    multiline
                     onCommit={(name) => save(insight, { name })}
                   />
                   {insight.status === 'unvalidated' && (
@@ -208,7 +209,9 @@ function InsightDetail({ insight, position, onBack, onPrev, onNext, onEdit }) {
 // Text/number input that saves on blur or Enter, and only when the value
 // changed. Escape puts back what was there.
 // `display`, when given, is what shows while the cell isn't focused.
-function TextCell({ value, label, type = 'text', step, required, bold, num, display, onCommit }) {
+// `multiline` wraps the text to two lines (then truncates) until focused, when
+// it becomes a textarea that grows to fit the whole value.
+function TextCell({ value, label, type = 'text', step, required, bold, num, multiline, display, onCommit }) {
   const [draft, setDraft] = useState(null);
   const [focused, setFocused] = useState(false);
   const shown = draft ?? String(value);
@@ -221,9 +224,57 @@ function TextCell({ value, label, type = 'text', step, required, bold, num, disp
     onCommit(next);
   }
 
+  const className = `cell-input${bold ? ' bold' : ''}${num ? ' num' : ''}`;
+
+  if (multiline && !focused) {
+    return (
+      <div
+        className={`${className} clamp`}
+        role="textbox"
+        tabIndex={0}
+        aria-label={label}
+        title={shown}
+        onFocus={() => setFocused(true)}
+      >
+        {shown}
+      </div>
+    );
+  }
+
+  if (multiline) {
+    return (
+      <textarea
+        className={className}
+        rows={1}
+        autoFocus
+        aria-label={label}
+        value={shown}
+        ref={fitHeight}
+        onChange={(event) => {
+          setDraft(event.target.value);
+          fitHeight(event.target);
+        }}
+        onBlur={() => {
+          setFocused(false);
+          commit();
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            event.currentTarget.blur();
+          }
+          if (event.key === 'Escape') {
+            setDraft(null);
+            event.currentTarget.blur();
+          }
+        }}
+      />
+    );
+  }
+
   return (
     <input
-      className={`cell-input${bold ? ' bold' : ''}${num ? ' num' : ''}`}
+      className={className}
       type={display && !focused ? 'text' : type}
       step={step}
       aria-label={label}
@@ -243,4 +294,10 @@ function TextCell({ value, label, type = 'text', step, required, bold, num, disp
       }}
     />
   );
+}
+
+function fitHeight(textarea) {
+  if (!textarea) return;
+  textarea.style.height = 'auto';
+  textarea.style.height = `${textarea.scrollHeight + 2}px`;
 }
