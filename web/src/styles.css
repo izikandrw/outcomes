@@ -476,12 +476,12 @@ body.modal-open {
 }
 
 .tree-edge {
-  stroke: color-mix(in srgb, var(--muted) 55%, transparent);
+  stroke: color-mix(in srgb, var(--muted) 55%, var(--surface));
   stroke-width: 1.5;
 }
 
 .tree-arrowhead {
-  fill: color-mix(in srgb, var(--muted) 55%, transparent);
+  fill: color-mix(in srgb, var(--muted) 55%, var(--surface));
 }
 
 .tree-node {
@@ -875,11 +875,11 @@ button.small {
    isn't drawn directly under. Colored to match the project nodes they
    connect to, rather than the neutral outcome edges. */
 .tree-edge.project {
-  stroke: color-mix(in srgb, var(--project) 55%, transparent);
+  stroke: color-mix(in srgb, var(--project) 55%, var(--surface));
 }
 
 .tree-arrowhead.project {
-  fill: color-mix(in srgb, var(--project) 55%, transparent);
+  fill: color-mix(in srgb, var(--project) 55%, var(--surface));
 }
 
 /* The first target's numbers, drawn on the last line of its owner's node. */
@@ -912,11 +912,11 @@ button.small {
 }
 
 .tree-edge.impact {
-  stroke: color-mix(in srgb, var(--impact) 55%, transparent);
+  stroke: color-mix(in srgb, var(--impact) 55%, var(--surface));
 }
 
 .tree-arrowhead.impact {
-  fill: color-mix(in srgb, var(--impact) 55%, transparent);
+  fill: color-mix(in srgb, var(--impact) 55%, var(--surface));
 }
 
 .issues {
