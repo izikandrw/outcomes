@@ -1414,6 +1414,29 @@ button.tag.insight-badge.empty {
   cursor: text;
 }
 
+/* Hovering a truncated name lays the whole of it over the cell. It ignores the
+   pointer, so a click still lands on the name underneath and starts editing. */
+.insight-table .clamp-wrap {
+  position: relative;
+}
+
+.insight-table .cell-input.clamp-full {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  display: none;
+  overflow-wrap: anywhere;
+  border-color: var(--border);
+  background: var(--surface);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+}
+
+.insight-table .clamp-wrap:hover .clamp-full {
+  display: block;
+}
+
 .insight-table textarea.cell-input {
   display: block;
   resize: none;
