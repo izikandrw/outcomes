@@ -880,6 +880,8 @@ function layout(outcomes, projects, impacts) {
     }
   }
 
+  spreadLanes(edges);
+
   return {
     nodes,
     edges,
@@ -896,6 +898,60 @@ export function elbowPath(x1, y1, x2, y2) {
   if (x1 === x2) return `M${x1} ${y1} V${y2}`;
   const midY = (y1 + y2) / 2;
   return `M${x1} ${y1} V${midY} H${x2} V${y2}`;
+}
+
+// Connectors from different sources can jog sideways at the same (or nearly
+// the same) height in a row gap, which draws them as one thick or doubled
+// line. Each source's horizontal run is nudged into its own lane, a few
+// pixels apart, wherever it overlaps another source's run. Runs from the same
+// source stay together since they form a single bracket.
+export const LANE_GAP = 6;
+const MAX_LANES = 3; // either side of the run's natural height
+
+export function spreadLanes(edges) {
+  const bars = new Map();
+  edges.forEach((edge) => {
+    const group = edge.from ? `${edge.from.kind}-${edge.from.id}` : edge.key;
+    const parts = [...edge.d.matchAll(/([MVH])([^MVH]*)/g)].map(([, cmd, args]) => [
+      cmd,
+      args.trim().split(/\s+/).map(Number),
+    ]);
+    let x = 0;
+    let y = 0;
+    parts.forEach(([cmd, args], index) => {
+      if (cmd === 'M') [x, y] = args;
+      else if (cmd === 'V') y = args[0];
+      else {
+        const key = `${group}@${y}`;
+        if (!bars.has(key)) bars.set(key, { y, x1: Infinity, x2: -Infinity, refs: [] });
+        const bar = bars.get(key);
+        bar.x1 = Math.min(bar.x1, x, args[0]);
+        bar.x2 = Math.max(bar.x2, x, args[0]);
+        // The V before this run sets its height; moving that moves the run.
+        if (index > 0 && parts[index - 1][0] === 'V') bar.refs.push(parts[index - 1][1]);
+        x = args[0];
+      }
+    });
+    edge.parts = parts;
+  });
+
+  const placed = [];
+  for (const bar of bars.values()) {
+    const neighbours = placed.filter((other) => other.x1 <= bar.x2 + LANE_GAP && bar.x1 <= other.x2 + LANE_GAP);
+    let offset = 0;
+    for (let lane = 1; lane <= MAX_LANES * 2; lane += 1) {
+      if (neighbours.every((other) => Math.abs(other.y - (bar.y + offset)) >= LANE_GAP)) break;
+      offset = Math.ceil(lane / 2) * LANE_GAP * (lane % 2 ? 1 : -1);
+    }
+    bar.y += offset;
+    for (const ref of bar.refs) ref[0] = bar.y;
+    placed.push(bar);
+  }
+
+  for (const edge of edges) {
+    edge.d = edge.parts.map(([cmd, args]) => `${cmd}${args.join(' ')}`).join(' ');
+    delete edge.parts;
+  }
 }
 
 // Connector into a project two rows down: jogs sideways a quarter into the
