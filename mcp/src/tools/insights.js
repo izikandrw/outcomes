@@ -96,10 +96,28 @@ export function registerInsightTools(server) {
           .max(3)
           .optional()
           .describe('Up to 3 outcomes or projects this is evidence for. Empty when nothing fits.'),
+        proposed_links: z
+          .array(
+            z.object({
+              kind: z.enum(['outcome', 'project']),
+              name: z
+                .string()
+                .min(1)
+                .describe('Named like the catalog\'s outcomes or projects, e.g. "Cut image size so customers pay less for egress"'),
+              description: z.string().optional().describe('One or two sentences: what it would cover'),
+              rationale: z.string().min(1).describe('One sentence: why this insight is evidence for it'),
+            })
+          )
+          .max(3)
+          .optional()
+          .describe(
+            'Outcomes or projects that do not exist yet but that this insight is direct evidence for, only when nothing in the catalog covers it. ' +
+              'Never created by you: a reviewer creates one and links the insight to it, or dismisses it.'
+          ),
         collection_run_id: id.optional().describe('The run this suggestion belongs to (start_collection_run)'),
       },
     },
-    async ({ links = [], ...insight }) => {
+    async ({ links = [], proposed_links = [], ...insight }) => {
       const pick = (kind) => links.filter((link) => link.kind === kind);
       const rationales = (kind) => Object.fromEntries(pick(kind).map((link) => [link.id, link.rationale]));
       try {
@@ -113,6 +131,7 @@ export function registerInsightTools(server) {
               outcome_ids: pick('outcome').map((link) => link.id),
               project_ids: pick('project').map((link) => link.id),
               link_rationales: { outcomes: rationales('outcome'), projects: rationales('project') },
+              proposed_links,
             },
           })
         );

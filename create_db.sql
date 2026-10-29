@@ -164,6 +164,8 @@ CREATE TABLE insights (
     rejection_reason   TEXT
                 CHECK (rejection_reason IN ('not_an_insight', 'inaccurate', 'wrong_link', 'duplicate', 'other')),
     review_note        TEXT,
+    -- Outcomes or projects the collector thinks are missing: [{ kind, name, description, rationale }].
+    proposed_links     JSONB NOT NULL DEFAULT '[]',
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );

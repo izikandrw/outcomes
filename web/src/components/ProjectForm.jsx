@@ -6,7 +6,9 @@ const EMPTY = { name: '', description: '', team_id: '', start_at: '', end_at: ''
 // `outcome` is given) or nested under another project (when `parentProject` is
 // given), or edits an existing one in place (when `editing` is given). The team
 // defaults to the parent's on create, since that is nearly always the same team.
-export default function ProjectForm({ editing, outcome, parentProject, teams, onSubmit, onCancel, onDelete }) {
+// `draft` prefills name and description when creating one the insight
+// collector proposed.
+export default function ProjectForm({ editing, draft, outcome, parentProject, teams, onSubmit, onCancel, onDelete }) {
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -24,11 +26,13 @@ export default function ProjectForm({ editing, outcome, parentProject, teams, on
     } else {
       setForm({
         ...EMPTY,
+        name: draft?.name ?? '',
+        description: draft?.description ?? '',
         team_id: defaultTeam?.team_id ? String(defaultTeam.team_id) : '',
       });
     }
     setError(null);
-  }, [editing, defaultTeam]);
+  }, [editing, draft, defaultTeam]);
 
   useEffect(() => {
     if (!form.team_id && teams.length === 1) {

@@ -241,6 +241,7 @@ export default function App({ user, account, onSignOut }) {
       })
     );
     setModal(null);
+    if (!editing && modal?.fromProposal) await linkProposal(modal.fromProposal, 'outcome', saved);
   }
 
   async function saveImpact(impact) {
@@ -361,6 +362,47 @@ export default function App({ user, account, onSignOut }) {
     });
   }
 
+  // From the review queue: the collector proposed an outcome or project that
+  // doesn't exist yet. Open its form prefilled; saving it links the insight
+  // (see linkProposal).
+  function createFromProposal(insight, index) {
+    const proposal = insight.proposed_links[index];
+    const draft = { name: proposal.name, description: proposal.description ?? '' };
+    const fromProposal = { insightId: insight.id, index };
+    if (proposal.kind === 'project') {
+      setModal({ kind: 'project', project: null, parent: null, draft, fromProposal });
+    } else {
+      setModal({ kind: 'outcome', outcome: null, parent: null, parentId: null, draft, fromProposal });
+    }
+  }
+
+  // Once the proposed outcome or project exists: link the insight to it with
+  // the collector's rationale, and drop the proposal. The modal has already
+  // closed, so a failure here shows on the page rather than inviting a second
+  // create.
+  async function linkProposal({ insightId, index }, kind, created) {
+    const insight = insights.find((item) => item.id === insightId);
+    if (!insight) return;
+    const proposal = insight.proposed_links[index];
+    const field = kind === 'project' ? 'project_ids' : 'outcome_ids';
+    const rationales = { outcomes: {}, projects: {} };
+    if (proposal?.rationale) rationales[kind === 'project' ? 'projects' : 'outcomes'][created.id] = proposal.rationale;
+    try {
+      await patchInsight(insight, {
+        [field]: [...insight[field].map(Number), Number(created.id)],
+        link_rationales: rationales,
+        proposed_links: insight.proposed_links.filter((_, i) => i !== index),
+      });
+      setError(null);
+    } catch (err) {
+      setError(`Created “${created.name}” but could not link insight #${insightId} to it: ${err.message}`);
+    }
+  }
+
+  function dismissProposal(insight, index) {
+    return patchInsight(insight, { proposed_links: insight.proposed_links.filter((_, i) => i !== index) });
+  }
+
   async function removeInsight(insight) {
     if (!(await askConfirm('Delete insight?', `“${insight.name}” will be permanently deleted.`))) return;
     try {
@@ -382,6 +424,9 @@ export default function App({ user, account, onSignOut }) {
     } else {
       const created = await api.createProject(accountId, project);
       setProjects((current) => [...current, created]);
+      setModal(null);
+      if (modal?.fromProposal) await linkProposal(modal.fromProposal, 'project', created);
+      return;
     }
     setModal(null);
   }
@@ -539,6 +584,8 @@ export default function App({ user, account, onSignOut }) {
                   onReject={rejectInsight}
                   onEdit={(insight) => setModal({ kind: 'insight', insight })}
                   onUnlink={unlinkInsight}
+                  onCreateProposed={createFromProposal}
+                  onDismissProposed={dismissProposal}
                 />
               )}
             </section>
@@ -743,6 +790,7 @@ export default function App({ user, account, onSignOut }) {
           ) : modal.kind === 'project' ? (
             <ProjectForm
               editing={modal.project}
+              draft={modal.draft}
               outcome={modal.parent}
               parentProject={modal.parentProject}
               teams={teams}
@@ -753,6 +801,7 @@ export default function App({ user, account, onSignOut }) {
           ) : (
             <OutcomeForm
               editing={modal.outcome}
+              draft={modal.draft}
               parent={modal.parent}
               parentOutcomeId={modal.parentId}
               teams={teams}

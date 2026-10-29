@@ -12,8 +12,22 @@ import CollectionRuns from './CollectionRuns.jsx';
 // (product/agents/insight-collector/spec.md). Each card shows the excerpt it
 // rests on and why it was linked where it was, so the reviewer can check both
 // the observation and the links without leaving the page. Nothing here counts
-// as evidence until it is approved. The Runs tab shows the collector's traces.
-export default function ReviewQueue({ accountId, insights, outcomes, projects, onApprove, onReject, onEdit, onUnlink }) {
+// as evidence until it is approved. Besides links to existing outcomes and
+// projects, the collector may propose ones that don't exist yet; the reviewer
+// creates one (which links the insight to it) or dismisses it. The Runs tab
+// shows the collector's traces.
+export default function ReviewQueue({
+  accountId,
+  insights,
+  outcomes,
+  projects,
+  onApprove,
+  onReject,
+  onEdit,
+  onUnlink,
+  onCreateProposed,
+  onDismissProposed,
+}) {
   const [tab, setTab] = useState('pending');
   const pending = insights.filter((insight) => insight.status === 'unvalidated');
   const rejected = insights.filter((insight) => insight.status === 'rejected');
@@ -54,6 +68,8 @@ export default function ReviewQueue({ accountId, insights, outcomes, projects, o
               onReject={onReject}
               onEdit={onEdit}
               onUnlink={onUnlink}
+              onCreateProposed={onCreateProposed}
+              onDismissProposed={onDismissProposed}
             />
           ))}
         </ul>
@@ -62,7 +78,17 @@ export default function ReviewQueue({ accountId, insights, outcomes, projects, o
   );
 }
 
-function ReviewCard({ insight, outcomes, projects, onApprove, onReject, onEdit, onUnlink }) {
+function ReviewCard({
+  insight,
+  outcomes,
+  projects,
+  onApprove,
+  onReject,
+  onEdit,
+  onUnlink,
+  onCreateProposed,
+  onDismissProposed,
+}) {
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState('not_an_insight');
   const [note, setNote] = useState('');
@@ -94,6 +120,7 @@ function ReviewCard({ insight, outcomes, projects, onApprove, onReject, onEdit, 
       rationale: insight.link_rationales?.projects?.[id],
     })),
   ];
+  const proposals = insight.proposed_links ?? [];
   const pending = insight.status === 'unvalidated';
 
   return (
@@ -118,9 +145,9 @@ function ReviewCard({ insight, outcomes, projects, onApprove, onReject, onEdit, 
 
       <div className="review-links">
         <span className="hint">Supports</span>
-        {links.length === 0 ? (
+        {links.length === 0 && proposals.length === 0 ? (
           <p className="hint">Nothing it fits yet. It may point to an outcome that's missing.</p>
-        ) : (
+        ) : links.length === 0 ? null : (
           <ul>
             {links.map((link) => (
               <li key={`${link.kind}-${link.id}`}>
@@ -144,6 +171,46 @@ function ReviewCard({ insight, outcomes, projects, onApprove, onReject, onEdit, 
               </li>
             ))}
           </ul>
+        )}
+        {proposals.length > 0 && (
+          <>
+            <span className="hint">{links.length === 0 ? 'Nothing it fits yet. Suggested to create' : 'Also suggested to create'}</span>
+            <ul>
+              {proposals.map((proposal, index) => (
+                <li key={`${proposal.kind}-${index}`} className="proposed-link">
+                  <span className={proposal.kind === 'project' ? 'tag project proposed' : 'tag proposed'}>
+                    New {proposal.kind === 'project' ? 'project' : 'outcome'}
+                  </span>
+                  <span className="review-link-name">{proposal.name}</span>
+                  {proposal.rationale && <span className="hint">{proposal.rationale}</span>}
+                  {pending && (
+                    <>
+                      <button
+                        type="button"
+                        className="link-button"
+                        title={`Create this ${proposal.kind} and link the insight to it`}
+                        disabled={busy}
+                        onClick={() => onCreateProposed(insight, index)}
+                      >
+                        Create and link
+                      </button>
+                      <button
+                        type="button"
+                        className="link-button"
+                        aria-label={`Dismiss suggested ${proposal.kind} ${proposal.name}`}
+                        title="Dismiss this suggestion"
+                        disabled={busy}
+                        onClick={() => run(() => onDismissProposed(insight, index))}
+                      >
+                        Dismiss
+                      </button>
+                    </>
+                  )}
+                  {proposal.description && <p className="hint proposed-description">{proposal.description}</p>}
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </div>
 

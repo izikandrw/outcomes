@@ -2305,6 +2305,28 @@ button.team-chip.link:hover {
   font-weight: 600;
 }
 
+/* An outcome or project the collector proposes creating: not real yet. */
+.review-links > .hint {
+  display: block;
+}
+
+.review-links > ul + .hint {
+  margin-top: 8px;
+}
+
+.tag.proposed {
+  background: transparent;
+  border: 1px dashed currentColor;
+}
+
+.proposed-link .link-button + .link-button {
+  margin-left: 0;
+}
+
+.review-card .proposed-description {
+  flex-basis: 100%;
+}
+
 .reject-form {
   display: flex;
   flex-wrap: wrap;
