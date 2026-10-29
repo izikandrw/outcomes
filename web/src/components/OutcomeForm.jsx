@@ -50,12 +50,16 @@ export default function OutcomeForm({
       });
       setProjectIds(new Set(projectsForOutcome(projects, editing).map((project) => String(project.id))));
     } else {
-      // Adding a child from the tree: inherit the parent's team.
+      // Adding a child from the tree: inherit the parent's team. Otherwise
+      // default to the only team so the common single-team case needs no
+      // picking; either can be cleared, since the team may not be known yet.
       setForm((current) => ({
         ...EMPTY,
         name: draft?.name ?? '',
         description: draft?.description ?? '',
-        team_id: parent?.team_id ? String(parent.team_id) : current.team_id,
+        team_id: parent?.team_id
+          ? String(parent.team_id)
+          : current.team_id || (teams.length === 1 ? String(teams[0].id) : ''),
         impact_id: impactId ? String(impactId) : '',
       }));
       setProjectIds(new Set());
@@ -65,13 +69,6 @@ export default function OutcomeForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing, draft, parent, impactId]);
 
-  // Default to the only team so the common single-team case needs no picking.
-  useEffect(() => {
-    if (!form.team_id && teams.length === 1) {
-      setForm((current) => ({ ...current, team_id: String(teams[0].id) }));
-    }
-  }, [teams, form.team_id]);
-
   function update(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
   }
@@ -79,7 +76,6 @@ export default function OutcomeForm({
   async function submit(event) {
     event.preventDefault();
     if (!form.name.trim()) return setError('Name is required.');
-    if (!form.team_id) return setError('Pick a team — the API requires one.');
 
     setSaving(true);
     setError(null);
@@ -87,7 +83,7 @@ export default function OutcomeForm({
       await onSubmit({
         name: form.name.trim(),
         description: form.description.trim() || null,
-        team_id: Number(form.team_id),
+        team_id: form.team_id ? Number(form.team_id) : null,
         // Links live in project_outcomes; the older single-project column is
         // folded into them, so clear it or a removed pick would keep showing.
         project_id: null,
@@ -129,11 +125,9 @@ export default function OutcomeForm({
       </label>
 
       <label>
-        <span className="label-text">
-          Team <span className="required">required</span>
-        </span>
+        Team
         <select value={form.team_id} onChange={(event) => update('team_id', event.target.value)}>
-          <option value="">Select a team…</option>
+          <option value="">No team yet</option>
           {teams.map((team) => (
             <option key={team.id} value={team.id}>
               {team.name}

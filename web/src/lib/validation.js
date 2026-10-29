@@ -45,6 +45,24 @@ export const RULES = [
     description: "Project that doesn't roll up to any outcome.",
     fix: 'Connect this project to the outcome it drives, or question whether the work is worth doing.',
   },
+  // A team is optional when an outcome or project is first written down, since
+  // who owns it often isn't known yet, but every one should end up with one.
+  {
+    id: 'ownerless-outcome',
+    emoji: '🫥',
+    appliesTo: 'outcome',
+    title: 'Ownerless outcome',
+    description: 'Outcome with no team accountable for it.',
+    fix: 'Assign the team accountable for this outcome.',
+  },
+  {
+    id: 'ownerless-project',
+    emoji: '🫥',
+    appliesTo: 'project',
+    title: 'Ownerless project',
+    description: 'Project with no team running it.',
+    fix: 'Assign the team running this project.',
+  },
 ];
 
 export const ruleById = (id) => RULES.find((rule) => rule.id === id);
@@ -88,12 +106,14 @@ export function validateTree({ outcomes, projects, insights = [], impacts = [] }
     if (childOutcomes.length === 0 && projectsForOutcome(projects, outcome).length === 0) {
       flag('outcome', outcome, ruleById('chimerical-outcome'));
     }
+    if (outcome.team_id == null) flag('outcome', outcome, ruleById('ownerless-outcome'));
   }
 
   for (const project of projects) {
     if (outcomesForProject(outcomes, project).length === 0) {
       flag('project', project, ruleById('whats-the-point'));
     }
+    if (project.team_id == null) flag('project', project, ruleById('ownerless-project'));
   }
 
   return result;

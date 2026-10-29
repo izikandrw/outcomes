@@ -31,11 +31,8 @@ async function fetchProject(executor, projectId, accountId) {
 async function readRefs(req, res, projectId) {
   const { team_id, parent_project_id, outcome_ids } = req.body;
 
-  if (!team_id) {
-    res.status(400).json({ error: 'team_id is required' });
-    return null;
-  }
-  if (!(await belongsToAccount('teams', team_id, req.accountId))) {
+  // Optional: the team running it often isn't known yet when it's written down.
+  if (team_id && !(await belongsToAccount('teams', team_id, req.accountId))) {
     res.status(400).json({ error: 'team_id not found in this account' });
     return null;
   }
@@ -66,7 +63,7 @@ async function readRefs(req, res, projectId) {
   }
 
   return {
-    teamId: team_id,
+    teamId: team_id || null,
     parentProjectId: parent_project_id || null,
     outcomeIds: outcomes,
   };

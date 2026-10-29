@@ -2,7 +2,7 @@
 
 A group of individuals formed for a particular purpose.
 
-A team is the unit of accountability. Outcomes and projects both hang off a team, so a team answers two questions at once: what behavior are we trying to change, and what are we building to change it.
+A team is the unit of accountability. Outcomes and projects both hang off a team (once it's known who owns them), so a team answers two questions at once: what behavior are we trying to change, and what are we building to change it.
 
 Teams can be infinitely nested. A parent team is usually a group, department or division; its children are the teams doing the work. Nesting exists so a parent's outcomes can be read as the roll-up of its children's.
 

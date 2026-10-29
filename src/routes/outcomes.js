@@ -30,11 +30,8 @@ async function fetchOutcome(executor, outcomeId, accountId) {
 // something doesn't check out.
 async function validateRefs(req, res) {
   const { team_id, project_id, project_ids, parent_outcome_id, impact_id } = req.body;
-  if (!team_id) {
-    res.status(400).json({ error: 'team_id is required' });
-    return false;
-  }
-  if (!(await belongsToAccount('teams', team_id, req.accountId))) {
+  // Optional: the accountable team often isn't known yet when it's written down.
+  if (team_id && !(await belongsToAccount('teams', team_id, req.accountId))) {
     res.status(400).json({ error: 'team_id not found in this account' });
     return false;
   }
@@ -125,7 +122,7 @@ router.post('/', async (req, res, next) => {
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
       [
         req.accountId,
-        team_id,
+        team_id || null,
         project_id || null,
         parent_outcome_id || null,
         impact_id || null,
@@ -162,7 +159,7 @@ router.put('/:outcomeId', async (req, res, next) => {
       [
         name,
         description || null,
-        team_id,
+        team_id || null,
         project_id || null,
         parent_outcome_id || null,
         impact_id || null,

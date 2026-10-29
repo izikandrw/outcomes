@@ -5,7 +5,7 @@ import { id, text, path, registerReadAndDelete } from './shared.js';
 const fields = {
   name: z.string().min(1).describe('The behavior change, e.g. "Admins invite a teammate in their first session". Not a thing to build.'),
   description: z.string().optional().describe('Optional detail'),
-  team_id: id.describe('Team accountable for the outcome'),
+  team_id: id.optional().describe('Team accountable for the outcome. Omit when not known yet; assign one later.'),
   project_id: id.optional().describe("Optional home project"),
   project_ids: z.array(id).optional().describe('Projects that drive this outcome'),
   parent_outcome_id: id.optional().describe('Optional parent outcome; omit for a top-level outcome'),
@@ -42,7 +42,7 @@ export function registerOutcomeTools(server) {
         outcome_id: id,
         name: fields.name.optional(),
         description: z.string().nullable().optional().describe('Pass null to clear'),
-        team_id: id.optional(),
+        team_id: id.nullable().optional().describe('Pass null to clear'),
         project_id: id.nullable().optional().describe('Pass null to clear'),
         project_ids: z.array(id).optional().describe('The complete new set of linked projects'),
         parent_outcome_id: id.nullable().optional().describe('Pass null to make top-level'),

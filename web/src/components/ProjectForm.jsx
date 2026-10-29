@@ -5,7 +5,8 @@ const EMPTY = { name: '', description: '', team_id: '', start_at: '', end_at: ''
 // Creates a project already linked to the outcome it is meant to drive (when
 // `outcome` is given) or nested under another project (when `parentProject` is
 // given), or edits an existing one in place (when `editing` is given). The team
-// defaults to the parent's on create, since that is nearly always the same team.
+// defaults to the parent's on create, since that is nearly always the same team,
+// and may be left empty when it isn't known yet.
 // `draft` prefills name and description when creating one the insight
 // collector proposed.
 export default function ProjectForm({ editing, draft, outcome, parentProject, teams, onSubmit, onCancel, onDelete }) {
@@ -28,17 +29,17 @@ export default function ProjectForm({ editing, draft, outcome, parentProject, te
         ...EMPTY,
         name: draft?.name ?? '',
         description: draft?.description ?? '',
-        team_id: defaultTeam?.team_id ? String(defaultTeam.team_id) : '',
+        team_id: defaultTeam?.team_id
+          ? String(defaultTeam.team_id)
+          : teams.length === 1
+            ? String(teams[0].id)
+            : '',
       });
     }
     setError(null);
+    // teams is left out on purpose: a refetch mid-edit shouldn't reset the pick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing, draft, defaultTeam]);
-
-  useEffect(() => {
-    if (!form.team_id && teams.length === 1) {
-      setForm((current) => ({ ...current, team_id: String(teams[0].id) }));
-    }
-  }, [teams, form.team_id]);
 
   function update(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -47,7 +48,6 @@ export default function ProjectForm({ editing, draft, outcome, parentProject, te
   async function submit(event) {
     event.preventDefault();
     if (!form.name.trim()) return setError('Name is required.');
-    if (!form.team_id) return setError('Pick a team — the API requires one.');
     if (form.start_at && form.end_at && form.end_at < form.start_at) {
       return setError('The end date cannot be before the start date.');
     }
@@ -58,7 +58,7 @@ export default function ProjectForm({ editing, draft, outcome, parentProject, te
       await onSubmit({
         name: form.name.trim(),
         description: form.description.trim() || null,
-        team_id: Number(form.team_id),
+        team_id: form.team_id ? Number(form.team_id) : null,
         start_at: form.start_at ? new Date(form.start_at).toISOString() : null,
         end_at: form.end_at ? new Date(form.end_at).toISOString() : null,
         ...(editing
@@ -111,11 +111,9 @@ export default function ProjectForm({ editing, draft, outcome, parentProject, te
       </label>
 
       <label>
-        <span className="label-text">
-          Team <span className="required">required</span>
-        </span>
+        Team
         <select value={form.team_id} onChange={(event) => update('team_id', event.target.value)}>
-          <option value="">Select a team…</option>
+          <option value="">No team yet</option>
           {teams.map((team) => (
             <option key={team.id} value={team.id}>
               {team.name}

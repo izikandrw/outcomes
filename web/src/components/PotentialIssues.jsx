@@ -36,7 +36,11 @@ export default function PotentialIssues({ impacts = [], outcomes, projects, team
                     onClick={() => editorFor(rule.appliesTo)(item)}
                   >
                     <span>{item.name}</span>
-                    <span className="tag">{nameOf(teams, item.team_id) ?? `team ${item.team_id}`}</span>
+                    {rule.appliesTo !== 'impact' && (
+                      <span className="tag">
+                        {item.team_id == null ? 'No team' : (nameOf(teams, item.team_id) ?? `team ${item.team_id}`)}
+                      </span>
+                    )}
                     <span className="id">#{item.id}</span>
                   </button>
                 </li>

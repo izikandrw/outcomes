@@ -1,5 +1,6 @@
 -- PostgreSQL schema: accounts (one) -> teams (one) -> outcomes (many) ->
 -- targets (many) -> measurements (many)
+-- Outcomes and projects name their team once it's known (team_id is optional).
 -- Projects hang off a team, may nest under a parent project, and link to any
 -- number of outcomes through project_outcomes.
 -- Insights optionally name a team and link to any number of outcomes and projects
@@ -29,7 +30,7 @@ CREATE INDEX idx_teams_parent_team_id ON teams(parent_team_id);
 CREATE TABLE projects (
     id                BIGSERIAL PRIMARY KEY,
     account_id        BIGINT NOT NULL REFERENCES accounts(id),
-    team_id           BIGINT NOT NULL REFERENCES teams(id),
+    team_id           BIGINT REFERENCES teams(id),
     parent_project_id BIGINT REFERENCES projects(id),
     name              TEXT NOT NULL,
     description       TEXT,
@@ -62,7 +63,7 @@ CREATE INDEX idx_impacts_parent_impact_id ON impacts(parent_impact_id);
 CREATE TABLE outcomes (
     id                BIGSERIAL PRIMARY KEY,
     account_id        BIGINT NOT NULL REFERENCES accounts(id),
-    team_id           BIGINT NOT NULL REFERENCES teams(id),
+    team_id           BIGINT REFERENCES teams(id),
     project_id        BIGINT REFERENCES projects(id),
     parent_outcome_id BIGINT REFERENCES outcomes(id),
     impact_id         BIGINT REFERENCES impacts(id),

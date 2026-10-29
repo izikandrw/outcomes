@@ -22,7 +22,7 @@ export function registerProjectTools(server) {
       inputSchema: {
         name: z.string().min(1).describe('The thing being built or done, e.g. "Invite modal in onboarding"'),
         description: z.string().optional(),
-        team_id: id.describe('The one team running the project'),
+        team_id: id.optional().describe('The one team running the project. Omit when not known yet; assign one later.'),
         parent_project_id: id.optional().describe('Optional parent project'),
         outcome_ids: z.array(id).optional().describe('Outcomes this project drives'),
         start_at: date.optional(),
@@ -42,7 +42,7 @@ export function registerProjectTools(server) {
         project_id: id,
         name: z.string().min(1).optional(),
         description: z.string().nullable().optional().describe('Pass null to clear'),
-        team_id: id.optional(),
+        team_id: id.nullable().optional().describe('Pass null to clear'),
         parent_project_id: id.nullable().optional().describe('Pass null to make top-level'),
         outcome_ids: z.array(id).optional().describe('The complete new set of linked outcomes'),
         start_at: date.nullable().optional().describe('Pass null to clear'),

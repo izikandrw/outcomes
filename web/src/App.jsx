@@ -189,11 +189,6 @@ export default function App({ user, account, onSignOut }) {
     localStorage.setItem(STORED_VIEW, next);
   }
 
-  async function addTeam(name) {
-    const team = await api.createTeam(accountId, { name });
-    setTeams((current) => [...current, team]);
-  }
-
   async function saveTeam(team) {
     const editing = modal?.team;
     if (editing) {
@@ -423,12 +418,12 @@ export default function App({ user, account, onSignOut }) {
   // From the review queue, in one step: create every outcome and project the
   // collector proposed, link the insight to each with its rationale, then
   // approve it. There is no form to pick a team, so each takes the insight's
-  // team, or the only team. A proposal whose name matches an existing outcome
-  // or project links to that instead, so two insights proposing the same
-  // missing outcome don't create it twice. Throws so the card can show it.
+  // team, or the only team, or none until someone assigns one. A proposal
+  // whose name matches an existing outcome or project links to that instead,
+  // so two insights proposing the same missing outcome don't create it twice.
+  // Throws so the card can show it.
   async function acceptAllProposals(insight) {
     const teamId = insight.team_id ?? (teams.length === 1 ? teams[0].id : null);
-    if (!teamId) throw new Error('No team to create them in. Use Create and link on each suggestion instead.');
     const sameName = (item, name) => item.name.trim().toLowerCase() === name.trim().toLowerCase();
     const ids = { outcome_ids: insight.outcome_ids.map(Number), project_ids: insight.project_ids.map(Number) };
     const rationales = { outcomes: {}, projects: {} };
@@ -441,7 +436,7 @@ export default function App({ user, account, onSignOut }) {
         const fields = {
           name: proposal.name.trim(),
           description: proposal.description?.trim() || null,
-          team_id: Number(teamId),
+          team_id: teamId ? Number(teamId) : null,
         };
         if (isProject) {
           target = await api.createProject(accountId, { ...fields, outcome_ids: [] });
@@ -594,164 +589,160 @@ export default function App({ user, account, onSignOut }) {
 
       {error && <p className="error banner">{error}</p>}
 
-      {teams.length === 0 && !loading ? (
-        <NeedsTeam onCreate={addTeam} />
-      ) : (
-        <main>
-          {page === 'teams' || page === 'team' ? (
-            <section className="card" aria-label={currentTeam ? currentTeam.name : 'Teams'}>
-              {loading ? (
-                <p className="empty">Loading…</p>
-              ) : page === 'team' && currentTeam ? (
-                <TeamHome
-                  team={currentTeam}
-                  teams={teams}
-                  projects={projects}
-                  outcomes={outcomes}
-                  impacts={impacts}
-                  insights={evidence}
-                  onBack={() => changePage('teams')}
-                  onEdit={(team) => setModal({ kind: 'team', team })}
-                  onOpenTeam={openTeam}
-                  onOpenProject={openEditProject}
-                  onOpenOutcome={openEdit}
-                  onOpenImpact={openEditImpact}
-                  onShowInsights={showInsights}
-                />
-              ) : (
-                <TeamTree
-                  teams={teams}
-                  outcomes={outcomes}
-                  projects={projects}
-                  onCreate={() => setModal({ kind: 'team', team: null })}
-                  onOpenTeam={openTeam}
-                  onAddChild={(parent) => setModal({ kind: 'team', team: null, parent })}
-                  onOpenOutcome={openEdit}
-                  onOpenProject={openEditProject}
-                />
-              )}
-            </section>
-          ) : page === 'insights' ? (
-            <section className="card" aria-label="Insights">
-              {loading ? (
-                <p className="empty">Loading…</p>
-              ) : (
-                <InsightList
-                  insights={activeInsights}
-                  onCreate={() => setModal({ kind: 'insight', insight: null })}
-                  onEdit={(insight) => setModal({ kind: 'insight', insight })}
-                  onDelete={removeInsight}
-                />
-              )}
-            </section>
-          ) : page === 'review' ? (
-            <section className="card" aria-label="Review">
-              {loading ? (
-                <p className="empty">Loading…</p>
-              ) : (
-                <ReviewQueue
-                  accountId={accountId}
-                  insights={insights}
-                  outcomes={outcomes}
-                  projects={projects}
-                  onApprove={approveInsight}
-                  onReject={rejectInsight}
-                  onEdit={(insight) => setModal({ kind: 'insight', insight })}
-                  onUnlink={unlinkInsight}
-                  onCreateProposed={createFromProposal}
-                  onCreateOwn={createForInsight}
-                  onDismissProposed={dismissProposal}
-                  onAcceptAll={acceptAllProposals}
-                />
-              )}
-            </section>
-          ) : page === 'roadmap' ? (
-            <section className="card" aria-label="Roadmap">
-              {loading ? (
-                <p className="empty">Loading…</p>
-              ) : (
-                <Roadmap
-                  projects={projects}
-                  outcomes={outcomes}
-                  teams={teams}
-                  insights={evidence}
-                  onEditProject={openEditProject}
-                  onShowInsights={showInsights}
-                  onOpenTeam={openTeam}
-                />
-              )}
-            </section>
-          ) : (
-          <section className="card" aria-label={page === 'map' ? 'Map' : 'Outcomes'}>
-            <div className="list-head">
-              {page === 'map' ? <span /> : <ViewToggle view={view === 'issues' ? 'issues' : 'list'} onChange={changeView} />}
-              <div className="actions">
-                {page === 'map' && (
-                  <button type="button" className="with-icon btn-impact" onClick={openCreateImpact}>
-                    <PlusIcon />
-                    New impact
-                  </button>
-                )}
-                <button type="button" className="with-icon btn-outcome" onClick={openCreate}>
-                  <PlusIcon />
-                  New outcome
-                </button>
-              </div>
-            </div>
+      <main>
+        {page === 'teams' || page === 'team' ? (
+          <section className="card" aria-label={currentTeam ? currentTeam.name : 'Teams'}>
             {loading ? (
               <p className="empty">Loading…</p>
-            ) : outcomes.length === 0 && !(page === 'map' && impacts.length > 0) ? (
-              <EmptyOutcomes onCreate={openCreate} />
-            ) : page === 'map' ? (
-              <OutcomeTree
-                impacts={impacts}
-                outcomes={outcomes}
-                projects={projects}
-                targets={targets}
-                insights={evidence}
-                onShowInsights={showInsights}
-                onEdit={openEdit}
-                onEditImpact={openEditImpact}
-                onViewTarget={viewTarget}
-                onEditProject={openEditProject}
-                onAdd={openAdd}
-                onAddChildProject={openAddChildProject}
-                onUnlink={unlink}
-                onOpenTeam={openTeam}
-                onShowIssue={showIssue}
-              />
-            ) : view === 'list' ? (
-              <OutcomeList
-                outcomes={outcomes}
+            ) : page === 'team' && currentTeam ? (
+              <TeamHome
+                team={currentTeam}
                 teams={teams}
                 projects={projects}
-                targets={targets}
+                outcomes={outcomes}
+                impacts={impacts}
                 insights={evidence}
-                onShowInsights={showInsights}
+                onBack={() => changePage('teams')}
+                onEdit={(team) => setModal({ kind: 'team', team })}
                 onOpenTeam={openTeam}
-                onEdit={openEdit}
-                onDelete={removeOutcome}
-                onAddTarget={(outcome) => openAdd(outcome, 'target')}
-                onEditTarget={openEditTarget}
-                onDeleteTarget={removeTarget}
-                onViewTarget={viewTarget}
+                onOpenProject={openEditProject}
+                onOpenOutcome={openEdit}
+                onOpenImpact={openEditImpact}
+                onShowInsights={showInsights}
               />
             ) : (
-              <PotentialIssues
-                impacts={impacts}
+              <TeamTree
+                teams={teams}
                 outcomes={outcomes}
                 projects={projects}
-                teams={teams}
-                insights={evidence}
-                onEdit={openEdit}
-                onEditImpact={openEditImpact}
-                onEditProject={openEditProject}
+                onCreate={() => setModal({ kind: 'team', team: null })}
+                onOpenTeam={openTeam}
+                onAddChild={(parent) => setModal({ kind: 'team', team: null, parent })}
+                onOpenOutcome={openEdit}
+                onOpenProject={openEditProject}
               />
             )}
           </section>
+        ) : page === 'insights' ? (
+          <section className="card" aria-label="Insights">
+            {loading ? (
+              <p className="empty">Loading…</p>
+            ) : (
+              <InsightList
+                insights={activeInsights}
+                onCreate={() => setModal({ kind: 'insight', insight: null })}
+                onEdit={(insight) => setModal({ kind: 'insight', insight })}
+                onDelete={removeInsight}
+              />
+            )}
+          </section>
+        ) : page === 'review' ? (
+          <section className="card" aria-label="Review">
+            {loading ? (
+              <p className="empty">Loading…</p>
+            ) : (
+              <ReviewQueue
+                accountId={accountId}
+                insights={insights}
+                outcomes={outcomes}
+                projects={projects}
+                onApprove={approveInsight}
+                onReject={rejectInsight}
+                onEdit={(insight) => setModal({ kind: 'insight', insight })}
+                onUnlink={unlinkInsight}
+                onCreateProposed={createFromProposal}
+                onCreateOwn={createForInsight}
+                onDismissProposed={dismissProposal}
+                onAcceptAll={acceptAllProposals}
+              />
+            )}
+          </section>
+        ) : page === 'roadmap' ? (
+          <section className="card" aria-label="Roadmap">
+            {loading ? (
+              <p className="empty">Loading…</p>
+            ) : (
+              <Roadmap
+                projects={projects}
+                outcomes={outcomes}
+                teams={teams}
+                insights={evidence}
+                onEditProject={openEditProject}
+                onShowInsights={showInsights}
+                onOpenTeam={openTeam}
+              />
+            )}
+          </section>
+        ) : (
+        <section className="card" aria-label={page === 'map' ? 'Map' : 'Outcomes'}>
+          <div className="list-head">
+            {page === 'map' ? <span /> : <ViewToggle view={view === 'issues' ? 'issues' : 'list'} onChange={changeView} />}
+            <div className="actions">
+              {page === 'map' && (
+                <button type="button" className="with-icon btn-impact" onClick={openCreateImpact}>
+                  <PlusIcon />
+                  New impact
+                </button>
+              )}
+              <button type="button" className="with-icon btn-outcome" onClick={openCreate}>
+                <PlusIcon />
+                New outcome
+              </button>
+            </div>
+          </div>
+          {loading ? (
+            <p className="empty">Loading…</p>
+          ) : outcomes.length === 0 && !(page === 'map' && impacts.length > 0) ? (
+            <EmptyOutcomes onCreate={openCreate} />
+          ) : page === 'map' ? (
+            <OutcomeTree
+              impacts={impacts}
+              outcomes={outcomes}
+              projects={projects}
+              targets={targets}
+              insights={evidence}
+              onShowInsights={showInsights}
+              onEdit={openEdit}
+              onEditImpact={openEditImpact}
+              onViewTarget={viewTarget}
+              onEditProject={openEditProject}
+              onAdd={openAdd}
+              onAddChildProject={openAddChildProject}
+              onUnlink={unlink}
+              onOpenTeam={openTeam}
+              onShowIssue={showIssue}
+            />
+          ) : view === 'list' ? (
+            <OutcomeList
+              outcomes={outcomes}
+              teams={teams}
+              projects={projects}
+              targets={targets}
+              insights={evidence}
+              onShowInsights={showInsights}
+              onOpenTeam={openTeam}
+              onEdit={openEdit}
+              onDelete={removeOutcome}
+              onAddTarget={(outcome) => openAdd(outcome, 'target')}
+              onEditTarget={openEditTarget}
+              onDeleteTarget={removeTarget}
+              onViewTarget={viewTarget}
+            />
+          ) : (
+            <PotentialIssues
+              impacts={impacts}
+              outcomes={outcomes}
+              projects={projects}
+              teams={teams}
+              insights={evidence}
+              onEdit={openEdit}
+              onEditImpact={openEditImpact}
+              onEditProject={openEditProject}
+            />
           )}
-        </main>
-      )}
+        </section>
+        )}
+      </main>
 
       {modal && (
         <Modal
@@ -931,38 +922,5 @@ function EmptyOutcomes({ onCreate }) {
         Add the first one
       </button>
     </div>
-  );
-}
-
-// Every outcome needs a team_id, so an account with no teams can't get started.
-function NeedsTeam({ onCreate }) {
-  const [name, setName] = useState('');
-  const [error, setError] = useState(null);
-
-  async function submit(event) {
-    event.preventDefault();
-    if (!name.trim()) return;
-    try {
-      await onCreate(name.trim());
-      setName('');
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  return (
-    <form className="card" onSubmit={submit}>
-      <h2>Add a team first</h2>
-      <p className="empty">Outcomes belong to a team, and this account doesn&apos;t have one yet.</p>
-      <div className="inline-form">
-        <input
-          value={name}
-          placeholder="Team name"
-          onChange={(event) => setName(event.target.value)}
-        />
-        <button type="submit">Create team</button>
-      </div>
-      {error && <p className="error">{error}</p>}
-    </form>
   );
 }
