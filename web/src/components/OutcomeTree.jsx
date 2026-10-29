@@ -31,9 +31,12 @@ const LINE_CLEARANCE = 8;
 // How far a cross-link's vertical run keeps from the sides of nodes it passes.
 const CHANNEL_CLEARANCE = 4;
 export const LINE_H = 15;
-// From a node's bottom edge, where the insight pill is centred, to the first
-// line of a revealed name below it: the pill's half-height plus a gap.
-const PILL_CLEARANCE = 24;
+// A revealed name's lines level with the insight pill start past its right
+// end: how near a line's centre can come to the pill's before it must, and the
+// rough width of a character used to shorten those lines.
+const PILL_BAND = 17;
+const CHAR_W = 7;
+const TEXT_INSET = 6;
 export const MAX_CHARS = 21;
 const MAX_LINES = 3;
 
@@ -58,7 +61,16 @@ export default function OutcomeTree({
 }) {
   const { nodes, edges, width, height: treeHeight } = layout(outcomes, projects, impacts);
   // Room below the bottom row for a long name's overlay.
-  const height = Math.max(treeHeight, ...nodes.map((node) => node.y + fullNameLayout(node).height + PAD));
+  const dollarsOf = (node) =>
+    node.type === 'impact'
+      ? null
+      : totalDollarImpact(
+          node.type === 'project' ? insightsForProject(insights, node.data) : insightsForOutcome(insights, node.data)
+        );
+  const height = Math.max(
+    treeHeight,
+    ...nodes.map((node) => node.y + fullNameLayout({ ...node, dollars: dollarsOf(node) }).height + PAD)
+  );
   const validation = validateTree({ outcomes, projects, insights, impacts });
   const counts = groupByRule(validation, { impacts, outcomes, projects });
   // { entity, kind, left, top } — kind is 'outcome' or 'impact'. Anchored in
@@ -254,7 +266,7 @@ export default function OutcomeTree({
                 onOpenTeam={onOpenTeam}
                 onShowIssue={onShowIssue}
                 insightCount={insightsForProject(insights, node.data).length}
-                insightDollars={totalDollarImpact(insightsForProject(insights, node.data))}
+                insightDollars={dollarsOf(node)}
                 issues={issuesFor(validation, 'project', node.data)}
                 onShowInsights={onShowInsights}
                 onEdit={onEditProject}
@@ -271,7 +283,7 @@ export default function OutcomeTree({
                 onOpenTeam={onOpenTeam}
                 onShowIssue={onShowIssue}
                 insightCount={insightsForOutcome(insights, node.data).length}
-                insightDollars={totalDollarImpact(insightsForOutcome(insights, node.data))}
+                insightDollars={dollarsOf(node)}
                 issues={issuesFor(validation, 'outcome', node.data)}
                 onShowInsights={onShowInsights}
                 onEdit={onEdit}
@@ -387,7 +399,7 @@ function OutcomeNode({
         onTargetClick={() => onViewTarget(quantified[0])}
       />
 
-      {revealed && <FullName node={{ type: 'outcome', data: outcome, x, y }} />}
+      {revealed && <FullName node={{ type: 'outcome', data: outcome, x, y, dollars: insightDollars }} />}
       <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, outcome)} />
       <InsightPill
         x={x}
@@ -513,6 +525,12 @@ function IssueBadges({ x, y, issues, onOpen }) {
 }
 
 // Always visible, bottom-left of the node: how many insights back it up.
+// How far an insight pill reaches in from its node's left edge, so a revealed
+// name can flow around it. Mirrors InsightPill's shapes below.
+function pillReach(dollars) {
+  return dollars == null ? 34 : 52 + formatDollars(dollars).length * 7;
+}
+
 function InsightPill({ x, y, count, dollars, label, onOpen }) {
   const cx = x - NODE_W / 2 + 18;
   const cy = y + NODE_H;
@@ -608,7 +626,7 @@ function ProjectNode({
         </g>
       )}
 
-      {revealed && <FullName node={{ type: 'project', data: project, x, y }} />}
+      {revealed && <FullName node={{ type: 'project', data: project, x, y, dollars: insightDollars }} />}
       <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, project)} />
       <InsightPill
         x={x}
@@ -1062,23 +1080,52 @@ function nodeLines(node, targets) {
 }
 
 // Where each line of a node's whole name goes, and how tall its overlay is. The
-// first lines sit exactly where the node draws them; the rest continue below
-// the row the insight pill straddles, leaving it clear, and the overlay grows
-// down to hold them. Impacts have no pill, so their lines simply continue.
-function fullNameLayout({ type, data, y }) {
-  const lines = wrapLabel(data.name, MAX_CHARS, Infinity);
+// lines keep the node's spacing, so the first ones sit exactly where the node
+// draws them, and the overlay grows down to hold the rest. Lines level with
+// the insight pill flow around it: they are shorter and start past its right
+// end. Impacts have no pill.
+function fullNameLayout({ type, data, x, y, dollars }) {
   const hasPill = type !== 'impact';
-  const first = y + NODE_H / 2 - (hasPill ? LABEL_LIFT : 0) - LINE_H;
-  const belowPill = y + NODE_H + PILL_CLEARANCE;
+  const slotY = (index) => y + NODE_H / 2 - (hasPill ? LABEL_LIFT : 0) - LINE_H + index * LINE_H;
+  const besidePill = (index) => hasPill && Math.abs(slotY(index) - (y + NODE_H)) < PILL_BAND;
+  const left = pillReach(dollars) + TEXT_INSET;
+  const narrowChars = Math.floor((NODE_W - TEXT_INSET - left) / CHAR_W);
+  const lines = wrapToBudgets(data.name, (index) => (besidePill(index) ? narrowChars : MAX_CHARS));
   const placed = lines.map((line, index) => ({
     line,
-    y:
-      hasPill && index >= MAX_LINES
-        ? belowPill + (index - MAX_LINES) * LINE_H
-        : first + index * LINE_H,
+    x: besidePill(index) ? x - NODE_W / 2 + (left + NODE_W - TEXT_INSET) / 2 : x,
+    y: slotY(index),
   }));
   const height = Math.max(NODE_H, placed.at(-1).y + LINE_H - y);
   return { placed, height };
+}
+
+// Greedy word wrap where each line can have its own character budget. A word
+// too long for a shortened line leaves that line empty and moves on; only a
+// word longer than a full line is hard-broken.
+function wrapToBudgets(text, budgetAt) {
+  const lines = [];
+  let line = '';
+  for (let word of String(text ?? '').split(/\s+/).filter(Boolean)) {
+    while (word) {
+      const budget = budgetAt(lines.length);
+      const candidate = line ? `${line} ${word}` : word;
+      if (candidate.length <= budget) {
+        line = candidate;
+        word = '';
+      } else if (line) {
+        lines.push(line);
+        line = '';
+      } else if (budget < MAX_CHARS) {
+        lines.push('');
+      } else {
+        lines.push(word.slice(0, budget));
+        word = word.slice(budget);
+      }
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
 }
 
 // A truncated node's whole name, laid over the node in its own colors and
@@ -1100,11 +1147,14 @@ function FullName({ node }) {
     <g className={className} aria-hidden="true">
       <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={height} rx="10" />
       <text textAnchor="middle" dominantBaseline="middle">
-        {placed.map((item, index) => (
-          <tspan key={index} x={x} y={item.y}>
-            {item.line}
-          </tspan>
-        ))}
+        {placed.map(
+          (item, index) =>
+            item.line && (
+              <tspan key={index} x={item.x} y={item.y}>
+                {item.line}
+              </tspan>
+            )
+        )}
       </text>
     </g>
   );
