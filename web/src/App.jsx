@@ -44,6 +44,15 @@ const projectPayload = (project) => ({
   parent_project_id: project.parent_project_id,
 });
 
+const outcomePayload = (outcome) => ({
+  name: outcome.name,
+  description: outcome.description,
+  team_id: outcome.team_id,
+  project_id: outcome.project_id,
+  parent_outcome_id: outcome.parent_outcome_id,
+  impact_id: outcome.impact_id,
+});
+
 export default function App({ user, account, onSignOut }) {
   const accountId = account.id;
   const [teams, setTeams] = useState([]);
@@ -517,12 +526,11 @@ export default function App({ user, account, onSignOut }) {
     try {
       if (to.kind === 'outcome') {
         const child = outcomes.find((item) => same(item.id, to.id));
+        // Whether its line came from a parent outcome or an impact, both go.
         const updated = await api.updateOutcome(accountId, child.id, {
-          name: child.name,
-          description: child.description,
-          team_id: child.team_id,
-          project_id: child.project_id,
+          ...outcomePayload(child),
           parent_outcome_id: null,
+          impact_id: null,
         });
         setOutcomes((current) => current.map((item) => (item.id === updated.id ? updated : item)));
       } else if (from.kind === 'project') {
@@ -543,11 +551,8 @@ export default function App({ user, account, onSignOut }) {
         // The older single-column link would otherwise keep the line drawn.
         if (same(outcome.project_id, project.id)) {
           const cleared = await api.updateOutcome(accountId, outcome.id, {
-            name: outcome.name,
-            description: outcome.description,
-            team_id: outcome.team_id,
+            ...outcomePayload(outcome),
             project_id: null,
-            parent_outcome_id: outcome.parent_outcome_id,
           });
           setOutcomes((current) => current.map((item) => (item.id === cleared.id ? cleared : item)));
         }
@@ -555,6 +560,42 @@ export default function App({ user, account, onSignOut }) {
       setError(null);
     } catch (err) {
       setError(`Could not remove link: ${err.message}`);
+    }
+  }
+
+  // Saves a link dragged between two map nodes (see linkBetween): the child
+  // takes the parent as its parent outcome, project or impact, an outcome
+  // takes an impact, or a project adds an outcome it drives.
+  async function link({ parent, child }) {
+    const { data } = child;
+    try {
+      if (child.type === 'impact') {
+        const updated = await api.updateImpact(accountId, data.id, {
+          name: data.name,
+          description: data.description,
+          parent_impact_id: parent.data.id,
+        });
+        setImpacts((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      } else if (child.type === 'outcome') {
+        // Only a top-level outcome carries an impact link.
+        const updated = await api.updateOutcome(accountId, data.id, {
+          ...outcomePayload(data),
+          parent_outcome_id: parent.type === 'outcome' ? parent.data.id : null,
+          impact_id: parent.type === 'impact' ? parent.data.id : null,
+        });
+        setOutcomes((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      } else {
+        const updated = await api.updateProject(accountId, data.id, {
+          ...projectPayload(data),
+          ...(parent.type === 'project'
+            ? { parent_project_id: parent.data.id }
+            : { outcome_ids: [...(data.outcome_ids ?? []), parent.data.id].map(Number) }),
+        });
+        setProjects((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      }
+      setError(null);
+    } catch (err) {
+      setError(`Could not link: ${err.message}`);
     }
   }
 
@@ -721,6 +762,7 @@ export default function App({ user, account, onSignOut }) {
               onAdd={openAdd}
               onAddChildProject={openAddChildProject}
               onUnlink={unlink}
+              onLink={link}
               onOpenTeam={openTeam}
               onShowIssue={showIssue}
             />

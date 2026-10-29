@@ -1,6 +1,12 @@
 const express = require('express');
 const pool = require('../db');
-const { belongsToAccount, missingFromAccount, redundantLinks, newRedundantLink } = require('../lib/validateRef');
+const {
+  belongsToAccount,
+  missingFromAccount,
+  wouldCycle,
+  redundantLinks,
+  newRedundantLink,
+} = require('../lib/validateRef');
 
 const router = express.Router({ mergeParams: true });
 
@@ -27,8 +33,9 @@ async function fetchOutcome(executor, outcomeId, accountId) {
 
 // Validates the refs and returns the normalised project_ids (undefined when the
 // request didn't mention them). Writes the response and returns false when
-// something doesn't check out.
-async function validateRefs(req, res) {
+// something doesn't check out. `outcomeId` is set when updating, so the parent
+// check can also reject cycles.
+async function validateRefs(req, res, outcomeId) {
   const { team_id, project_id, project_ids, parent_outcome_id, impact_id } = req.body;
   // Optional: the accountable team often isn't known yet when it's written down.
   if (team_id && !(await belongsToAccount('teams', team_id, req.accountId))) {
@@ -41,6 +48,10 @@ async function validateRefs(req, res) {
   }
   if (parent_outcome_id && !(await belongsToAccount('outcomes', parent_outcome_id, req.accountId))) {
     res.status(400).json({ error: 'parent_outcome_id not found in this account' });
+    return false;
+  }
+  if (parent_outcome_id && (await wouldCycle('outcomes', 'parent_outcome_id', outcomeId, parent_outcome_id))) {
+    res.status(400).json({ error: 'parent_outcome_id would make an outcome its own ancestor' });
     return false;
   }
   if (impact_id) {
@@ -154,7 +165,7 @@ router.put('/:outcomeId', async (req, res, next) => {
   if (!name) return res.status(400).json({ error: 'name is required' });
   let client;
   try {
-    const refs = await validateRefs(req, res);
+    const refs = await validateRefs(req, res, req.params.outcomeId);
     if (!refs) return;
 
     client = await pool.connect();

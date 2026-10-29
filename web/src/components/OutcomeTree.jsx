@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   insightsForOutcome,
   insightsForProject,
+  linkBetween,
   totalDollarImpact,
   formatDollars,
   outcomesForImpact,
@@ -39,6 +40,9 @@ const CHAR_W = 7;
 const TEXT_INSET = 6;
 export const MAX_CHARS = 21;
 const MAX_LINES = 3;
+// How far the pointer must travel with the button down before a press on a
+// node turns into dragging a link from it rather than a click.
+const DRAG_THRESHOLD = 5;
 
 // Top-down node-link diagram: each node is centred over the block its children
 // occupy, so sibling subtrees never overlap however wide they fan out.
@@ -56,6 +60,7 @@ export default function OutcomeTree({
   onAdd,
   onAddChildProject,
   onUnlink,
+  onLink,
   onOpenTeam,
   onShowIssue,
 }) {
@@ -106,6 +111,80 @@ export default function OutcomeTree({
   const keyOf = (node) => `${node.type}-${node.data.id}`;
   const drawOrder = [...nodes].sort((a, b) => (keyOf(a) === revealKey) - (keyOf(b) === revealKey));
   const { zoom, scrollRef, svgRef, ...zoomActions } = useZoom({ storageKey: 'outcomes.mapZoom', width });
+  // Dragging from one node to another links them: { from, point, target,
+  // link, left, top }, where point is in map coordinates and left/top place
+  // the hint in the viewport. `link` is what linkBetween makes of the drop.
+  const [linking, setLinking] = useState(null);
+  // The click that ends a drag lands on a node, which would open its form.
+  const swallowClick = useRef(false);
+  // Read by the window listeners a drag adds, which outlive the render that
+  // added them.
+  const latest = useRef();
+  latest.current = { nodes, impacts, outcomes, projects, onLink };
+
+  function startLink(event, from) {
+    if (event.button !== 0) return;
+    // The node's own buttons keep their clicks.
+    if (event.target.closest('.node-add, .node-insights, .node-issue, .tree-node-target')) return;
+    const start = { x: event.clientX, y: event.clientY };
+    let active = false;
+    let cancelled = false;
+    let link = null;
+    const track = (moved) => {
+      const point = new DOMPoint(moved.clientX, moved.clientY).matrixTransform(
+        svgRef.current.getScreenCTM().inverse()
+      );
+      const target =
+        latest.current.nodes.find(
+          (node) =>
+            keyOf(node) !== keyOf(from) &&
+            Math.abs(point.x - node.x) <= NODE_W / 2 &&
+            point.y >= node.y &&
+            point.y <= node.y + NODE_H
+        ) ?? null;
+      link = target && linkBetween(from, target, latest.current);
+      setLinking({ from, point, target, link, left: moved.clientX + 14, top: moved.clientY + 14 });
+    };
+    const move = (moved) => {
+      if (cancelled) return;
+      if (!active && Math.hypot(moved.clientX - start.x, moved.clientY - start.y) < DRAG_THRESHOLD) return;
+      if (!active) {
+        active = true;
+        hoverOff();
+        setRevealKey(null);
+        window.getSelection()?.removeAllRanges();
+      }
+      track(moved);
+    };
+    const cancel = () => {
+      cancelled = true;
+      setLinking(null);
+    };
+    const onKey = (pressed) => {
+      if (pressed.key === 'Escape' && active) cancel();
+    };
+    const end = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', abort);
+      window.removeEventListener('keydown', onKey);
+      if (!active) return;
+      swallowClick.current = true;
+      setTimeout(() => {
+        swallowClick.current = false;
+      });
+      setLinking(null);
+      if (!cancelled && link?.parent) latest.current.onLink(link);
+    };
+    const abort = () => {
+      cancel();
+      end();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', abort);
+    window.addEventListener('keydown', onKey);
+  }
 
   useEffect(() => {
     if (!menu) return undefined;
@@ -152,6 +231,11 @@ export default function OutcomeTree({
           viewBox={`0 0 ${width} ${height}`}
           role="tree"
           aria-label="Outcome tree"
+          onClickCapture={(event) => {
+            if (!swallowClick.current) return;
+            swallowClick.current = false;
+            event.stopPropagation();
+          }}
         >
           <defs>
             {/* Anchored short of the tip, where the head is still wider than
@@ -220,8 +304,21 @@ export default function OutcomeTree({
           {drawOrder.map((node) => (
             <g
               key={`${node.type}-${node.data.id}`}
-              className={hoverEnds?.includes(`${node.type}-${node.data.id}`) ? 'edge-hover' : undefined}
-              onMouseEnter={() => setRevealKey(isTruncated(nodeLines(node, targets)) ? keyOf(node) : null)}
+              className={
+                [
+                  hoverEnds?.includes(keyOf(node)) && 'edge-hover',
+                  linking && keyOf(linking.from) === keyOf(node) && 'link-source',
+                  linking?.target &&
+                    keyOf(linking.target) === keyOf(node) &&
+                    (linking.link.parent ? 'link-target' : 'link-invalid'),
+                ]
+                  .filter(Boolean)
+                  .join(' ') || undefined
+              }
+              onPointerDown={(event) => startLink(event, node)}
+              onMouseEnter={() =>
+                !linking && setRevealKey(isTruncated(nodeLines(node, targets)) ? keyOf(node) : null)
+              }
               onMouseLeave={() => setRevealKey(null)}
             >
             {node.type === 'impact' ? (
@@ -274,10 +371,17 @@ export default function OutcomeTree({
             )}
             </g>
           ))}
+          {linking && (
+            <path
+              className={['link-preview', linking.link?.reason && 'invalid'].filter(Boolean).join(' ')}
+              d={`M${linking.from.x} ${linking.from.y + NODE_H / 2} L${linking.point.x} ${linking.point.y}`}
+              markerEnd="url(#tree-arrow)"
+            />
+          )}
           {/* A target can't exist without its outcome, so that link has no break
               button. Drawn last so no connector or node can cover it; it sits
               outside the edge's group, so it keeps the hover alive itself. */}
-          {hoverEdge && hoverEdge.kind !== 'target' && (
+          {hoverEdge && !linking && hoverEdge.kind !== 'target' && (
             <g
               className="edge-unlink"
               role="button"
@@ -307,6 +411,16 @@ export default function OutcomeTree({
           )}
         </svg>
       </div>
+
+      {linking?.link && (
+        <div
+          className={['link-hint', linking.link.reason && 'invalid'].filter(Boolean).join(' ')}
+          style={{ left: linking.left, top: linking.top }}
+          role="status"
+        >
+          {linking.link.reason ?? linkHint(linking.link)}
+        </div>
+      )}
 
       {menu && (
         <div
@@ -673,6 +787,13 @@ function ProjectNode({
       </g>
     </g>
   );
+}
+
+// What dropping the dragged link will do, shown beside the pointer.
+function linkHint({ parent, child, moves }) {
+  const [parentName, childName] = [`“${parent.data.name}”`, `“${child.data.name}”`];
+  if (child.type === 'project' && parent.type === 'outcome') return `Link ${childName} to ${parentName}`;
+  return `${moves ? 'Move' : 'Put'} ${childName} under ${parentName}`;
 }
 
 // An outcome or impact states its targets inside its own node: the name takes

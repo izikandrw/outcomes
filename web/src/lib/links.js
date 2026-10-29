@@ -114,6 +114,50 @@ export function projectsLinkedInLineage(outcomes, projects, outcome) {
   return new Set(lineage.flatMap((relative) => projectsForOutcome(projects, relative)).map((p) => String(p.id)));
 }
 
+// What dropping one map node on another links, as { parent, child } nodes
+// ({ type, data }), or { reason } when the two can't be linked that way.
+// Between different kinds the hierarchy fixes the direction (impact above
+// outcome above project); between two of a kind the node dragged from becomes
+// the parent, the way the arrow is drawn. A new parent replaces the child's old
+// one, except for a project, which can drive several outcomes at once.
+export function linkBetween(from, to, { impacts, outcomes, projects }) {
+  if (from.type === to.type && same(from.data.id, to.data.id)) return { reason: 'Drop on another node to link them' };
+  const rank = { impact: 0, outcome: 1, project: 2 };
+  if (Math.abs(rank[from.type] - rank[to.type]) > 1) return { reason: 'An impact can’t link straight to a project' };
+  const [parent, child] = rank[from.type] <= rank[to.type] ? [from, to] : [to, from];
+  const named = (node) => `“${node.data.name}”`;
+  // An outcome hangs off either a parent outcome or an impact, never both.
+  const moves =
+    child.type === 'outcome'
+      ? child.data.parent_outcome_id != null || child.data.impact_id != null
+      : child.type === parent.type && child.data[`parent_${child.type}_id`] != null;
+
+  if (parent.type !== child.type) {
+    if (child.type === 'outcome') {
+      return same(child.data.impact_id, parent.data.id) && child.data.parent_outcome_id == null
+        ? { reason: `${named(child)} already drives ${named(parent)}` }
+        : { parent, child, moves };
+    }
+    if (projectsForOutcome(projects, parent.data).some((project) => same(project.id, child.data.id))) {
+      return { reason: `${named(child)} already drives ${named(parent)}` };
+    }
+    if (projectsLinkedInLineage(outcomes, projects, parent.data).has(String(child.data.id))) {
+      return { reason: `${named(child)} already rolls up to ${named(parent)} through a related outcome` };
+    }
+    return { parent, child };
+  }
+
+  const parentKey = `parent_${child.type}_id`;
+  if (same(child.data[parentKey], parent.data.id)) {
+    return { reason: `${named(child)} is already under ${named(parent)}` };
+  }
+  const items = { impact: impacts, outcome: outcomes, project: projects }[child.type];
+  if (descendantsOf(items, parentKey, child.data).some((item) => same(item.id, parent.data.id))) {
+    return { reason: `${named(parent)} sits beneath ${named(child)}` };
+  }
+  return { parent, child, moves };
+}
+
 // Teams working on a project: the team that owns it (direct), plus the teams
 // owning any project nested beneath it (indirect).
 export function teamsOnProject(projects, project) {

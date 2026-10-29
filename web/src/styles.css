@@ -2122,6 +2122,54 @@ button.team-chip.link:hover {
   outline: none;
 }
 
+/* Dragging from one node to another links them. Labels aren't selectable, so
+   the drag doesn't sweep a text selection across the map. */
+.tree text {
+  user-select: none;
+}
+
+.link-preview {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+  pointer-events: none;
+}
+
+.link-preview.invalid {
+  stroke: var(--danger);
+}
+
+.link-source .tree-node rect,
+.link-target .tree-node rect {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 55%, transparent));
+}
+
+.link-invalid .tree-node rect {
+  stroke: var(--danger);
+  stroke-width: 2.5;
+}
+
+.link-hint {
+  position: fixed;
+  z-index: 20;
+  max-width: 280px;
+  padding: 5px 9px;
+  font-size: 0.8rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.16);
+  pointer-events: none;
+}
+
+.link-hint.invalid {
+  color: var(--danger);
+}
+
 /* The name and range of a target, as one button that opens its measurements. */
 .target-open {
   display: inline-flex;

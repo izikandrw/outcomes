@@ -384,3 +384,25 @@ test('PUT /:id still saves when a redundant link was already there', async () =>
   assert.equal(res.status, 200);
   assert.ok(sqls().includes('COMMIT'));
 });
+
+test('PUT /:id rejects making an outcome its own parent', async () => {
+  db.respond = fakeAccount();
+
+  const res = await request('PUT', '/5', { name: 'X', parent_outcome_id: 5 });
+
+  assert.equal(res.status, 400);
+  assert.deepEqual(res.body, { error: 'parent_outcome_id would make an outcome its own ancestor' });
+  assert.ok(!sqls().includes('BEGIN'), 'nothing is written');
+});
+
+test('PUT /:id rejects a parent that sits beneath the outcome', async () => {
+  const respond = fakeAccount();
+  db.respond = (sql, params) =>
+    /^WITH RECURSIVE ancestors/.test(sql) ? { rows: [{ found: 1 }] } : respond(sql, params);
+
+  const res = await request('PUT', '/5', { name: 'X', parent_outcome_id: 6 });
+
+  assert.equal(res.status, 400);
+  assert.deepEqual(res.body, { error: 'parent_outcome_id would make an outcome its own ancestor' });
+  assert.deepEqual(callMatching(/^WITH RECURSIVE ancestors/).params, [6, '5']);
+});
