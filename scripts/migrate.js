@@ -3,17 +3,61 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
-const pool = require('../src/db');
+const { Client } = require('pg');
 
 const DIR = path.join(__dirname, '..', 'migrations');
 // Databases that predate the tracking table already have these applied.
 const BASELINE_THROUGH = '004';
+const LOCK_KEY = 727274;
+const LOCK_WAIT_MS = 60 * 1000;
+
+// Migrations serialise on a session-level advisory lock, which only works on a
+// connection that is really ours. Through a pooler (Neon's "-pooler" host is
+// pgbouncer) the server connection outlives the script and the lock leaks to
+// whoever is handed that connection next, blocking every later deploy. So
+// connect to the direct host: DATABASE_URL_DIRECT, or DATABASE_URL with
+// "-pooler" taken out of the hostname.
+function directUrl() {
+  const raw = process.env.DATABASE_URL_DIRECT || process.env.DATABASE_URL || 'postgres://localhost:5432/outcomes';
+  const url = new URL(raw);
+  url.hostname = url.hostname.replace('-pooler.', '.');
+  return url.toString();
+}
+
+// Waits for the lock rather than blocking on it forever: a lock still held
+// after LOCK_WAIT_MS fails the deploy (the running version keeps serving) and
+// names the session holding it.
+async function acquireLock(client) {
+  const deadline = Date.now() + LOCK_WAIT_MS;
+  for (;;) {
+    const { rows: [{ locked }] } = await client.query('SELECT pg_try_advisory_lock($1) AS locked', [LOCK_KEY]);
+    if (locked) return;
+    if (Date.now() > deadline) {
+      const { rows } = await client.query(
+        `SELECT a.pid, a.application_name, a.state, a.backend_start
+           FROM pg_locks l JOIN pg_stat_activity a ON a.pid = l.pid
+          WHERE l.locktype = 'advisory' AND l.objid = $1 AND l.granted`,
+        [LOCK_KEY]
+      );
+      throw new Error(
+        `migration lock ${LOCK_KEY} still held after ${LOCK_WAIT_MS / 1000}s by ${JSON.stringify(rows)}; ` +
+          'if no migration is running, end that session with pg_terminate_backend(pid)'
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  }
+}
 
 async function main() {
-  const client = await pool.connect();
+  const connectionString = directUrl();
+  const client = new Client({
+    connectionString,
+    ssl: connectionString.includes('localhost') ? false : { rejectUnauthorized: false },
+  });
+  await client.connect();
   try {
     // Serialise concurrent deploys.
-    await client.query('SELECT pg_advisory_lock(727274)');
+    await acquireLock(client);
 
     const { rows: [{ tracked }] } = await client.query(
       "SELECT to_regclass('schema_migrations') IS NOT NULL AS tracked");
@@ -46,8 +90,8 @@ async function main() {
     }
     console.log('Migrations up to date');
   } finally {
-    client.release();
-    await pool.end();
+    await client.query('SELECT pg_advisory_unlock($1)', [LOCK_KEY]).catch(() => {});
+    await client.end();
   }
 }
 
