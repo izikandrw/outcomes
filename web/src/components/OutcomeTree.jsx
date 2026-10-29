@@ -25,6 +25,10 @@ export const H_GAP = 24; // between sibling subtrees
 export const V_GAP = 54; // between a node's bottom edge and its children's top edge
 export const LEVEL_H = NODE_H + V_GAP;
 export const PAD = 20;
+// How far the issue badges and insight pills stick out past a node's top and
+// bottom edges, and the gap a connector keeps from them.
+const BADGE_REACH = 11;
+const LINE_CLEARANCE = 8;
 export const LINE_H = 15;
 export const MAX_CHARS = 21;
 const MAX_LINES = 3;
@@ -907,14 +911,15 @@ function loweredPath(x1, y1, trunkX, x2, y2) {
 // strictly below it, since its row is fixed by whichever outcome claimed it
 // first. The normal top-to-bottom elbow assumes the target is below the
 // source, so on overlapping rows it would cut a line straight through the
-// boxes in between. When rows overlap, dip a few pixels under both boxes
-// instead so the connector never crosses node interiors.
+// boxes in between. When rows overlap, dip under both boxes, clear of the
+// insight pills hanging off their bottom edges, so the connector never
+// crosses node interiors or badges.
 // A point on the last vertical run into the project, clear of the shared
 // horizontal run so each cross-link gets its own button.
 function crossLinkButton(from, to) {
   const rowsOverlap = from.y < to.y + NODE_H && to.y < from.y + NODE_H;
   if (rowsOverlap) {
-    const dipY = Math.max(from.y, to.y) + NODE_H + 10;
+    const dipY = Math.max(from.y, to.y) + NODE_H + BADGE_REACH + LINE_CLEARANCE;
     return { x: to.x, y: (dipY + to.y + NODE_H) / 2 + 1 };
   }
   if (from.y < to.y) return { x: to.x, y: to.y - V_GAP / 4 };
@@ -924,7 +929,7 @@ function crossLinkButton(from, to) {
 function crossLinkPath(from, to) {
   const rowsOverlap = from.y < to.y + NODE_H && to.y < from.y + NODE_H;
   if (rowsOverlap) {
-    const dipY = Math.max(from.y, to.y) + NODE_H + 10;
+    const dipY = Math.max(from.y, to.y) + NODE_H + BADGE_REACH + LINE_CLEARANCE;
     return `M${from.x} ${from.y + NODE_H} V${dipY} H${to.x} V${to.y + NODE_H}`;
   }
   if (from.y < to.y) return elbowPath(from.x, from.y + NODE_H, to.x, to.y - 3);
