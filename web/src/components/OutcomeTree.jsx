@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   insightsForOutcome,
   insightsForProject,
@@ -83,6 +83,23 @@ export default function OutcomeTree({
   // shows a button to break the link.
   const [hoverEdge, setHoverEdge] = useState(null);
   const hoverEnds = hoverEdge?.ends;
+  // Clearing waits a tick so the pointer can cross from a line onto its
+  // remove button (drawn apart, above the nodes) without the button vanishing.
+  const hoverTimer = useRef(null);
+  const hoverOn = (edge) => {
+    clearTimeout(hoverTimer.current);
+    setHoverEdge(edge);
+  };
+  const hoverOff = () => {
+    clearTimeout(hoverTimer.current);
+    hoverTimer.current = setTimeout(() => setHoverEdge(null));
+  };
+  const unlink = (edge) => {
+    clearTimeout(hoverTimer.current);
+    setHoverEdge(null);
+    onUnlink(edge);
+  };
+  useEffect(() => () => clearTimeout(hoverTimer.current), []);
   // The key of the node under the pointer whose name is cut short. Its whole
   // name is laid over it under its badges, pill and add button, and it is
   // drawn after every other node so neighbours can't cover that.
@@ -191,8 +208,8 @@ export default function OutcomeTree({
             <g
               key={edge.key}
               className={hoverEdge?.key === edge.key ? 'edge-hover' : undefined}
-              onMouseEnter={() => setHoverEdge(edge)}
-              onMouseLeave={() => setHoverEdge(null)}
+              onMouseEnter={() => hoverOn(edge)}
+              onMouseLeave={hoverOff}
             >
               <path
                 className={['tree-edge', edge.kind !== 'outcome' && edge.kind].filter(Boolean).join(' ')}
@@ -208,35 +225,6 @@ export default function OutcomeTree({
               />
               {/* Wider invisible stroke so the thin line is easy to hover. */}
               <path className="tree-edge-hit" d={edge.d} fill="none" />
-              {/* A target can't exist without its outcome, so that link has no break button. */}
-              {hoverEdge?.key === edge.key && edge.kind !== 'target' && (
-                <g
-                  className="edge-unlink"
-                  role="button"
-                  tabIndex={0}
-                  aria-label="Remove link"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setHoverEdge(null);
-                    onUnlink(edge);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      setHoverEdge(null);
-                      onUnlink(edge);
-                    }
-                  }}
-                >
-                  <title>Remove link</title>
-                  <circle cx={edge.button.x} cy={edge.button.y} r="9" />
-                  <path
-                    d={`M${edge.button.x - 3.5} ${edge.button.y - 3.5}l7 7M${edge.button.x + 3.5} ${
-                      edge.button.y - 3.5
-                    }l-7 7`}
-                  />
-                </g>
-              )}
             </g>
           ))}
 
@@ -297,6 +285,37 @@ export default function OutcomeTree({
             )}
             </g>
           ))}
+          {/* A target can't exist without its outcome, so that link has no break
+              button. Drawn last so no connector or node can cover it; it sits
+              outside the edge's group, so it keeps the hover alive itself. */}
+          {hoverEdge && hoverEdge.kind !== 'target' && (
+            <g
+              className="edge-unlink"
+              role="button"
+              tabIndex={0}
+              aria-label="Remove link"
+              onMouseEnter={() => hoverOn(hoverEdge)}
+              onMouseLeave={hoverOff}
+              onClick={(event) => {
+                event.stopPropagation();
+                unlink(hoverEdge);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  unlink(hoverEdge);
+                }
+              }}
+            >
+              <title>Remove link</title>
+              <circle cx={hoverEdge.button.x} cy={hoverEdge.button.y} r="9" />
+              <path
+                d={`M${hoverEdge.button.x - 3.5} ${hoverEdge.button.y - 3.5}l7 7M${hoverEdge.button.x + 3.5} ${
+                  hoverEdge.button.y - 3.5
+                }l-7 7`}
+              />
+            </g>
+          )}
         </svg>
       </div>
 
