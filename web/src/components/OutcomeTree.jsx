@@ -4,7 +4,6 @@ import {
   insightsForProject,
   totalDollarImpact,
   formatDollars,
-  measurementsForOutcome,
   outcomesForImpact,
   projectsForOutcome,
   targetsForImpact,
@@ -38,10 +37,8 @@ const MAX_LINES = 3;
 export default function OutcomeTree({
   impacts = [],
   outcomes,
-  teams,
   projects,
   targets,
-  measurements,
   insights,
   onEdit,
   onEditImpact,
@@ -236,7 +233,6 @@ export default function OutcomeTree({
               <ProjectNode
                 key={`project-${node.data.id}`}
                 project={node.data}
-                teams={teams}
                 teamEntries={teamsOnProject(projects, node.data)}
                 onOpenTeam={onOpenTeam}
                 onShowIssue={onShowIssue}
@@ -252,10 +248,7 @@ export default function OutcomeTree({
               <OutcomeNode
                 key={`outcome-${node.data.id}`}
                 outcome={node.data}
-                teams={teams}
-                projects={projects}
                 targets={targets}
-                measurements={measurements}
                 teamEntries={teamsOnOutcome(outcomes, projects, node.data)}
                 onOpenTeam={onOpenTeam}
                 onShowIssue={onShowIssue}
@@ -328,10 +321,7 @@ function OutcomeNode({
   x,
   y,
   depth,
-  teams,
-  projects,
   targets,
-  measurements,
   teamEntries,
   onOpenTeam,
   onShowIssue,
@@ -343,12 +333,8 @@ function OutcomeNode({
   onViewTarget,
   onOpenMenu,
 }) {
-  const nameOf = (collection, id) => collection.find((item) => item.id === id)?.name ?? null;
-  const team = nameOf(teams, outcome.team_id);
-  const linked = projectsForOutcome(projects, outcome);
   const quantified = targetsForOutcome(targets, outcome);
   const { lines, targetLine } = nodeLabel(outcome.name, quantified);
-  const readings = measurementsForOutcome(measurements, targets, outcome);
   const className = [
     'tree-node',
     outcome.parent_outcome_id == null && 'root',
@@ -362,6 +348,7 @@ function OutcomeNode({
       className={className}
       role="treeitem"
       aria-level={depth + 1}
+      aria-label={outcome.name}
       tabIndex={0}
       onClick={() => onEdit(outcome)}
       onKeyDown={(event) => {
@@ -371,23 +358,7 @@ function OutcomeNode({
         }
       }}
     >
-      <title>
-        {[
-          outcome.name,
-          team && `Team: ${team}`,
-          linked.length > 0 && `Projects: ${linked.map((item) => item.name).join(', ')}`,
-          quantified.length > 0
-            ? `Targets: ${quantified
-                .map((item) => (item.name ? `${item.name} (${targetRange(item)})` : targetRange(item)))
-                .join(', ')}`
-            : 'No target yet',
-          readings.length > 0 && `Measurements: ${readings.length}`,
-          ...issues.map((rule) => `${rule.emoji} ${rule.title}: ${rule.description}`),
-          outcome.description,
-        ]
-          .filter(Boolean)
-          .join('\n')}
-      </title>
+      {isTruncated(lines) && <title>{outcome.name}</title>}
       <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={NODE_H} rx="10" />
       <NodeText
         x={x}
@@ -437,6 +408,7 @@ function ImpactNode({ impact, x, y, depth, targets, issues, onShowIssue, onEdit,
       className={['tree-node impact', issues.length > 0 && 'has-issue'].filter(Boolean).join(' ')}
       role="treeitem"
       aria-level={depth + 1}
+      aria-label={impact.name}
       tabIndex={0}
       onClick={() => onEdit(impact)}
       onKeyDown={(event) => {
@@ -446,20 +418,7 @@ function ImpactNode({ impact, x, y, depth, targets, issues, onShowIssue, onEdit,
         }
       }}
     >
-      <title>
-        {[
-          impact.name,
-          quantified.length > 0
-            ? `Targets: ${quantified
-                .map((item) => (item.name ? `${item.name} (${targetRange(item)})` : targetRange(item)))
-                .join(', ')}`
-            : 'No target yet',
-          impact.description,
-          ...issues.map((rule) => `${rule.emoji} ${rule.title}: ${rule.description}`),
-        ]
-          .filter(Boolean)
-          .join('\n')}
-      </title>
+      {isTruncated(lines) && <title>{impact.name}</title>}
       <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={NODE_H} rx="10" />
       <NodeText
         x={x}
@@ -572,7 +531,6 @@ function ProjectNode({
   x,
   y,
   depth,
-  teams,
   teamEntries,
   onOpenTeam,
   onShowIssue,
@@ -583,7 +541,6 @@ function ProjectNode({
   onEdit,
   onAddChild,
 }) {
-  const team = teams.find((item) => item.id === project.team_id)?.name ?? null;
   const quarter = formatQuarter(project.end_at);
   const lines = wrapLabel(project.name, MAX_CHARS, MAX_LINES);
 
@@ -592,6 +549,7 @@ function ProjectNode({
       className={['tree-node project', issues.length > 0 && 'has-issue'].filter(Boolean).join(' ')}
       role="treeitem"
       aria-level={depth + 1}
+      aria-label={project.name}
       tabIndex={0}
       onClick={() => onEdit(project)}
       onKeyDown={(event) => {
@@ -601,17 +559,7 @@ function ProjectNode({
         }
       }}
     >
-      <title>
-        {[
-          project.name,
-          team && `Team: ${team}`,
-          quarter && `Ends: ${quarter}`,
-          ...issues.map((rule) => `${rule.emoji} ${rule.title}: ${rule.description}`),
-          project.description,
-        ]
-          .filter(Boolean)
-          .join('\n')}
-      </title>
+      {isTruncated(lines) && <title>{project.name}</title>}
       <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={NODE_H} rx="10" />
       <text x={x} y={y + NODE_H / 2 - LABEL_LIFT} textAnchor="middle" dominantBaseline="middle">
         {lines.map((line, index) => (
@@ -991,6 +939,12 @@ function crossLinkPath(from, to) {
   }
   if (from.y < to.y) return elbowPath(from.x, from.y + NODE_H, to.x, to.y - 3);
   return elbowPath(from.x, from.y - 3, to.x, to.y + NODE_H);
+}
+
+// Whether wrapLabel had to cut the text short; only then does a node's hover
+// tooltip show the whole name.
+function isTruncated(lines) {
+  return lines.at(-1)?.endsWith('…') ?? false;
 }
 
 // SVG has no text wrapping, so lines are split on an approximate character

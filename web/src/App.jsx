@@ -583,10 +583,8 @@ export default function App({ user, account, onSignOut }) {
               <OutcomeTree
                 impacts={impacts}
                 outcomes={outcomes}
-                teams={teams}
                 projects={projects}
                 targets={targets}
-                measurements={measurements}
                 insights={evidence}
                 onShowInsights={showInsights}
                 onEdit={openEdit}
