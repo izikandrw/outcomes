@@ -146,22 +146,26 @@ function ReviewCard({
     <li className="review-card">
       <h3>{insight.name}</h3>
       <p className="meta">
-        <span className="tag project" title="What kind of evidence this is">
-          <span className="tag-key">Type</span> {insightTypeLabel(insight.type)}
+        <span className="tag-field" title="What kind of evidence this is">
+          <span className="tag-key">Type</span>
+          <span className="tag project">{insightTypeLabel(insight.type)}</span>
         </span>
         {insight.source_system && (
-          <span className="tag project" title="Where the collector found it; the link below opens the original">
-            <span className="tag-key">Source</span> {insight.source_system}
+          <span className="tag-field" title="Where the collector found it; the link below opens the original">
+            <span className="tag-key">Source</span>
+            <span className="tag project">{insight.source_system}</span>
           </span>
         )}
         {insight.firsthand === true && (
-          <span className="tag project" title="The customer's own words or actions, including their words quoted verbatim by someone else">
-            <span className="tag-key">Voice</span> Firsthand
+          <span className="tag-field" title="The customer's own words or actions, including their words quoted verbatim by someone else">
+            <span className="tag-key">Evidence</span>
+            <span className="tag project">Firsthand</span>
           </span>
         )}
         {insight.firsthand === false && (
-          <span className="tag project" title="Someone else's paraphrase or summary of what the customer said">
-            <span className="tag-key">Voice</span> Relayed
+          <span className="tag-field" title="Someone else's paraphrase or summary of what the customer said">
+            <span className="tag-key">Evidence</span>
+            <span className="tag project">Relayed</span>
           </span>
         )}
         {insight.dollar_impact != null && <span className="tag">{formatDollars(insight.dollar_impact)}</span>}
