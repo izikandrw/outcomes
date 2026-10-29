@@ -388,6 +388,23 @@ router.post('/:insightId/reject', forbidCollector, async (req, res, next) => {
   }
 });
 
+// Undoes a review, approval or rejection: the insight goes back to the review
+// queue and stops counting as evidence.
+router.post('/:insightId/reopen', forbidCollector, async (req, res, next) => {
+  try {
+    const { rowCount } = await pool.query(
+      `UPDATE insights SET status = 'unvalidated', reviewed_by = NULL, reviewed_at = NULL,
+         rejection_reason = NULL, review_note = NULL, updated_at = now()
+       WHERE id = $1 AND account_id = $2`,
+      [req.params.insightId, req.accountId]
+    );
+    if (rowCount === 0) return res.status(404).json({ error: 'insight not found' });
+    res.json(await fetchInsight(pool, req.params.insightId, req.accountId));
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.delete('/:insightId', forbidCollector, async (req, res, next) => {
   try {
     // insight_outcomes and insight_projects rows cascade.

@@ -140,5 +140,7 @@ export const rejectInsight = (accountId, insightId, reason, note) =>
     method: 'POST',
     body: JSON.stringify({ reason, note }),
   });
+export const reopenInsight = (accountId, insightId) =>
+  request(`/accounts/${accountId}/insights/${insightId}/reopen`, { method: 'POST' });
 export const deleteInsight = (accountId, insightId) =>
   request(`/accounts/${accountId}/insights/${insightId}`, { method: 'DELETE' });
