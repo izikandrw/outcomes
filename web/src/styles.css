@@ -1373,7 +1373,7 @@ button.tag.insight-badge.suggested:not(.empty) {
   display: flex;
   flex-direction: column;
   padding: 6px;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
@@ -1449,7 +1449,7 @@ button.tag.insight-badge.suggested:not(.empty) {
 }
 
 .account-menu-panel button:hover {
-  background: rgba(0, 0, 0, 0.05);
+  background: color-mix(in srgb, var(--text) 8%, transparent);
 }
 
 .insight-table {
