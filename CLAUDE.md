@@ -11,7 +11,7 @@ Do not deploy, and end with `needs input:` instead, if any of these hold:
 - The work adds a new migration in `migrations/`, or changes data destructively.
 - The task was only research, review, or a question, with no code change to ship.
 
-When you deploy, report the pushed commit SHA in the final `result:` line.
+When you deploy, the job is done only once the deploy skill has seen the commit go live on Vercel and Render. Start the final `result:` line with "Live in prod" and the pushed commit SHA, since that line is the user's signal to go verify. If a platform failed or never finished, end with `needs input:` instead and say which platform.
 
 ## Dependencies in worktrees
 
