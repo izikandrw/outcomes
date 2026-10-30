@@ -69,19 +69,24 @@ export default function InsightList({ insights, outcomes = [], projects = [], on
               ))}
             </select>
           </label>
-          {/* Always holds its widest width, shown or not, so filtering never
-              re-centres or re-wraps the toolbar under an open filter menu. */}
-          <span
-            className="id list-toolbar-count"
-            style={{ minWidth: `${`${insights.length} of ${insights.length}`.length}ch`, visibility: filtered ? 'visible' : 'hidden' }}
-          >
-            {`${visible.length} of ${insights.length}`}
+          {/* The count and Clear hang off the right of New insight, out of
+              the row's flow, so they can come and go without leaving a gap
+              or re-centring the toolbar under an open filter menu. */}
+          <span className="list-toolbar-end">
+            <button type="button" className="with-icon" aria-label="New insight" title="New insight" onClick={onCreate}>
+              <PlusIcon />
+            </button>
+            <span className="list-toolbar-status">
+              {filtered && <span className="id list-toolbar-count">{`${visible.length} of ${insights.length}`}</span>}
+              {Object.keys(filters).length > 0 && (
+                <button type="button" className="filter-clear" onClick={() => setFilters({})}>
+                  Clear
+                </button>
+              )}
+            </span>
           </span>
-          <button type="button" className="with-icon" aria-label="New insight" title="New insight" onClick={onCreate}>
-            <PlusIcon />
-          </button>
         </div>
-        <FilterBar fields={fields} filters={filters} onChange={setFilters} countFor={countFor} />
+        <FilterBar fields={fields} filters={filters} onChange={setFilters} countFor={countFor} showClear={false} />
       </div>
       {insights.length === 0 ? (
         <p className="empty">No insights yet. Record the evidence behind your outcomes and projects.</p>

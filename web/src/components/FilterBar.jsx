@@ -6,8 +6,9 @@ import { ChevronDownIcon, CloseIcon, FilterIcon } from './icons.jsx';
 // "More filters" menu and only get a pill once in use. A pill in use reads
 // "Type: Interview, Survey" and clears with its ×. `filters` maps a field id to
 // the option ids picked; `countFor(fieldId, optionId)` gives the count beside
-// an option.
-export default function FilterBar({ fields, filters, onChange, countFor }) {
+// an option. `showClear` adds a Clear link at the end; a toolbar that places
+// its own passes false.
+export default function FilterBar({ fields, filters, onChange, countFor, showClear = true }) {
   // Which menu is open: 'more' for the More filters button, or a field id for a pill.
   const [open, setOpen] = useState(null);
   // The filters as they stood when the open menu opened. The pills keep that
@@ -93,18 +94,11 @@ export default function FilterBar({ fields, filters, onChange, countFor }) {
         </Anchor>
       )}
 
-      {/* Always holds its space, shown or not, so the first filter picked
-          doesn't re-centre the toolbar. Since it can't move anything, it
-          follows the live filters, not the frozen ones, and appears as soon
-          as an option is ticked. */}
-      <button
-        type="button"
-        className="filter-clear"
-        style={Object.keys(filters).length ? undefined : { visibility: 'hidden' }}
-        onClick={() => onChange({})}
-      >
-        Clear
-      </button>
+      {showClear && Object.keys(filters).length > 0 && (
+        <button type="button" className="filter-clear" onClick={() => onChange({})}>
+          Clear
+        </button>
+      )}
     </div>
   );
 }

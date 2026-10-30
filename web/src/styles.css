@@ -2965,19 +2965,31 @@ body:has(.list-toolbar.stuck) .pinned-nav {
   display: contents;
 }
 
-.list-toolbar .list-toolbar-count,
-.list-toolbar-row > button {
+.list-toolbar-end {
   order: 1;
+  position: relative;
+  display: inline-flex;
+}
+
+/* Out of flow just right of New insight, in the space the centred row
+   leaves free, so showing it moves nothing. */
+.list-toolbar-status {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(100% + 6px);
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
 }
 
 .list-toolbar-count {
-  text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
 .list-toolbar input,
 .list-toolbar select,
-.list-toolbar-row > button,
+.list-toolbar-end > button,
 .list-toolbar .filter-button {
   font-size: 13px;
   padding: 5px 8px;
