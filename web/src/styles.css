@@ -2992,6 +2992,60 @@ button.team-chip.link:hover {
   font-size: 14px;
 }
 
+.eval-case-answer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.eval-case-answer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.eval-easy,
+.eval-easy-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.eval-easy {
+  gap: 18px;
+}
+
+.eval-easy > label {
+  align-self: stretch;
+}
+
+.eval-easy-card {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.eval-easy-card > .actions {
+  justify-content: flex-end;
+}
+
+.eval-easy-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.eval-easy-links select {
+  width: auto;
+}
+
 .eval-case-json {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;

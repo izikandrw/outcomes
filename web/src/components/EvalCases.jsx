@@ -112,6 +112,32 @@ const blankInsight = (excerpt) => ({
   links: [],
 });
 
+// A new expected not-insight: something the collector should leave alone.
+const blankNotInsight = (excerpt) => ({ excerpt, name: '', reason: 'not_an_insight' });
+
+const INSIGHT_TYPES = [
+  'support_ticket',
+  'session_recording',
+  'interview',
+  'funnel',
+  'experiment',
+  'sales_call',
+  'feature_request',
+  'survey',
+  'review',
+  'other',
+];
+
+// Matches the server's excerpt check (src/lib/evalCases.js): whitespace, curly
+// quotes and case don't count.
+const normalise = (text) =>
+  String(text ?? '')
+    .replace(/[‘’]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
 const LABELING_TIPS = [
   'Label from the document alone: an insight is one specific observation someone could go back and check.',
   'A conclusion, our own rep’s opinion or a vague ask is not an insight. Most documents have none.',
@@ -147,10 +173,28 @@ export function CaseEditor({ accountId, evalCase, onSaved, onDeleted, onClose })
   const [labelNotes, setLabelNotes] = useState(notes);
   const [answer, setAnswer] = useState(JSON.stringify(rest, null, 2));
   const [selection, setSelection] = useState('');
+  const [mode, setMode] = useState('easy');
+  const [catalog, setCatalog] = useState({ outcomes: [], projects: [] });
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const textRef = useRef(null);
+
+  // Outcomes and projects an expected insight can link to, for Easy mode.
+  useEffect(() => {
+    Promise.all([api.listOutcomes(accountId), api.listProjects(accountId)])
+      .then(([outcomes, projects]) => setCatalog({ outcomes, projects }))
+      .catch(() => {});
+  }, [accountId]);
+
+  // Both modes edit the same JSON text, so switching between them loses nothing.
+  let parsedAnswer = null;
+  try {
+    parsedAnswer = JSON.parse(answer);
+  } catch {
+    // Easy mode says so; JSON mode lets it be fixed.
+  }
+  const setParsedAnswer = (next) => setAnswer(JSON.stringify(next, null, 2));
 
   // Text selected inside the document can become an expected insight's excerpt.
   function noteSelection() {
@@ -159,16 +203,14 @@ export function CaseEditor({ accountId, evalCase, onSaved, onDeleted, onClose })
     setSelection(inside ? selected.toString().trim() : '');
   }
 
-  function addSelectionAsInsight() {
-    try {
-      const parsed = JSON.parse(answer);
-      parsed.insights = [...(parsed.insights ?? []), blankInsight(selection)];
-      setAnswer(JSON.stringify(parsed, null, 2));
-      setSelection('');
-      setError(null);
-    } catch {
+  function addSelectionAs(field, blank) {
+    if (!parsedAnswer) {
       setError('Fix the expected answer’s JSON before adding to it.');
+      return;
     }
+    setParsedAnswer({ ...parsedAnswer, [field]: [...(parsedAnswer[field] ?? []), blank(selection)] });
+    setSelection('');
+    setError(null);
   }
 
   async function save(event) {
@@ -286,20 +328,56 @@ export function CaseEditor({ accountId, evalCase, onSaved, onDeleted, onClose })
             {evalCase.document.text}
           </pre>
           {selection && (
-            <button type="button" className="ghost small" onClick={addSelectionAsInsight}>
-              Use selection as a new expected insight’s excerpt
-            </button>
+            <div className="actions">
+              <button type="button" className="ghost small" onClick={() => addSelectionAs('insights', blankInsight)}>
+                Use selection as a new expected insight’s excerpt
+              </button>
+              <button type="button" className="ghost small" onClick={() => addSelectionAs('not_insights', blankNotInsight)}>
+                …as a not-insight
+              </button>
+            </div>
           )}
         </div>
 
-        <label>
-          Expected answer
-          <textarea className="eval-case-json" rows={14} spellCheck={false} value={answer} onChange={(event) => setAnswer(event.target.value)} />
-          <span className="hint">
-            insights: what the collector should find (excerpt, name, type, sentiment, firsthand, dollar_impact, links).
-            not_insights: what it should leave alone.
-          </span>
-        </label>
+        <div className="eval-case-answer">
+          <div className="eval-case-answer-head">
+            <span className="eval-case-label">Expected answer</span>
+            <div className="view-toggle" role="group" aria-label="Edit the expected answer as">
+              <button type="button" aria-pressed={mode === 'easy'} onClick={() => setMode('easy')}>
+                Easy mode
+              </button>
+              <button type="button" aria-pressed={mode === 'json'} onClick={() => setMode('json')}>
+                JSON
+              </button>
+            </div>
+          </div>
+          {mode === 'easy' ? (
+            parsedAnswer && typeof parsedAnswer === 'object' && !Array.isArray(parsedAnswer) ? (
+              <EasyAnswer
+                answer={parsedAnswer}
+                onChange={setParsedAnswer}
+                documentText={evalCase.document.text}
+                catalog={catalog}
+              />
+            ) : (
+              <p className="error">The JSON has a mistake in it. Fix it under JSON, then come back.</p>
+            )
+          ) : (
+            <label>
+              <textarea
+                className="eval-case-json"
+                rows={14}
+                spellCheck={false}
+                value={answer}
+                onChange={(event) => setAnswer(event.target.value)}
+              />
+              <span className="hint">
+                insights: what the collector should find (excerpt, name, type, sentiment, firsthand, dollar_impact,
+                links). not_insights: what it should leave alone.
+              </span>
+            </label>
+          )}
+        </div>
 
         <label>
           Notes
@@ -337,6 +415,279 @@ export function CaseEditor({ accountId, evalCase, onSaved, onDeleted, onClose })
         />
       )}
     </Modal>
+  );
+}
+
+// The expected answer as a form: a card per expected insight and not-insight,
+// and the case's tags. Keys it doesn't show are kept as they are.
+function EasyAnswer({ answer, onChange, documentText, catalog }) {
+  const text = normalise(documentText);
+  const insights = Array.isArray(answer.insights) ? answer.insights : [];
+  const notInsights = Array.isArray(answer.not_insights) ? answer.not_insights : [];
+  const tags = Array.isArray(answer.tags) ? answer.tags : [];
+  const [tagText, setTagText] = useState(tags.join(', '));
+
+  const setList = (field, list) => onChange({ ...answer, [field]: list });
+  const updateAt = (field, list, i, entry) => setList(field, list.map((old, j) => (j === i ? entry : old)));
+  const removeAt = (field, list, i) => setList(field, list.filter((_, j) => j !== i));
+  // An expected insight that turns out not to be one, or the other way round.
+  const moveTo = (from, fromList, i, to, blank) =>
+    onChange({
+      ...answer,
+      [from]: fromList.filter((_, j) => j !== i),
+      [to]: [...(answer[to] ?? []), { ...blank(fromList[i].excerpt ?? ''), name: fromList[i].name ?? '' }],
+    });
+  const excerptFound = (excerpt) => Boolean(excerpt) && text.includes(normalise(excerpt));
+
+  return (
+    <div className="eval-easy">
+      <div className="eval-easy-section">
+        <span className="eval-case-label">
+          Insights <span className="hint">· what the collector should find ({insights.length})</span>
+        </span>
+        {insights.map((insight, i) => (
+          <InsightCard
+            key={i}
+            insight={insight}
+            found={excerptFound(insight.excerpt)}
+            catalog={catalog}
+            onChange={(entry) => updateAt('insights', insights, i, entry)}
+            onRemove={() => removeAt('insights', insights, i)}
+            onMove={() => moveTo('insights', insights, i, 'not_insights', blankNotInsight)}
+          />
+        ))}
+        <button type="button" className="ghost small" onClick={() => setList('insights', [...insights, blankInsight('')])}>
+          + Add insight
+        </button>
+      </div>
+
+      <div className="eval-easy-section">
+        <span className="eval-case-label">
+          Not insights <span className="hint">· what it should leave alone ({notInsights.length})</span>
+        </span>
+        {notInsights.map((entry, i) => (
+          <NotInsightCard
+            key={i}
+            entry={entry}
+            found={excerptFound(entry.excerpt)}
+            onChange={(next) => updateAt('not_insights', notInsights, i, next)}
+            onRemove={() => removeAt('not_insights', notInsights, i)}
+            onMove={() => moveTo('not_insights', notInsights, i, 'insights', blankInsight)}
+          />
+        ))}
+        <button
+          type="button"
+          className="ghost small"
+          onClick={() => setList('not_insights', [...notInsights, blankNotInsight('')])}
+        >
+          + Add not-insight
+        </button>
+      </div>
+
+      <label>
+        Tags
+        <input
+          value={tagText}
+          placeholder="attention, firsthand, single-insight"
+          onChange={(event) => {
+            setTagText(event.target.value);
+            setList(
+              'tags',
+              event.target.value
+                .split(',')
+                .map((tag) => tag.trim())
+                .filter(Boolean),
+            );
+          }}
+        />
+        <span className="hint">Comma-separated.</span>
+      </label>
+    </div>
+  );
+}
+
+function ExcerptField({ value, found, onChange }) {
+  return (
+    <label>
+      Excerpt
+      <textarea rows={2} value={value ?? ''} onChange={(event) => onChange(event.target.value)} />
+      {value ? (
+        <span className={found ? 'hint' : 'error'}>{found ? '✓ In the document' : 'Not in the document word for word'}</span>
+      ) : (
+        <span className="hint">The exact words it rests on: select them in the document above, or paste them.</span>
+      )}
+    </label>
+  );
+}
+
+function InsightCard({ insight, found, catalog, onChange, onRemove, onMove }) {
+  const set = (key, value) => onChange({ ...insight, [key]: value });
+  const links = Array.isArray(insight.links) ? insight.links : [];
+  const proposed = Array.isArray(insight.proposed) ? insight.proposed : [];
+  const linked = new Set(links.map((link) => `${link.kind}:${link.id}`));
+
+  function addLink(value) {
+    const [kind, id] = value.split(':');
+    const item = catalog[kind === 'outcome' ? 'outcomes' : 'projects'].find((entry) => String(entry.id) === id);
+    if (item) set('links', [...links, { kind, id: String(item.id), name: item.name }]);
+  }
+
+  return (
+    <div className="eval-easy-card">
+      <ExcerptField value={insight.excerpt} found={found} onChange={(value) => set('excerpt', value)} />
+      <label>
+        Name
+        <input
+          value={insight.name ?? ''}
+          placeholder="One specific observation someone could check"
+          onChange={(event) => set('name', event.target.value)}
+        />
+      </label>
+      <div className="eval-case-row">
+        <label>
+          Type
+          <select value={insight.type ?? 'other'} onChange={(event) => set('type', event.target.value)}>
+            {INSIGHT_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {type.replace('_', ' ')}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Sentiment
+          <select value={insight.sentiment ?? ''} onChange={(event) => set('sentiment', event.target.value || null)}>
+            <option value="">not set</option>
+            <option value="positive">positive</option>
+            <option value="neutral">neutral</option>
+            <option value="negative">negative</option>
+          </select>
+        </label>
+        <label>
+          Evidence
+          <select
+            value={insight.firsthand === true ? 'true' : insight.firsthand === false ? 'false' : ''}
+            onChange={(event) => set('firsthand', event.target.value === '' ? null : event.target.value === 'true')}
+          >
+            <option value="">not set</option>
+            <option value="true">firsthand: their own words</option>
+            <option value="false">relayed: a paraphrase</option>
+          </select>
+        </label>
+        <label>
+          Dollar impact
+          <input
+            type="number"
+            value={insight.dollar_impact ?? ''}
+            placeholder="only if stated"
+            onChange={(event) => set('dollar_impact', event.target.value === '' ? null : Number(event.target.value))}
+          />
+        </label>
+      </div>
+      <div className="eval-easy-links">
+        <span className="eval-case-label">Links</span>
+        {links.map((link, i) => (
+          <span key={`${link.kind}:${link.id ?? link.name}`} className={link.kind === 'project' ? 'tag project' : 'tag'}>
+            {link.name ?? `${link.kind} ${link.id}`}{' '}
+            <button
+              type="button"
+              className="link-button"
+              aria-label={`Remove link to ${link.name ?? link.id}`}
+              onClick={() => set('links', links.filter((_, j) => j !== i))}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+        {proposed.map((link, i) => (
+          <span key={`proposed:${link.kind}:${link.name}`} className="tag proposed" title={`Proposed ${link.kind}`}>
+            {link.name}{' '}
+            <button
+              type="button"
+              className="link-button"
+              aria-label={`Remove proposed ${link.name}`}
+              onClick={() => set('proposed', proposed.filter((_, j) => j !== i))}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+        <select value="" onChange={(event) => addLink(event.target.value)}>
+          <option value="">Link an outcome or project…</option>
+          <optgroup label="Outcomes">
+            {catalog.outcomes
+              .filter((outcome) => !linked.has(`outcome:${outcome.id}`))
+              .map((outcome) => (
+                <option key={outcome.id} value={`outcome:${outcome.id}`}>
+                  {outcome.name}
+                </option>
+              ))}
+          </optgroup>
+          <optgroup label="Projects">
+            {catalog.projects
+              .filter((project) => !linked.has(`project:${project.id}`))
+              .map((project) => (
+                <option key={project.id} value={`project:${project.id}`}>
+                  {project.name}
+                </option>
+              ))}
+          </optgroup>
+        </select>
+      </div>
+      <div className="actions">
+        <button type="button" className="ghost small" onClick={onMove}>
+          Not an insight after all
+        </button>
+        <button type="button" className="ghost small danger" onClick={onRemove}>
+          Remove
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function NotInsightCard({ entry, found, onChange, onRemove, onMove }) {
+  const set = (key, value) => onChange({ ...entry, [key]: value });
+  return (
+    <div className="eval-easy-card">
+      <ExcerptField value={entry.excerpt} found={found} onChange={(value) => set('excerpt', value)} />
+      <div className="eval-case-row">
+        <label>
+          Name
+          <input
+            value={entry.name ?? ''}
+            placeholder="What the collector might wrongly suggest"
+            onChange={(event) => set('name', event.target.value)}
+          />
+        </label>
+        <label>
+          Reason
+          <select value={entry.reason ?? 'not_an_insight'} onChange={(event) => set('reason', event.target.value)}>
+            <option value="not_an_insight">not an insight</option>
+            <option value="inaccurate">inaccurate</option>
+          </select>
+        </label>
+      </div>
+      <label>
+        Note
+        <input
+          value={entry.note ?? ''}
+          placeholder="Why not, e.g. our rep’s opinion"
+          onChange={(event) => {
+            const { note: _note, ...rest } = entry;
+            onChange(event.target.value ? { ...rest, note: event.target.value } : rest);
+          }}
+        />
+      </label>
+      <div className="actions">
+        <button type="button" className="ghost small" onClick={onMove}>
+          It’s an insight after all
+        </button>
+        <button type="button" className="ghost small danger" onClick={onRemove}>
+          Remove
+        </button>
+      </div>
+    </div>
   );
 }
 
