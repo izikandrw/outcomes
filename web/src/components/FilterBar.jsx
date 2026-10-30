@@ -94,11 +94,13 @@ export default function FilterBar({ fields, filters, onChange, countFor }) {
       )}
 
       {/* Always holds its space, shown or not, so the first filter picked
-          doesn't re-centre the toolbar. */}
+          doesn't re-centre the toolbar. Since it can't move anything, it
+          follows the live filters, not the frozen ones, and appears as soon
+          as an option is ticked. */}
       <button
         type="button"
         className="filter-clear"
-        style={Object.keys(shown).length ? undefined : { visibility: 'hidden' }}
+        style={Object.keys(filters).length ? undefined : { visibility: 'hidden' }}
         onClick={() => onChange({})}
       >
         Clear
