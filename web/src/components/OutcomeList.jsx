@@ -80,7 +80,6 @@ export default function OutcomeList({
             <input
               type="search"
               value={query}
-              placeholder={`Search ${outcomes.length} outcome${outcomes.length === 1 ? '' : 's'}`}
               aria-label="Search outcomes"
               onChange={(event) => setQuery(event.target.value)}
             />

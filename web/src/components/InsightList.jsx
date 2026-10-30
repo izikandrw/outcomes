@@ -54,7 +54,6 @@ export default function InsightList({ insights, outcomes = [], projects = [], on
             <input
               type="search"
               value={query}
-              placeholder={`Search ${plural(insights.length, 'insight')}`}
               aria-label="Search insights"
               onChange={(event) => setQuery(event.target.value)}
             />
