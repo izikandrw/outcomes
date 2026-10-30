@@ -416,22 +416,33 @@ export default function App({ user, account, onSignOut }) {
   }
 
   // Once the proposed outcome or project exists: link the insight to it with
-  // the collector's rationale, and drop the proposal. The modal has already
-  // closed, so a failure here shows on the page rather than inviting a second
-  // create.
+  // the collector's rationale, and drop the proposal. Creating it has already
+  // linked every insight awaiting review that proposed the same name (see
+  // src/lib/adoptProposals.js), so reload them all first; this one still needs
+  // patching only when the reviewer renamed it in the form, or created it
+  // without a proposal. The modal has already closed, so a failure here shows
+  // on the page rather than inviting a second create.
   async function linkProposal({ insightId, index }, kind, created) {
-    const insight = insights.find((item) => item.id === insightId);
-    if (!insight) return;
-    const proposal = index == null ? null : insight.proposed_links[index];
+    const before = insights.find((item) => item.id === insightId);
+    if (!before) return;
+    const proposal = index == null ? null : before.proposed_links[index];
     const field = kind === 'project' ? 'project_ids' : 'outcome_ids';
-    const rationales = { outcomes: {}, projects: {} };
-    if (proposal?.rationale) rationales[kind === 'project' ? 'projects' : 'outcomes'][created.id] = proposal.rationale;
     try {
-      await patchInsight(insight, {
-        [field]: [...insight[field].map(Number), Number(created.id)],
-        link_rationales: rationales,
-        ...(index == null ? {} : { proposed_links: insight.proposed_links.filter((_, i) => i !== index) }),
-      });
+      const fresh = await api.listInsights(accountId);
+      setInsights(fresh);
+      const insight = fresh.find((item) => item.id === insightId);
+      if (insight && !insight[field].map(String).includes(String(created.id))) {
+        const rationales = { outcomes: {}, projects: {} };
+        if (proposal?.rationale) rationales[kind === 'project' ? 'projects' : 'outcomes'][created.id] = proposal.rationale;
+        const remaining = insight.proposed_links.filter(
+          (item) => item.kind !== proposal?.kind || item.name !== proposal?.name
+        );
+        await patchInsight(insight, {
+          [field]: [...insight[field].map(Number), Number(created.id)],
+          link_rationales: rationales,
+          ...(proposal ? { proposed_links: remaining } : {}),
+        });
+      }
       setError(null);
     } catch (err) {
       setError(`Created “${created.name}” but could not link insight #${insightId} to it: ${err.message}`);
@@ -476,6 +487,9 @@ export default function App({ user, account, onSignOut }) {
     }
     await patchInsight(insight, { ...ids, link_rationales: rationales, proposed_links: [] });
     await approveInsight(insight);
+    // The creates also linked other insights awaiting review that proposed
+    // the same names (see src/lib/adoptProposals.js).
+    setInsights(await api.listInsights(accountId));
   }
 
   function dismissProposal(insight, index) {

@@ -41,7 +41,7 @@ These are the reasons people would *fire* it:
 
 ### Out of scope (v1)
 
-- Creating new outcomes or projects. The agent only attaches evidence to things that already exist. When an insight is evidence for an outcome or project that doesn't exist, it **proposes** one (name, description, why), shown on the review card next to its links. The reviewer creates it, which links the insight to it, or dismisses it. The agent never creates one itself.
+- Creating new outcomes or projects. The agent only attaches evidence to things that already exist. When an insight is evidence for an outcome or project that doesn't exist, it **proposes** one (name, description, why), shown on the review card next to its links. The reviewer creates it, which links the insight to it, or dismisses it. Once one by that name exists, every other insight awaiting review that proposed it links to it instead, so it is only ever created once. The agent never creates one itself.
 - Estimating `dollar_impact`. The agent may fill it in only when the source states a number ("$40k ARR account churned"). It never guesses.
 - Approving anything automatically, at any confidence level. We can revisit once evals and production approval rates earn it.
 - Quantitative sources such as product analytics and funnels (see below).

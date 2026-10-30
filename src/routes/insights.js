@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db');
 const { belongsToAccount, missingFromAccount } = require('../lib/validateRef');
+const { adoptProposals } = require('../lib/adoptProposals');
 
 const router = express.Router({ mergeParams: true });
 
@@ -294,6 +295,8 @@ router.post('/', async (req, res, next) => {
       projectIds: input.projectIds ?? [],
       rationales: input.rationales,
     });
+    // A proposal for an outcome or project that already exists becomes a link to it.
+    await adoptProposals(client, req.accountId);
     await client.query('COMMIT');
 
     res.status(201).json(await fetchInsight(pool, rows[0].id, req.accountId));

@@ -7,6 +7,7 @@ const {
   redundantLinks,
   newRedundantLink,
 } = require('../lib/validateRef');
+const { adoptProposals } = require('../lib/adoptProposals');
 
 const router = express.Router({ mergeParams: true });
 
@@ -149,6 +150,8 @@ router.post('/', async (req, res, next) => {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: redundant });
     }
+    // Insights awaiting review that proposed this outcome by name now link to it.
+    await adoptProposals(client, req.accountId);
     await client.query('COMMIT');
 
     res.status(201).json(await fetchOutcome(pool, rows[0].id, req.accountId));
@@ -197,6 +200,8 @@ router.put('/:outcomeId', async (req, res, next) => {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: redundant });
     }
+    // Insights awaiting review that proposed this outcome by name now link to it.
+    await adoptProposals(client, req.accountId);
     await client.query('COMMIT');
 
     res.json(await fetchOutcome(pool, req.params.outcomeId, req.accountId));
