@@ -1,7 +1,7 @@
 -- The insight collector's eval set: documents with the answer the collector
 -- should give for each, which an eval runner scores a model or prompt version
 -- against (see product/agents/insight-collector/evals.md). Kept here rather
--- than only in agent/evals/cases/ because cases hold customer content: this is
+-- than only in agent-insight-collector/evals/cases/ because cases hold customer content: this is
 -- backed up and scoped by account like the rest of it, and a case can be added
 -- straight from a run trace.
 -- Run against a database already built from create_db.sql and 001-020.
@@ -9,7 +9,7 @@
 BEGIN;
 
 -- document and expected are an eval case's document.json and expected.json
--- (agent/evals/LABELING.md). label_source says where expected came from:
+-- (agent-insight-collector/evals/LABELING.md). label_source says where expected came from:
 -- 'golden' was labelled by hand from the document alone, 'review' was drafted
 -- from what reviewers did with the collector's suggestions. Only 'ready' cases
 -- are scored; 'test' cases are the held-out split.

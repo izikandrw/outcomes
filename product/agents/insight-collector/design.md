@@ -19,7 +19,7 @@ The rule of thumb: make the model do **judgment** (is this an insight? which out
 ## 2. Pipeline
 
 ```
- external tool          this repo: agent/                                       this app
+ external tool          this repo: agent-insight-collector/                        this app
 ┌──────────────┐   ┌────────────┐   ┌──────────┐   ┌──────────┐   ┌─────────┐   ┌─────────┐   ┌──────────────┐
 │ CSV / Sheet  │──▶│ connector  │──▶│ extract  │──▶│ verify   │──▶│ dedupe  │──▶│  link   │──▶│ REST API     │
 │ Attention    │   │ (code)     │   │ (LLM)    │   │ (code)   │   │ (code)  │   │ (LLM)   │   │ status =     │
@@ -61,7 +61,7 @@ Connectors are also where **incremental runs** live: each one stores a cursor (l
 
 This is one model call per document (or per batch of rows), with **structured outputs** so the response is guaranteed to match a JSON schema. No string parsing, no "please respond in JSON."
 
-The prompt (stored in `agent/src/prompts/extract.md`, versioned) contains:
+The prompt (stored in `agent-insight-collector/src/prompts/extract.md`, versioned) contains:
 
 1. The domain definition of an insight, copied from `product/domain-model/insight.md`. The agent should apply the same definition our users do.
 2. Contrasting examples: good insights, and near-misses with the reason each one fails (conclusion not observation, too vague, no customer behind it, our own rep's opinion).
@@ -173,19 +173,19 @@ Before writing pipeline code, run the job inside Claude Code:
 1. The MCP server's **collector toolset** (`OUTCOMES_TOOLSET=collector`) exposes only `list_outcomes`, `list_projects`, `list_insights`, the `get_*` tools and `suggest_insight`. `suggest_insight` requires the verbatim excerpt and source reference, takes up to 3 links each with a rationale, and always sends `status: 'unvalidated'`. A duplicate comes back as `skipped`, not as an error.
 2. It signs in as the account's **collector user** (`npm run collector` creates it and prints the `claude mcp add outcomes-collector …` command), so least privilege holds even in v0: the API refuses anything but reading and suggesting.
 3. The skill, `.claude/skills/collect-insights/SKILL.md`, holds the rules from 2.2–2.5. It verifies each excerpt with a fixed-string search of the source file before suggesting it, in place of the pipeline's verify step.
-4. Run it: *"collect insights from agent/samples/feedback-log.csv"*. For Jira, add Atlassian's MCP server; for Attention, start from exported transcripts.
+4. Run it: *"collect insights from agent-insight-collector/samples/feedback-log.csv"*. For Jira, add Atlassian's MCP server; for Attention, start from exported transcripts.
 
 This **is** an autonomous agent (Claude Code chooses the tools), and that's fine for v0, because you're watching it work. v0 is for learning what good output looks like, finding the edge cases, and **harvesting the first eval cases**. It's not a product: it doesn't scale, can't be scheduled, and isn't measured.
 
-**First run** (`agent/samples/feedback-log.csv`, 10 rows): 15 turns, about $0.37. It suggested 6 insights and correctly skipped the 4 non-insights, including our rep's opinion and a row containing a prompt injection, which it reported. It left the audit-log request unlinked, and it flagged the "$90k account" figure as a close call. Two things to act on: it called a customer's verbatim words inside a rep's note *relayed* where the sample notes said *firsthand* (ruled: verbatim quotes are firsthand, now in `insight.md` and the skill), and it found that date-only `observed_at` values were stored at server-local midnight (fixed: the API now treats them as UTC, like the web form).
+**First run** (`agent-insight-collector/samples/feedback-log.csv`, 10 rows): 15 turns, about $0.37. It suggested 6 insights and correctly skipped the 4 non-insights, including our rep's opinion and a row containing a prompt injection, which it reported. It left the audit-log request unlinked, and it flagged the "$90k account" figure as a close call. Two things to act on: it called a customer's verbatim words inside a rep's note *relayed* where the sample notes said *firsthand* (ruled: verbatim quotes are firsthand, now in `insight.md` and the skill), and it found that date-only `observed_at` values were stored at server-local midnight (fixed: the API now treats them as UTC, like the web form).
 
-### v1: headless workflow in `agent/`
+### v1: headless workflow in `agent-insight-collector/`
 
 ```
-agent/
+agent-insight-collector/
   package.json            # @anthropic-ai/sdk, zod
   src/
-    cli.js                # node agent/src/cli.js run --source csv --file x.csv --mapping m.json
+    cli.js                # node agent-insight-collector/src/cli.js run --source csv --file x.csv --mapping m.json
     connectors/           # csv.js, attention.js, jira.js → SourceDocument[]
     pipeline/             # extract.js, verify.js, dedupe.js, link.js, write.js
     prompts/              # extract.md, link.md  (versioned: the version goes in collection_runs.prompt_version)
@@ -195,7 +195,7 @@ agent/
 
 It runs from the CLI first, then on a schedule (a Render cron job, matching the rest of our infra), then from a "Collect from…" button in the app.
 
-**Built so far:** the per-document pipeline the eval runner calls, `agent/src/pipeline/` (extract, verify and link, with structured outputs; `runDocument` returns what it would suggest), the prompts with their version (`agent/src/prompts/`, `PROMPT_VERSION`), and the runner (`agent/src/evals/`). The connectors, dedupe, writing to the API and the collection CLI are still to come; until then the Claude Code skill (v0) does the collecting. Its rules and the pipeline's prompts say the same things, so keep them in step.
+**Built so far:** the per-document pipeline the eval runner calls, `agent-insight-collector/src/pipeline/` (extract, verify and link, with structured outputs; `runDocument` returns what it would suggest), the prompts with their version (`agent-insight-collector/src/prompts/`, `PROMPT_VERSION`), and the runner (`agent-insight-collector/src/evals/`). The connectors, dedupe, writing to the API and the collection CLI are still to come; until then the Claude Code skill (v0) does the collecting. Its rules and the pipeline's prompts say the same things, so keep them in step.
 
 ### Model choice
 

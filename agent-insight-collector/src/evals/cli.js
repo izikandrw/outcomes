@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// npm --prefix agent run eval -- [options]
+// npm --prefix agent-insight-collector run eval -- [options]
 //
 // Scores the insight collector's pipeline against the eval set
 // (product/agents/insight-collector/evals.md). Cases are the ready ones from
@@ -25,7 +25,7 @@
 //   --show-test-failures     list failures even on the test split
 //   --self-check             grade the expected answers themselves (no model calls)
 //
-// Writes agent/evals/results/<time>-<prompt version>-<model>-<effort>/:
+// Writes agent-insight-collector/evals/results/<time>-<prompt version>-<model>-<effort>/:
 // results.jsonl, errors.jsonl, summary.json and summary.md.
 import { mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';

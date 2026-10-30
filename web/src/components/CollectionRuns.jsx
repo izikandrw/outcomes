@@ -7,7 +7,7 @@ import InsightHistory from './InsightHistory.jsx';
 // "Run traces"): every document it read, what it decided and why, and how its
 // suggestions then fared in review. Used to spot its mistakes and to pick eval
 // cases, which is why each document can be downloaded as an eval case's
-// document.json (agent/evals/LABELING.md). Each suggestion opens its history:
+// document.json (agent-insight-collector/evals/LABELING.md). Each suggestion opens its history:
 // what the collector said, and what reviewers changed. Each document can be
 // added to the eval set (EvalCases.jsx): to the review set, with the expected
 // answer drafted from what reviewers did, or to the golden set, to label by
@@ -295,7 +295,7 @@ function Suggestion({ id, insight, outcomes, projects }) {
   );
 }
 
-// The document in the shape every eval case starts from (agent/evals/LABELING.md).
+// The document in the shape every eval case starts from (agent-insight-collector/evals/LABELING.md).
 // expected.json is left to a person to write from scratch.
 function downloadDocument(run, doc) {
   const document = {

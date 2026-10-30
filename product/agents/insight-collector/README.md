@@ -36,7 +36,7 @@ Each milestone produces something usable and teaches one idea.
 | 1 | **Label the first eval set.** 30 real documents from your sheets, Attention and Jira, labeled by hand (`evals.md`). | 30 cases with `expected.json`; insight definition updated where you and a second labeler disagreed | What "good" means, precisely enough for a machine to check it |
 | 2 | ✅ **Data model + review queue.** `status`, provenance, link status, `collection_runs`; validate/reject endpoints; queue page; evidence counts filter to validated. | You can create an unvalidated insight by hand and approve or reject it in the UI | Human in the loop as product, not afterthought |
 | 3 | 🟡 **v0 in Claude Code.** (built; your review pending) Insight tools on the MCP server + a `collect-insights` skill; run it on a CSV and a few Jira issues. | Real suggestions are in your queue; you've reviewed them | What an agent loop looks like from the inside; how prompts change behavior |
-| 4 | **v1 pipeline + eval runner.** `agent/` with the CSV connector, extract → verify → dedupe → link → write, and `npm run eval`. | Eval passes the ship gates on the test split | Workflows, structured outputs, verification in code, eval-driven iteration |
+| 4 | **v1 pipeline + eval runner.** `agent-insight-collector/` with the CSV connector, extract → verify → dedupe → link → write, and `npm run eval`. | Eval passes the ship gates on the test split | Workflows, structured outputs, verification in code, eval-driven iteration |
 | 5 | **Attention and Jira connectors.** Incremental cursors, scheduled runs. | A nightly run fills the queue with nothing duplicated | Connectors, idempotency, cost tracking |
 | 6 | **Feedback loop.** Weekly: rejections and edits → new eval cases → prompt improvements. | Production approval rate ≥ 70% and rising | Agents improve through data, not one-off cleverness |
 
@@ -46,5 +46,5 @@ Milestones 1 and 2 can run in parallel. Don't skip 1: it's what lets you tell wh
 
 1. `npm run dev` (API) and `npm run web`.
 2. `npm run collector`, then run the `claude mcp add outcomes-collector …` command it prints, and restart Claude Code.
-3. In this repo: *"collect insights from agent/samples/feedback-log.csv"* (or your own export). Claude Code loads the `collect-insights` skill.
+3. In this repo: *"collect insights from agent-insight-collector/samples/feedback-log.csv"* (or your own export). Claude Code loads the `collect-insights` skill.
 4. Review the suggestions on the app's **Review** page.

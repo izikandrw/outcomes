@@ -3,10 +3,10 @@ dist/
 .env
 
 # Eval cases hold real customer content; only the example is committed.
-agent/evals/cases/*
-!agent/evals/cases/_example-*/
+agent-insight-collector/evals/cases/*
+!agent-insight-collector/evals/cases/_example-*/
 # Eval results quote the same content.
-agent/evals/results/
+agent-insight-collector/evals/results/
 
 # Claude Code worktrees are separate checkouts, not repo content.
 .claude/worktrees/

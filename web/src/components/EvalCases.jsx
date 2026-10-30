@@ -8,7 +8,7 @@ import { TrashIcon } from './icons.jsx';
 // The insight collector's eval set (product/agents/insight-collector/evals.md):
 // documents with the answer it should give, added from a run trace. A review
 // case's answer was drafted from what reviewers did; a golden case's is labelled
-// here by hand, from the document alone (agent/evals/LABELING.md). Only ready
+// here by hand, from the document alone (agent-insight-collector/evals/LABELING.md). Only ready
 // cases are scored, and the test split is held out while tuning.
 export default function EvalCases({ accountId }) {
   const [cases, setCases] = useState(null);
@@ -139,7 +139,7 @@ export default function EvalCases({ accountId }) {
   );
 }
 
-// A new expected insight, in the shape agent/evals/LABELING.md describes.
+// A new expected insight, in the shape agent-insight-collector/evals/LABELING.md describes.
 const blankInsight = (excerpt) => ({
   excerpt,
   name: '',
@@ -749,7 +749,7 @@ function NotInsightCard({ entry, found, onChange, onRemove, onMove }) {
 }
 
 // Every ready case in one file, each as { name, split, label_source,
-// document, expected, catalog }: the cases/<name>/ folders of agent/evals/,
+// document, expected, catalog }: the cases/<name>/ folders of agent-insight-collector/evals/,
 // flattened, each with the catalog it was labelled against.
 function downloadSet(cases) {
   const set = cases.map(({ name, split, label_source, document, expected, catalog }) => ({ name, split, label_source, document, expected, catalog }));

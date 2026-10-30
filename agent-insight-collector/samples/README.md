@@ -18,4 +18,4 @@ Made-up data for trying the insight collector without real customer content. Eve
 
 A customer's words quoted verbatim in someone's notes are firsthand (`product/domain-model/insight.md`). The first run called row 1 relayed; that's what settled the rule.
 
-Try it: *"collect insights from agent/samples/feedback-log.csv"*.
+Try it: *"collect insights from agent-insight-collector/samples/feedback-log.csv"*.

@@ -1,6 +1,6 @@
 // Eval cases for the insight collector (product/agents/insight-collector/evals.md):
 // a document, and the answer the collector should give for it, in the shape of
-// agent/evals/cases/<name>/document.json and expected.json.
+// agent-insight-collector/evals/cases/<name>/document.json and expected.json.
 
 // The document as the collector's pipeline reads it (design.md §2.1), from a
 // document a run recorded. Runs don't record the date, customer or firsthand

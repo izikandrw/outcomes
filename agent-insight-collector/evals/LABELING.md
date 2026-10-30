@@ -5,7 +5,7 @@ This is milestone 1 of the insight collector (`product/agents/insight-collector/
 ## One case = one folder
 
 ```
-agent/evals/cases/<short-name>/
+agent-insight-collector/evals/cases/<short-name>/
   document.json   # the source document, in the shape every connector produces
   expected.json   # what a careful person would pull out of it
 ```
