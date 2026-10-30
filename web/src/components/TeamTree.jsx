@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import {
-  NODE_H,
   H_GAP,
-  LEVEL_H,
   PAD,
+  V_GAP,
   LINE_H,
   elbowPath,
   wrapLabel,
@@ -16,6 +15,10 @@ const LOGO_INSET = 12;
 // Wider than the outcome nodes so the counts line fits beside the logo.
 const NODE_W = 224;
 const NAME_CHARS = 20;
+// Team cards hold two name lines and a counts line, so they stay shorter than
+// the outcome map's four-line cards.
+const NODE_H = 68;
+const LEVEL_H = NODE_H + V_GAP;
 
 // Team hierarchy drawn like the outcome map: parents above, children below,
 // each parent centred over its children. Clicking a team opens its home page;

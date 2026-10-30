@@ -18,7 +18,7 @@ import { issuesFor, validateTree } from '../lib/validation.js';
 import { useZoom, ZoomControls } from './Zoom.jsx';
 
 export const NODE_W = 160;
-export const NODE_H = 68;
+export const NODE_H = 83;
 // Nodes with an insight pill straddle their bottom edge; lift the label to clear it.
 const LABEL_LIFT = 4;
 export const H_GAP = 24; // between sibling subtrees
@@ -39,7 +39,7 @@ const PILL_BAND = 17;
 const CHAR_W = 7;
 const TEXT_INSET = 6;
 export const MAX_CHARS = 21;
-const MAX_LINES = 3;
+const MAX_LINES = 4;
 // How far the pointer must travel with the button down before a press on a
 // node turns into dragging a link from it rather than a click.
 const DRAG_THRESHOLD = 5;
@@ -797,8 +797,8 @@ function linkHint({ parent, child, moves }) {
 }
 
 // An outcome or impact states its targets inside its own node: the name takes
-// up to two lines and the last line is its first target's numbers, with "+N"
-// when it owns more. Without targets the name gets all three lines.
+// up to three lines and the last line is its first target's numbers, with "+N"
+// when it owns more. Without targets the name gets all four lines.
 function nodeLabel(name, quantified) {
   if (quantified.length === 0) return { lines: wrapLabel(name), targetLine: null };
   const extra = quantified.length > 1 ? ` +${quantified.length - 1}` : '';
@@ -1332,7 +1332,7 @@ function nodeLines(node, targets) {
 // end. Impacts have no pill.
 function fullNameLayout({ type, data, x, y, dollars }) {
   const hasPill = type !== 'impact';
-  const slotY = (index) => y + NODE_H / 2 - (hasPill ? LABEL_LIFT : 0) - LINE_H + index * LINE_H;
+  const slotY = (index) => y + NODE_H / 2 - (hasPill ? LABEL_LIFT : 0) - ((MAX_LINES - 1) * LINE_H) / 2 + index * LINE_H;
   const besidePill = (index) => hasPill && Math.abs(slotY(index) - (y + NODE_H)) < PILL_BAND;
   const left = pillReach(dollars) + TEXT_INSET;
   const narrowChars = Math.floor((NODE_W - TEXT_INSET - left) / CHAR_W);
