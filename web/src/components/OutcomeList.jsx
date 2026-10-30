@@ -12,6 +12,7 @@ import {
 } from '../lib/links.js';
 import { matchesFilters } from '../lib/insightFilters.js';
 import { outcomeFilterFields } from '../lib/outcomeFilters.js';
+import useSlashFocus from '../lib/useSlashFocus.js';
 import useStuck from '../lib/useStuck.js';
 import FilterBar from './FilterBar.jsx';
 import InsightBadge from './InsightBadge.jsx';
@@ -47,6 +48,8 @@ export default function OutcomeList({
   const [filters, setFilters] = useState({});
   const toolbarRef = useRef(null);
   const stuck = useStuck(toolbarRef);
+  const searchRef = useRef(null);
+  useSlashFocus(searchRef);
 
   const fields = useMemo(
     () => outcomeFilterFields({ outcomes, teams, projects, impacts, targets, insights, suggestions, issues }),
@@ -78,6 +81,7 @@ export default function OutcomeList({
           <label className="search-box">
             <SearchIcon />
             <input
+              ref={searchRef}
               type="search"
               value={query}
               aria-label="Search outcomes"

@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { formatDollars, impactAreaLabel, insightTypeLabel } from '../lib/links.js';
 import { INSIGHT_SORTS, insightFilterFields, matchesFilters } from '../lib/insightFilters.js';
+import useSlashFocus from '../lib/useSlashFocus.js';
 import useStuck from '../lib/useStuck.js';
 import FilterBar from './FilterBar.jsx';
 import SentimentBadge from './SentimentBadge.jsx';
@@ -16,6 +17,8 @@ export default function InsightList({ insights, outcomes = [], projects = [], on
   const [sort, setSort] = useState(INSIGHT_SORTS[0].id);
   const toolbarRef = useRef(null);
   const stuck = useStuck(toolbarRef);
+  const searchRef = useRef(null);
+  useSlashFocus(searchRef);
 
   const fields = useMemo(
     () => insightFilterFields({ insights, outcomes, projects }),
@@ -52,6 +55,7 @@ export default function InsightList({ insights, outcomes = [], projects = [], on
           <label className="search-box">
             <SearchIcon />
             <input
+              ref={searchRef}
               type="search"
               value={query}
               aria-label="Search insights"
