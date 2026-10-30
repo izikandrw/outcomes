@@ -1,6 +1,7 @@
 import { IMPACT_AREAS, INSIGHT_TYPES, SENTIMENTS, isEvidence } from './links.js';
 
-// The fields the insights page filters on. Each field lists its options and
+// The fields the insights page filters on; `primary` ones are always on show,
+// the rest sit behind "More filters". Each field lists its options and
 // says which of them an insight carries; an insight can carry several (an
 // insight observed last week is within 30, 90 and 365 days). A filter keeps
 // insights carrying any picked option of a field, and every field must pass.
@@ -15,6 +16,7 @@ export function insightFilterFields({ insights, outcomes, projects, teams, now =
   const fields = [
     {
       id: 'status',
+      primary: true,
       label: 'Status',
       options: [
         { id: 'verified', label: 'Verified' },
@@ -24,12 +26,14 @@ export function insightFilterFields({ insights, outcomes, projects, teams, now =
     },
     {
       id: 'type',
+      primary: true,
       label: 'Type',
       options: INSIGHT_TYPES,
       values: (insight) => [insight.type],
     },
     {
       id: 'sentiment',
+      primary: true,
       label: 'Sentiment',
       options: [
         ...SENTIMENTS.map((entry) => ({ id: entry.id, label: `${entry.emoji} ${entry.label}` })),
@@ -45,6 +49,7 @@ export function insightFilterFields({ insights, outcomes, projects, teams, now =
     },
     {
       id: 'evidence',
+      primary: true,
       label: 'Evidence',
       options: [
         { id: 'firsthand', label: 'Firsthand' },
@@ -55,6 +60,7 @@ export function insightFilterFields({ insights, outcomes, projects, teams, now =
     },
     {
       id: 'source',
+      primary: true,
       label: 'Source',
       options: [...sources.map((source) => ({ id: source, label: source })), { id: NONE, label: 'Entered by hand' }],
       values: (insight) => [insight.source_system || NONE],
@@ -85,6 +91,7 @@ export function insightFilterFields({ insights, outcomes, projects, teams, now =
     },
     {
       id: 'links',
+      primary: true,
       label: 'Links',
       options: [
         { id: 'outcome', label: 'Supports an outcome' },
@@ -109,6 +116,7 @@ export function insightFilterFields({ insights, outcomes, projects, teams, now =
     },
     {
       id: 'observed',
+      primary: true,
       label: 'Observed',
       options: [
         { id: '30', label: 'Last 30 days' },

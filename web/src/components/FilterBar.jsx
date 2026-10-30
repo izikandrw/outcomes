@@ -1,14 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
-import { CloseIcon, FilterIcon } from './icons.jsx';
+import { ChevronDownIcon, CloseIcon, FilterIcon } from './icons.jsx';
 
-// A "Filter" button that opens a menu of fields, then the options of the field
-// picked, plus a chip for each field in use ("Type: Interview, Survey") that
-// reopens its options or clears it. `filters` maps a field id to the option
-// ids picked; `countFor(fieldId, optionId)` gives the count beside an option.
+// Filters as a row of pills. Fields marked `primary` always show a pill, so the
+// filters people reach for most are one click away; the rest sit behind a
+// "More filters" menu and only get a pill once in use. A pill in use reads
+// "Type: Interview, Survey" and clears with its ×. `filters` maps a field id to
+// the option ids picked; `countFor(fieldId, optionId)` gives the count beside
+// an option.
 export default function FilterBar({ fields, filters, onChange, countFor }) {
-  // Which menu is open: 'add' for the Filter button, or a field id for a chip.
+  // Which menu is open: 'more' for the More filters button, or a field id for a pill.
   const [open, setOpen] = useState(null);
-  const active = fields.filter((field) => filters[field.id]?.length);
+  const inUse = (field) => filters[field.id]?.length > 0;
+  const pills = fields.filter((field) => field.primary || inUse(field));
+  const more = fields.filter((field) => !field.primary);
 
   function setField(fieldId, picked) {
     const next = { ...filters };
@@ -19,52 +23,62 @@ export default function FilterBar({ fields, filters, onChange, countFor }) {
 
   return (
     <div className="filter-bar">
-      <Anchor open={open === 'add'} onClose={() => setOpen(null)}>
-        <button
-          type="button"
-          className="ghost with-icon filter-button"
-          aria-haspopup="menu"
-          aria-expanded={open === 'add'}
-          onClick={() => setOpen(open === 'add' ? null : 'add')}
-        >
-          <FilterIcon />
-          Filter
-        </button>
-        <FieldPicker fields={fields} filters={filters} onPick={setField} countFor={countFor} />
-      </Anchor>
-
-      {active.map((field) => {
-        const picked = filters[field.id];
+      {pills.map((field) => {
+        const picked = filters[field.id] ?? [];
         const labels = field.options.filter((option) => picked.includes(option.id)).map((option) => option.label);
         return (
           <Anchor key={field.id} open={open === field.id} onClose={() => setOpen(null)}>
-            <span className="filter-chip">
+            <span className={`filter-chip${labels.length ? '' : ' empty'}`}>
               <button
                 type="button"
                 className="filter-chip-body"
                 aria-haspopup="listbox"
                 aria-expanded={open === field.id}
-                title={labels.join(', ')}
+                title={labels.join(', ') || undefined}
                 onClick={() => setOpen(open === field.id ? null : field.id)}
               >
                 <span className="filter-chip-key">{field.label}</span>
-                <span className="filter-chip-value">{labels.length > 2 ? `${labels.length} selected` : labels.join(', ')}</span>
+                {labels.length > 0 ? (
+                  <span className="filter-chip-value">
+                    {labels.length > 2 ? `${labels.length} selected` : labels.join(', ')}
+                  </span>
+                ) : (
+                  <ChevronDownIcon />
+                )}
               </button>
-              <button
-                type="button"
-                className="filter-chip-remove"
-                aria-label={`Clear ${field.label.toLowerCase()} filter`}
-                onClick={() => setField(field.id, [])}
-              >
-                <CloseIcon />
-              </button>
+              {labels.length > 0 && (
+                <button
+                  type="button"
+                  className="filter-chip-remove"
+                  aria-label={`Clear ${field.label.toLowerCase()} filter`}
+                  onClick={() => setField(field.id, [])}
+                >
+                  <CloseIcon />
+                </button>
+              )}
             </span>
             <OptionList field={field} picked={picked} onChange={(next) => setField(field.id, next)} countFor={countFor} />
           </Anchor>
         );
       })}
 
-      {active.length > 0 && (
+      {more.length > 0 && (
+        <Anchor open={open === 'more'} onClose={() => setOpen(null)}>
+          <button
+            type="button"
+            className="ghost with-icon filter-button"
+            aria-haspopup="menu"
+            aria-expanded={open === 'more'}
+            onClick={() => setOpen(open === 'more' ? null : 'more')}
+          >
+            <FilterIcon />
+            More filters
+          </button>
+          <FieldPicker fields={more} filters={filters} onPick={setField} countFor={countFor} />
+        </Anchor>
+      )}
+
+      {Object.keys(filters).length > 0 && (
         <button type="button" className="filter-clear" onClick={() => onChange({})}>
           Clear
         </button>
@@ -73,7 +87,7 @@ export default function FilterBar({ fields, filters, onChange, countFor }) {
   );
 }
 
-// The Filter button's menu: the fields first, then the options of the one picked.
+// The More filters menu: the fields first, then the options of the one picked.
 function FieldPicker({ fields, filters, onPick, countFor }) {
   const [fieldId, setFieldId] = useState(null);
   const field = fields.find((entry) => entry.id === fieldId);

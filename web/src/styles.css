@@ -2929,3 +2929,20 @@ button.team-chip.link:hover {
 .sort-select {
   flex: 0 0 auto;
 }
+
+/* A pill with nothing picked reads as a plain dropdown. */
+.filter-chip.empty {
+  background: transparent;
+}
+
+.filter-chip.empty .filter-chip-key {
+  color: var(--text);
+}
+
+.filter-chip-body {
+  align-items: center;
+}
+
+.filter-chip-body svg {
+  color: var(--muted);
+}
