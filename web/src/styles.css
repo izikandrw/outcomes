@@ -1037,6 +1037,40 @@ button.small {
   font-size: 12px;
 }
 
+/* Appears bottom-right once a long page is scrolled well down. */
+.jump-to-top {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(8px);
+  color: var(--muted);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.08);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s, color 0.15s;
+}
+
+.jump-to-top[data-shown='true'] {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.jump-to-top:hover {
+  color: var(--text);
+}
+
 /* Roadmap */
 .roadmap {
   display: flex;

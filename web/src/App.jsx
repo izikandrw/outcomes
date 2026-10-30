@@ -22,6 +22,7 @@ import TeamTree from './components/TeamTree.jsx';
 import OutcomeList from './components/OutcomeList.jsx';
 import IssueCounts from './components/IssueCounts.jsx';
 import IssueExplainer from './components/IssueExplainer.jsx';
+import JumpToTop from './components/JumpToTop.jsx';
 import OutcomeTree from './components/OutcomeTree.jsx';
 import PotentialIssues from './components/PotentialIssues.jsx';
 import ReviewQueue from './components/ReviewQueue.jsx';
@@ -832,6 +833,8 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
         </section>
         )}
       </main>
+
+      <JumpToTop />
 
       {modal && (
         <Modal

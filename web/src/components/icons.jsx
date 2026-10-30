@@ -89,3 +89,9 @@ export const ArrowLeftIcon = () => (
     <path d="M13 8H3.5M7.5 4 3.5 8l4 4" />
   </Icon>
 );
+
+export const ArrowUpIcon = () => (
+  <Icon>
+    <path d="M8 13V3.5M4 7.5 8 3.5l4 4" />
+  </Icon>
+);
