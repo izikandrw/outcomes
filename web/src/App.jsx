@@ -30,6 +30,7 @@ import Roadmap from './components/Roadmap.jsx';
 import TopNav from './components/TopNav.jsx';
 import { PlusIcon } from './components/icons.jsx';
 import { insightsForOutcome, insightsForProject, isEvidence, targetLabel, targetsFor } from './lib/links.js';
+import { buildSearch, emptyListView, itemOfModal, readUrl } from './lib/urlState.js';
 import { flaggedBy, ruleById, validateTree } from './lib/validation.js';
 
 const STORED_PAGE = 'outcomes.page';
@@ -72,10 +73,13 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   const [modal, setModal] = useState(null);
   // { title, message, resolve } while a delete confirmation is showing.
   const [confirmation, setConfirmation] = useState(null);
-  const [page, setPage] = useState(() => localStorage.getItem(STORED_PAGE) || 'outcomes');
+  // The view the address bar names when the app opens (see urlState.js); a
+  // bare URL falls back to the page and team last used here.
+  const [initialUrl] = useState(() => readUrl());
+  const [page, setPage] = useState(() => initialUrl.page || localStorage.getItem(STORED_PAGE) || 'outcomes');
   // Which team the 'team' page shows: that page is a team's home, reached by
   // clicking a team card or a team badge.
-  const [teamId, setTeamId] = useState(() => localStorage.getItem(STORED_TEAM));
+  const [teamId, setTeamId] = useState(() => initialUrl.teamId || localStorage.getItem(STORED_TEAM));
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   // Once the header scrolls out of view a compact copy of the nav pins to the top.
@@ -84,7 +88,13 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   // The id of the delivery rule a header issue count was clicked for. The list
   // of the kind of thing it applies to shows only what breaks it, until the
   // filter is cleared or the person moves to another page.
-  const [issueFilter, setIssueFilter] = useState(null);
+  const [issueFilter, setIssueFilter] = useState(() => (ruleById(initialUrl.issue) ? initialUrl.issue : null));
+  // The Outcomes or Insights list's search, filters and sort, held here so
+  // they can live in the URL. A new page starts with an empty one.
+  const [listView, setListView] = useState(initialUrl.listView);
+  // An item a link names ({ kind, id }), opened once the data it needs has
+  // loaded. It stays in the URL until then.
+  const [pendingItem, setPendingItem] = useState(initialUrl.item);
 
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => setHeaderHidden(!entry.isIntersecting));
@@ -196,16 +206,60 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
 
   function changePage(next) {
     setPage(next);
-    localStorage.setItem(STORED_PAGE, next);
     setIssueFilter(null);
+    if (next !== page) setListView(emptyListView());
   }
 
   function openTeam(id) {
-    const value = String(id?.id ?? id);
-    setTeamId(value);
-    localStorage.setItem(STORED_TEAM, value);
+    setTeamId(String(id?.id ?? id));
     changePage('team');
   }
+
+  // Keep the address bar in step with the view. Moving to another page or
+  // team adds a history entry, so Back returns to it; opening an item or
+  // changing a list's search or filters rewrites the current one.
+  const shownItem = itemOfModal(modal) ?? pendingItem;
+  const search = buildSearch({ page, teamId, issue: issueFilter, item: shownItem, listView });
+  useEffect(() => {
+    localStorage.setItem(STORED_PAGE, page);
+    if (teamId) localStorage.setItem(STORED_TEAM, teamId);
+    if (search === window.location.search) return;
+    const current = readUrl();
+    const moved = current.page != null && (current.page !== page || (page === 'team' && current.teamId !== teamId));
+    window.history[moved ? 'pushState' : 'replaceState'](null, '', `${window.location.pathname}${search}`);
+  }, [search, page, teamId]);
+
+  // Back and Forward: show whatever view the URL now names.
+  useEffect(() => {
+    const onPopState = () => {
+      const next = readUrl();
+      setPage(next.page || 'outcomes');
+      if (next.teamId) setTeamId(next.teamId);
+      setIssueFilter(ruleById(next.issue) ? next.issue : null);
+      setListView(next.listView);
+      setModal(null);
+      setPendingItem(next.item);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  // Open the item a link names once everything has loaded.
+  useEffect(() => {
+    if (!pendingItem || loading) return;
+    const { kind, id } = pendingItem;
+    const collection = { outcome: outcomes, impact: impacts, project: projects, target: targets, insight: insights }[kind];
+    const item = collection.find((entry) => String(entry.id) === String(id));
+    setPendingItem(null);
+    if (!item) return setError(`There is no ${kind} #${id} in this account.`);
+    if (kind === 'outcome') openEdit(item);
+    else if (kind === 'impact') openEditImpact(item);
+    else if (kind === 'project') openEditProject(item);
+    else if (kind === 'target') viewTarget(item);
+    else setModal({ kind: 'insight', insight: item });
+    // The open* helpers are recreated each render; the item only needs opening once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingItem, loading, outcomes, impacts, projects, targets, insights]);
 
   function openIssues(rule) {
     changePage(ISSUE_PAGES[rule.appliesTo]);
@@ -748,6 +802,8 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               <p className="empty">Loading…</p>
             ) : (
               <InsightList
+                view={listView}
+                onViewChange={setListView}
                 insights={activeInsights}
                 outcomes={outcomes}
                 projects={projects}
@@ -876,6 +932,8 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
             />
           ) : (
             <OutcomeList
+              view={listView}
+              onViewChange={setListView}
               outcomes={flagged ?? outcomes}
               teams={teams}
               projects={projects}

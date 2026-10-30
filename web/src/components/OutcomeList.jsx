@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef } from 'react';
 import {
   formatValue,
   insightsForOutcome,
@@ -25,6 +25,8 @@ import { PencilIcon, PlusIcon, SearchIcon, TrashIcon } from './icons.jsx';
 // is the thing this view most needs to make obvious. A toolbar above narrows
 // the list by text and by the fields in outcomeFilters.js.
 export default function OutcomeList({
+  view,
+  onViewChange,
   outcomes,
   teams,
   projects,
@@ -44,8 +46,10 @@ export default function OutcomeList({
   onViewTarget,
 }) {
   const nameOf = (collection, id) => collection.find((item) => item.id === id)?.name ?? null;
-  const [query, setQuery] = useState('');
-  const [filters, setFilters] = useState({});
+  // The search and filters ({ q, filters }), which the app keeps in the URL.
+  const { q: query, filters } = view;
+  const setQuery = (q) => onViewChange({ ...view, q });
+  const setFilters = (next) => onViewChange({ ...view, filters: next });
   const toolbarRef = useRef(null);
   const stuck = useStuck(toolbarRef);
   const searchRef = useRef(null);

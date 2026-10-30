@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef } from 'react';
 import { formatDollars, impactAreaLabel, insightTypeLabel } from '../lib/links.js';
 import { INSIGHT_SORTS, insightFilterFields, matchesFilters } from '../lib/insightFilters.js';
 import useSlashFocus from '../lib/useSlashFocus.js';
@@ -11,10 +11,14 @@ import LinkedText from './LinkedText.jsx';
 // Every insight in the account, narrowed by text search and by any of the
 // fields in insightFilters.js, then sorted. Each row shows how much work leans
 // on it, since the point of an insight is to be reused.
-export default function InsightList({ insights, outcomes = [], projects = [], onCreate, onEdit, onDelete }) {
-  const [query, setQuery] = useState('');
-  const [filters, setFilters] = useState({});
-  const [sort, setSort] = useState(INSIGHT_SORTS[0].id);
+// `view` holds the search, filters and sort ({ q, filters, sort }, a null sort
+// meaning the first), which the app keeps in the URL; onViewChange takes the next one.
+export default function InsightList({ view, onViewChange, insights, outcomes = [], projects = [], onCreate, onEdit, onDelete }) {
+  const { q: query, filters } = view;
+  const sort = INSIGHT_SORTS.some((entry) => entry.id === view.sort) ? view.sort : INSIGHT_SORTS[0].id;
+  const setQuery = (q) => onViewChange({ ...view, q });
+  const setFilters = (next) => onViewChange({ ...view, filters: next });
+  const setSort = (next) => onViewChange({ ...view, sort: next === INSIGHT_SORTS[0].id ? null : next });
   const toolbarRef = useRef(null);
   const stuck = useStuck(toolbarRef);
   const searchRef = useRef(null);
