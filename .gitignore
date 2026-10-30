@@ -5,6 +5,8 @@ dist/
 # Eval cases hold real customer content; only the example is committed.
 agent/evals/cases/*
 !agent/evals/cases/_example-*/
+# Eval results quote the same content.
+agent/evals/results/
 
 # Claude Code worktrees are separate checkouts, not repo content.
 .claude/worktrees/
