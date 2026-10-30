@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import * as api from '../api.js';
+import { insightFilterFields, matchesFilters } from '../lib/insightFilters.js';
 import {
   REJECTION_REASONS,
   formatDollars,
@@ -8,6 +9,7 @@ import {
 } from '../lib/links.js';
 import LinkedText from './LinkedText.jsx';
 import SentimentBadge from './SentimentBadge.jsx';
+import FilterBar from './FilterBar.jsx';
 import CollectionRuns, { formatTime } from './CollectionRuns.jsx';
 
 // Insights waiting for a person: mostly the insight collector's suggestions
@@ -39,7 +41,23 @@ export default function ReviewQueue({
   const [lastRunAt, setLastRunAt] = useState(null);
   const pending = insights.filter((insight) => insight.status === 'unvalidated');
   const rejected = insights.filter((insight) => insight.status === 'rejected');
-  const shown = tab === 'pending' ? pending : rejected;
+  const inTab = tab === 'pending' ? pending : rejected;
+
+  // Suggestions narrow by sentiment, with the insights page's filter bar.
+  const [filters, setFilters] = useState({});
+  const fields = useMemo(
+    () =>
+      insightFilterFields({ insights, outcomes, projects, teams: [] }).filter((field) => field.id === 'sentiment'),
+    [insights, outcomes, projects],
+  );
+  const shown = inTab.filter((insight) => matchesFilters(insight, fields, filters));
+
+  function countFor(fieldId, optionId) {
+    const field = fields.find((entry) => entry.id === fieldId);
+    return inTab.filter(
+      (insight) => field.values(insight).includes(optionId) && matchesFilters(insight, fields, filters, fieldId),
+    ).length;
+  }
 
   // The Runs tab names when the collector last ran; runs come newest first.
   useEffect(() => {
@@ -63,15 +81,20 @@ export default function ReviewQueue({
             Runs{lastRunAt && ` (${formatTime(lastRunAt)})`}
           </button>
         </div>
+        {tab !== 'runs' && inTab.length > 0 && (
+          <FilterBar fields={fields} filters={filters} onChange={setFilters} countFor={countFor} />
+        )}
       </div>
       {tab === 'runs' ? (
         <CollectionRuns accountId={accountId} />
-      ) : shown.length === 0 ? (
+      ) : inTab.length === 0 ? (
         <p className="empty">
           {tab === 'pending'
             ? 'Nothing to review. Suggested insights from the insight collector show up here.'
             : 'No rejected suggestions.'}
         </p>
+      ) : shown.length === 0 ? (
+        <p className="empty">No suggestions match.</p>
       ) : (
         <ul className="review-list">
           {[...shown].reverse().map((insight) => (
