@@ -162,6 +162,11 @@ export default function EntityInsights({
                     multiline
                     onCommit={(name) => save(insight, { name })}
                   />
+                  {insight.source_excerpt && (
+                    <blockquote className="excerpt clamp" title={insight.source_excerpt}>
+                      “{insight.source_excerpt}”
+                    </blockquote>
+                  )}
                 </td>
                 <td>
                   <select
@@ -342,6 +347,12 @@ function InsightDetail({ insight, position, onBack, onPrev, onNext, onEdit }) {
           </div>
         ))}
       </dl>
+      {insight.source_excerpt && (
+        <section>
+          <h4>Quote</h4>
+          <blockquote className="excerpt">“{insight.source_excerpt}”</blockquote>
+        </section>
+      )}
       <section>
         <h4>Details</h4>
         <p className="detail-text">{insight.description || <span className="hint">No details written.</span>}</p>

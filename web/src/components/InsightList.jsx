@@ -93,6 +93,7 @@ export default function InsightList({ insights, onCreate, onEdit, onDelete }) {
                     )}
                     <span className="id">#{insight.id}</span>
                   </p>
+                  {insight.source_excerpt && <blockquote className="excerpt">“{insight.source_excerpt}”</blockquote>}
                   {insight.source && (
                     <p className="hint">
                       <LinkedText text={insight.source} />

@@ -514,6 +514,17 @@ body.modal-open {
   stroke-width: 2;
 }
 
+/* The quote under an insight's name: three lines, then the rest on hover. */
+.insight-table .excerpt.clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  margin-top: 0.4rem;
+  white-space: normal;
+}
+
 /* Hovering a truncated name lays the whole of it over the node. It is part of
    the node, so the pointer stays on the node across all of it and a click on it
    edits the node. */
@@ -1583,6 +1594,17 @@ button.tag.insight-badge.suggested:not(.empty) {
   cursor: text;
 }
 
+/* The quote under an insight's name: three lines, then the rest on hover. */
+.insight-table .excerpt.clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  margin-top: 0.4rem;
+  white-space: normal;
+}
+
 /* Hovering a truncated name lays the whole of it over the cell. It ignores the
    pointer, so a click still lands on the name underneath and starts editing. */
 .insight-table .clamp-wrap {
@@ -2500,6 +2522,10 @@ button.team-chip.link:hover {
   background: color-mix(in srgb, var(--accent) 6%, transparent);
   font-style: italic;
   overflow-wrap: anywhere;
+}
+
+.outcome-list .excerpt {
+  margin-top: 8px;
 }
 
 .review-links ul {
