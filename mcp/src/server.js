@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { registerAccountTools } from './tools/account.js';
 import { registerTeamTools } from './tools/teams.js';
 import { registerImpactTools } from './tools/impacts.js';
 import { registerOutcomeTools } from './tools/outcomes.js';
@@ -25,6 +26,7 @@ if (process.env.OUTCOMES_TOOLSET === 'collector') {
   server.registerTool = (name, ...rest) => (COLLECTOR_TOOLS.has(name) ? register(name, ...rest) : undefined);
 }
 
+registerAccountTools(server);
 registerTeamTools(server);
 registerImpactTools(server);
 registerOutcomeTools(server);

@@ -8,7 +8,8 @@ Every resource has `list_*`, `get_*`, `create_*`, `update_*` and `delete_*`, exc
 
 | resource | notes |
 | --- | --- |
-| teams | `update_team` keeps the logo |
+| account | `get_account` and `update_account` (name, logo) act on the signed-in account; updating needs an admin |
+| teams | `logo` on `create_team` / `update_team`; leaving it out of an update keeps the current one |
 | impacts | nest via `parent_impact_id` |
 | outcomes | `impact_id` only on top-level outcomes; nesting an outcome drops it |
 | projects | `outcome_ids` links the outcomes a project drives; passing it on update replaces the set |
@@ -17,6 +18,8 @@ Every resource has `list_*`, `get_*`, `create_*`, `update_*` and `delete_*`, exc
 | measurements | `list_measurements` (optionally by `target_id`, oldest first), `record_measurement`, `update_measurement`, `delete_measurement` |
 
 `list_collection_runs` / `get_collection_run` read the insight collector's run traces: every document a run read, its decision and reason, and how its suggestions fared in review.
+
+Logos (`update_account`, `create_team`, `update_team`) take an http(s) URL (a favicon.ico works if it holds PNG images, as most do), a local file path or a data URL; the server downsizes the image to fit 128px and sends it as a PNG data URL, as the web app does. `null` removes the logo.
 
 `review_portfolio` answers "are we working on the right things?" (`product/jtbds/delivery.md`): chimerical impacts, unvalidated outcomes (`min_insights`, default 1), chimerical outcomes and projects with no outcome. Links roll up through nesting.
 
