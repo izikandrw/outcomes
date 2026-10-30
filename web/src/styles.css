@@ -1512,6 +1512,10 @@ button.tag.insight-badge.suggested:not(.empty) {
   white-space: nowrap;
 }
 
+.insight-table td {
+  vertical-align: middle;
+}
+
 .insight-table th {
   color: var(--muted);
   font-size: 0.75rem;
