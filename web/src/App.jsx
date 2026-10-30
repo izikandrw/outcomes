@@ -721,7 +721,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
             )}
           </section>
         ) : page === 'review' ? (
-          <section className="card" aria-label="Review">
+          <section className="card" aria-label="Review insights">
             {loading ? (
               <p className="empty">Loading…</p>
             ) : (

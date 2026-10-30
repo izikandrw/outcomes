@@ -3,7 +3,11 @@ const PAGES = [
   { id: 'outcomes', label: 'Outcomes' },
   { id: 'roadmap', label: 'Roadmap' },
   { id: 'insights', label: 'Insights' },
-  { id: 'review', label: 'Review' },
+  {
+    id: 'review',
+    label: 'Review insights',
+    hint: 'Insights the collector suggested, waiting for you to approve or reject before they count as evidence',
+  },
   { id: 'teams', label: 'Teams' },
 ];
 
@@ -11,10 +15,11 @@ const PAGES = [
 export default function TopNav({ page, onChange, counts = {} }) {
   return (
     <nav className="top-nav" aria-label="Primary">
-      {PAGES.map(({ id, label }) => (
+      {PAGES.map(({ id, label, hint }) => (
         <button
           key={id}
           type="button"
+          title={hint}
           aria-current={page === id ? 'page' : undefined}
           onClick={() => onChange(id)}
         >
