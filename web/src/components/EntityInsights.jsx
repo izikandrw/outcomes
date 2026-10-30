@@ -135,144 +135,146 @@ export default function EntityInsights({
         </p>
       )}
       {insights.length > 0 && (
-        <table className="insight-table">
-          <thead>
-            <tr>
-              {heading('status', 'Verified')}
-              {heading('sentiment', 'Mood')}
-              {heading('name', 'Insight')}
-              {heading('type', 'Type')}
-              {heading('area', 'Area')}
-              {heading('impact', 'Impact', 'num')}
-              {heading('source', 'Source')}
-              {heading('observed', 'Observed')}
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {insights.map((insight) => (
-              <tr key={insight.id}>
-                <td>
-                  <VerifiedSelect
-                    status={insight.status}
-                    onChange={(value) => review(insight, value)}
-                  />
-                </td>
-                <td>
-                  <select
-                    className="cell-input sentiment-select"
-                    aria-label="Sentiment"
-                    title={sentimentOf(insight.sentiment)?.label ?? 'No sentiment'}
-                    value={insight.sentiment ?? ''}
-                    onChange={(event) => save(insight, { sentiment: event.target.value || null })}
-                  >
-                    <option value="">—</option>
-                    {SENTIMENTS.map((sentiment) => (
-                      <option key={sentiment.id} value={sentiment.id}>
-                        {sentiment.emoji} {sentiment.label}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td>
-                  <TextCell
-                    value={insight.name}
-                    label="Insight name"
-                    required
-                    bold
-                    multiline
-                    onCommit={(name) => save(insight, { name })}
-                  />
-                  {insight.source_excerpt && (
-                    <blockquote className="excerpt clamp" title={insight.source_excerpt}>
-                      “{insight.source_excerpt}”
-                    </blockquote>
-                  )}
-                </td>
-                <td>
-                  <select
-                    className="cell-input pill"
-                    data-value={insight.type}
-                    aria-label="Type"
-                    value={insight.type}
-                    onChange={(event) => save(insight, { type: event.target.value })}
-                  >
-                    {INSIGHT_TYPES.map((type) => (
-                      <option key={type.id} value={type.id}>
-                        {type.label}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td>
-                  <select
-                    className={insight.impact_area ? 'cell-input pill' : 'cell-input pill empty'}
-                    data-value={insight.impact_area ?? ''}
-                    aria-label="Area"
-                    value={insight.impact_area ?? ''}
-                    onChange={(event) => save(insight, { impact_area: event.target.value || null })}
-                  >
-                    <option value="">—</option>
-                    {IMPACT_AREAS.map((area) => (
-                      <option key={area.id} value={area.id}>
-                        {area.label}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td className="num">
-                  <TextCell
-                    value={insight.dollar_impact ?? ''}
-                    label="Dollar impact"
-                    type="number"
-                    step="0.01"
-                    num
-                    display={insight.dollar_impact != null ? formatDollars(insight.dollar_impact) : '—'}
-                    onCommit={(value) => save(insight, { dollar_impact: value === '' ? null : Number(value) })}
-                  />
-                </td>
-                <td>
-                  <SourceCell insight={insight} />
-                </td>
-                <td>
-                  <input
-                    className="cell-input"
-                    type="date"
-                    aria-label="Observed"
-                    value={insight.observed_at ? new Date(insight.observed_at).toISOString().slice(0, 10) : ''}
-                    onChange={(event) =>
-                      save(insight, {
-                        observed_at: event.target.value ? new Date(event.target.value).toISOString() : null,
-                      })
-                    }
-                  />
-                </td>
-                <td>
-                  <div className="row-actions">
-                    <button
-                      type="button"
-                      className="icon-button"
-                      aria-label={`Read insight ${insight.id}`}
-                      title="Read full text"
-                      onClick={() => setReadingId(insight.id)}
-                    >
-                      <ExpandIcon />
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-button"
-                      aria-label={`Edit insight ${insight.id}`}
-                      title="Edit all details"
-                      onClick={() => onOpen(insight)}
-                    >
-                      <PencilIcon />
-                    </button>
-                  </div>
-                </td>
+        <div className="insight-table-scroll">
+          <table className="insight-table">
+            <thead>
+              <tr>
+                {heading('status', 'Verified')}
+                {heading('sentiment', 'Mood')}
+                {heading('name', 'Insight')}
+                {heading('type', 'Type')}
+                {heading('area', 'Area')}
+                {heading('impact', 'Impact', 'num')}
+                {heading('source', 'Source')}
+                {heading('observed', 'Observed')}
+                <th />
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {insights.map((insight) => (
+                <tr key={insight.id}>
+                  <td>
+                    <VerifiedSelect
+                      status={insight.status}
+                      onChange={(value) => review(insight, value)}
+                    />
+                  </td>
+                  <td>
+                    <select
+                      className="cell-input sentiment-select"
+                      aria-label="Sentiment"
+                      title={sentimentOf(insight.sentiment)?.label ?? 'No sentiment'}
+                      value={insight.sentiment ?? ''}
+                      onChange={(event) => save(insight, { sentiment: event.target.value || null })}
+                    >
+                      <option value="">—</option>
+                      {SENTIMENTS.map((sentiment) => (
+                        <option key={sentiment.id} value={sentiment.id}>
+                          {sentiment.emoji} {sentiment.label}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>
+                    <TextCell
+                      value={insight.name}
+                      label="Insight name"
+                      required
+                      bold
+                      multiline
+                      onCommit={(name) => save(insight, { name })}
+                    />
+                    {insight.source_excerpt && (
+                      <blockquote className="excerpt clamp" title={insight.source_excerpt}>
+                        “{insight.source_excerpt}”
+                      </blockquote>
+                    )}
+                  </td>
+                  <td>
+                    <select
+                      className="cell-input pill"
+                      data-value={insight.type}
+                      aria-label="Type"
+                      value={insight.type}
+                      onChange={(event) => save(insight, { type: event.target.value })}
+                    >
+                      {INSIGHT_TYPES.map((type) => (
+                        <option key={type.id} value={type.id}>
+                          {type.label}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>
+                    <select
+                      className={insight.impact_area ? 'cell-input pill' : 'cell-input pill empty'}
+                      data-value={insight.impact_area ?? ''}
+                      aria-label="Area"
+                      value={insight.impact_area ?? ''}
+                      onChange={(event) => save(insight, { impact_area: event.target.value || null })}
+                    >
+                      <option value="">—</option>
+                      {IMPACT_AREAS.map((area) => (
+                        <option key={area.id} value={area.id}>
+                          {area.label}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="num">
+                    <TextCell
+                      value={insight.dollar_impact ?? ''}
+                      label="Dollar impact"
+                      type="number"
+                      step="0.01"
+                      num
+                      display={insight.dollar_impact != null ? formatDollars(insight.dollar_impact) : '—'}
+                      onCommit={(value) => save(insight, { dollar_impact: value === '' ? null : Number(value) })}
+                    />
+                  </td>
+                  <td>
+                    <SourceCell insight={insight} />
+                  </td>
+                  <td>
+                    <input
+                      className="cell-input"
+                      type="date"
+                      aria-label="Observed"
+                      value={insight.observed_at ? new Date(insight.observed_at).toISOString().slice(0, 10) : ''}
+                      onChange={(event) =>
+                        save(insight, {
+                          observed_at: event.target.value ? new Date(event.target.value).toISOString() : null,
+                        })
+                      }
+                    />
+                  </td>
+                  <td>
+                    <div className="row-actions">
+                      <button
+                        type="button"
+                        className="icon-button"
+                        aria-label={`Read insight ${insight.id}`}
+                        title="Read full text"
+                        onClick={() => setReadingId(insight.id)}
+                      >
+                        <ExpandIcon />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-button"
+                        aria-label={`Edit insight ${insight.id}`}
+                        title="Edit all details"
+                        onClick={() => onOpen(insight)}
+                      >
+                        <PencilIcon />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
       {error && <p className="error">{error}</p>}
       <div className="actions form-actions">

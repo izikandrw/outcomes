@@ -1799,6 +1799,30 @@ button.tag.insight-badge.suggested:not(.empty) {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-height: 0;
+}
+
+/* Only the table scrolls, so the title, the Verified/Suggested/All toggle and
+   Add insight stay put, and the column headings stick to the top of it. The
+   body is held to the dialog's height (less its border) so the table can shrink. */
+.modal-body:has(.insight-table-scroll) {
+  max-height: calc(100vh - 66px);
+}
+
+.insight-table-scroll {
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Above the hover overlay of a long name. A collapsed border doesn't travel
+   with a sticky cell, so the rule under the headings is a shadow instead. */
+.insight-table-scroll th {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  background: var(--surface);
+  border-bottom: none;
+  box-shadow: inset 0 -1px 0 var(--border);
 }
 
 /* Spare width goes to the name column rather than being spread between the rest. */
