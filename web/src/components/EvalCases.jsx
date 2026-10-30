@@ -3,6 +3,7 @@ import * as api from '../api.js';
 import Modal from './Modal.jsx';
 import ConfirmDialog from './ConfirmDialog.jsx';
 import { formatTime } from './CollectionRuns.jsx';
+import { TrashIcon } from './icons.jsx';
 
 // The insight collector's eval set (product/agents/insight-collector/evals.md):
 // documents with the answer it should give, added from a run trace. A review
@@ -13,6 +14,7 @@ export default function EvalCases({ accountId }) {
   const [cases, setCases] = useState(null);
   const [error, setError] = useState(null);
   const [openId, setOpenId] = useState(null);
+  const [deleting, setDeleting] = useState(null);
 
   useEffect(() => {
     api
@@ -34,6 +36,18 @@ export default function EvalCases({ accountId }) {
   const ready = cases.filter((entry) => entry.status === 'ready');
   const open = cases.find((entry) => entry.id === openId);
   const replace = (saved) => setCases((current) => current.map((entry) => (entry.id === saved.id ? saved : entry)));
+  const drop = (id) => setCases((current) => current.filter((entry) => entry.id !== id));
+
+  async function remove(entry) {
+    try {
+      await api.deleteEvalCase(accountId, entry.id);
+      drop(entry.id);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDeleting(null);
+    }
+  }
 
   return (
     <>
@@ -55,6 +69,7 @@ export default function EvalCases({ accountId }) {
             <th>Status</th>
             <th className="num">Expected</th>
             <th>Added</th>
+            <th aria-label="Actions" />
           </tr>
         </thead>
         <tbody>
@@ -78,6 +93,17 @@ export default function EvalCases({ accountId }) {
                 )}
               </td>
               <td className="hint">{formatTime(entry.created_at)}</td>
+              <td>
+                <button
+                  type="button"
+                  className="icon-button danger"
+                  aria-label={`Delete eval case ${entry.name}`}
+                  title="Delete"
+                  onClick={() => setDeleting(entry)}
+                >
+                  <TrashIcon />
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -91,10 +117,22 @@ export default function EvalCases({ accountId }) {
             setOpenId(null);
           }}
           onDeleted={() => {
-            setCases((current) => current.filter((entry) => entry.id !== open.id));
+            drop(open.id);
             setOpenId(null);
           }}
           onClose={() => setOpenId(null)}
+        />
+      )}
+      {deleting && (
+        <ConfirmDialog
+          title={`Delete ${deleting.name}?`}
+          message={
+            deleting.status === 'ready'
+              ? 'It’s a ready case, so scores from before and after won’t compare. The run trace it came from stays.'
+              : 'It leaves the eval set. The run trace it came from stays.'
+          }
+          onConfirm={() => remove(deleting)}
+          onCancel={() => setDeleting(null)}
         />
       )}
     </>
