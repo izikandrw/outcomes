@@ -2932,8 +2932,8 @@ button.team-chip.link:hover {
 }
 
 /* Stuck, a band of the same surface fills the space up to the top of the
-   window, so the pinned nav sits inside one panel with the toolbar, and the
-   panel, not the nav, carries the shadow. */
+   window, so the pinned nav sits inside one panel with the toolbar. The nav
+   drops its own pill there; the panel carries the edge and the shadow. */
 .list-toolbar.stuck {
   box-shadow: 0 8px 14px -10px rgb(0 0 0 / 0.35);
 }
@@ -2949,6 +2949,9 @@ button.team-chip.link:hover {
 }
 
 body:has(.list-toolbar.stuck) .pinned-nav {
+  background: transparent;
+  backdrop-filter: none;
+  border-color: transparent;
   box-shadow: none;
 }
 
