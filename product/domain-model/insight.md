@@ -6,7 +6,7 @@ An insight is a single observation with a source — a support ticket, a session
 
 An insight is not a conclusion. "Users churn because onboarding is slow" is an interpretation; "11 of 14 interviewed admins abandoned setup at the SSO step" is an insight. The interpretation lives in the outcome the insight is attached to.
 
-Insights are reusable. The same observation can justify several outcomes and several projects, and it stays on the record after the work it justified is finished.
+Insights are reusable. The same observation can justify several outcomes and several projects, and it stays on the record after the work it justified is finished. No team owns an insight: it is evidence for the whole account, and the teams it matters to are the ones that own the outcomes and projects it supports.
 
 Insights have a type.
 

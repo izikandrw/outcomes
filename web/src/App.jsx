@@ -373,7 +373,6 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
         dollar_impact: insight.dollar_impact,
         impact_area: insight.impact_area,
         sentiment: insight.sentiment,
-        team_id: insight.team_id,
         outcome_ids: insight.outcome_ids.map(Number),
         project_ids: insight.project_ids.map(Number),
         ...patch,
@@ -476,13 +475,13 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
 
   // From the review queue, in one step: create every outcome and project the
   // collector proposed, link the insight to each with its rationale, then
-  // approve it. There is no form to pick a team, so each takes the insight's
-  // team, or the only team, or none until someone assigns one. A proposal
+  // approve it. There is no form to pick a team, so each takes the only team,
+  // or none until someone assigns one. A proposal
   // whose name matches an existing outcome or project links to that instead,
   // so two insights proposing the same missing outcome don't create it twice.
   // Throws so the card can show it.
   async function acceptAllProposals(insight) {
-    const teamId = insight.team_id ?? (teams.length === 1 ? teams[0].id : null);
+    const teamId = teams.length === 1 ? teams[0].id : null;
     const sameName = (item, name) => item.name.trim().toLowerCase() === name.trim().toLowerCase();
     const ids = { outcome_ids: insight.outcome_ids.map(Number), project_ids: insight.project_ids.map(Number) };
     const rationales = { outcomes: {}, projects: {} };
@@ -734,7 +733,6 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
                 insights={activeInsights}
                 outcomes={outcomes}
                 projects={projects}
-                teams={teams}
                 onCreate={() => setModal({ kind: 'insight', insight: null })}
                 onEdit={(insight) => setModal({ kind: 'insight', insight })}
                 onDelete={removeInsight}
@@ -751,7 +749,6 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
                 insights={insights}
                 outcomes={outcomes}
                 projects={projects}
-                teams={teams}
                 onApprove={approveInsight}
                 onReject={rejectInsight}
                 onUpdate={patchInsight}
@@ -923,7 +920,6 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               editing={modal.insight}
               outcome={modal.parent}
               project={modal.parentProject}
-              teams={teams}
               outcomes={outcomes}
               projects={projects}
               onSubmit={saveInsight}

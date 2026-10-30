@@ -9,7 +9,7 @@ import LinkedText from './LinkedText.jsx';
 // Every insight in the account, narrowed by text search and by any of the
 // fields in insightFilters.js, then sorted. Each row shows how much work leans
 // on it, since the point of an insight is to be reused.
-export default function InsightList({ insights, outcomes = [], projects = [], teams = [], onCreate, onEdit, onDelete }) {
+export default function InsightList({ insights, outcomes = [], projects = [], onCreate, onEdit, onDelete }) {
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState({});
   const [sort, setSort] = useState(INSIGHT_SORTS[0].id);
@@ -30,8 +30,8 @@ export default function InsightList({ insights, outcomes = [], projects = [], te
   }, []);
 
   const fields = useMemo(
-    () => insightFilterFields({ insights, outcomes, projects, teams }),
-    [insights, outcomes, projects, teams],
+    () => insightFilterFields({ insights, outcomes, projects }),
+    [insights, outcomes, projects],
   );
 
   const needle = query.trim().toLowerCase();

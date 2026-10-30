@@ -9,7 +9,7 @@ export function registerTeamTools(server) {
     singular: 'team',
     idField: 'team_id',
     listDescription:
-      'List every team in the account. Teams nest via parent_team_id; outcomes, projects and insights hang off a team.',
+      'List every team in the account. Teams nest via parent_team_id; outcomes and projects hang off a team.',
   });
 
   server.registerTool(

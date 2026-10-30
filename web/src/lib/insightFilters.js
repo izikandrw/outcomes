@@ -10,7 +10,7 @@ const NONE = 'none';
 
 const ids = (list) => (list ?? []).map(String);
 
-export function insightFilterFields({ insights, outcomes, projects, teams, now = Date.now() }) {
+export function insightFilterFields({ insights, outcomes, projects, now = Date.now() }) {
   const sources = [...new Set(insights.map((insight) => insight.source_system).filter(Boolean))].sort();
 
   const fields = [
@@ -64,14 +64,6 @@ export function insightFilterFields({ insights, outcomes, projects, teams, now =
       label: 'Source',
       options: [...sources.map((source) => ({ id: source, label: source })), { id: NONE, label: 'Entered by hand' }],
       values: (insight) => [insight.source_system || NONE],
-    },
-    {
-      id: 'team',
-      label: 'Team',
-      options: [...teams.map((team) => ({ id: String(team.id), label: team.name })), { id: NONE, label: 'No team' }],
-      values: (insight) => [insight.team_id == null ? NONE : String(insight.team_id)],
-      searchable: true,
-      hidden: teams.length === 0,
     },
     {
       id: 'outcome',

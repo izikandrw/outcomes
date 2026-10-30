@@ -29,7 +29,6 @@ const fields = {
   dollar_impact: z.number().optional().describe('Money the observation represents, only when the source states it'),
   impact_area: impactArea.optional(),
   sentiment: sentiment.optional(),
-  team_id: id.optional().describe('Team that recorded it'),
   outcome_ids: z.array(id).optional().describe('Outcomes this is evidence for'),
   project_ids: z.array(id).optional().describe('Projects this is evidence for'),
 };
@@ -169,7 +168,6 @@ export function registerInsightTools(server) {
         dollar_impact: z.number().nullable().optional().describe('Pass null to clear'),
         impact_area: impactArea.nullable().optional().describe('Pass null to clear'),
         sentiment: sentiment.nullable().optional(),
-        team_id: id.nullable().optional().describe('Pass null to clear'),
         outcome_ids: fields.outcome_ids,
         project_ids: fields.project_ids,
       },

@@ -31,7 +31,6 @@ export default function ReviewQueue({
   insights,
   outcomes,
   projects,
-  teams,
   onApprove,
   onReject,
   onUpdate,
@@ -51,8 +50,8 @@ export default function ReviewQueue({
   // everything here is a suggestion or a rejected one, and the tabs split those.
   const [filters, setFilters] = useState({});
   const fields = useMemo(
-    () => insightFilterFields({ insights, outcomes, projects, teams }).filter((field) => field.id !== 'status'),
-    [insights, outcomes, projects, teams],
+    () => insightFilterFields({ insights, outcomes, projects }).filter((field) => field.id !== 'status'),
+    [insights, outcomes, projects],
   );
   const shown = inTab.filter((insight) => matchesFilters(insight, fields, filters));
 
@@ -107,7 +106,6 @@ export default function ReviewQueue({
               insight={insight}
               outcomes={outcomes}
               projects={projects}
-              teams={teams}
               onApprove={onApprove}
               onReject={onReject}
               onUpdate={onUpdate}
@@ -128,7 +126,6 @@ function ReviewCard({
   insight,
   outcomes,
   projects,
-  teams,
   onApprove,
   onReject,
   onUpdate,
@@ -287,18 +284,6 @@ function ReviewCard({
             }
           />
         </PillField>
-        {teams.length > 0 && (
-          <PillField label="Team" title="The team that recorded it">
-            <PillSelect
-              label="Team"
-              value={insight.team_id ? String(insight.team_id) : ''}
-              options={teams.map((team) => ({ id: String(team.id), label: team.name }))}
-              empty="—"
-              disabled={locked}
-              onChange={(value) => save({ team_id: value ? Number(value) : null })}
-            />
-          </PillField>
-        )}
         {insight.edited_in_review && <span className="tag parent">Edited</span>}
         <span className="id">#{insight.id}</span>
       </p>

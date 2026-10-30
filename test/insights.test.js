@@ -126,7 +126,7 @@ test('POST / stores observed_at as a bare date at midnight UTC, or a timestamp a
     const res = await request('POST', '/', { name: 'Admins abandon setup at SSO', observed_at: given });
     assert.equal(res.status, 201, given);
     const insert = db.calls.find((call) => /^INSERT INTO insights/.test(call.sql));
-    assert.equal(insert.params[6], stored, given);
+    assert.equal(insert.params[5], stored, given);
   }
 });
 
@@ -151,8 +151,8 @@ test('PUT /:id replaces the sentiment', async () => {
   const res = await request('PUT', '/5', { name: 'Admins love the new setup', sentiment: 'positive' });
   assert.equal(res.status, 200);
   const update = db.calls.find((call) => /^UPDATE insights/.test(call.sql));
-  assert.match(update.sql, /sentiment = \$12/);
-  assert.equal(update.params[11], 'positive');
+  assert.match(update.sql, /sentiment = \$11/);
+  assert.equal(update.params[10], 'positive');
 });
 
 test('PUT /:id updates the provenance fields it names and keeps the rest', async () => {

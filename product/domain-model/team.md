@@ -19,5 +19,3 @@ Teams belong to at most one parent team. A team with no parent is a top-level te
 Teams can be connected to one or more outcomes they are accountable for.
 
 Teams can be connected to one or more projects they are running.
-
-Teams can be connected to one or more insights they have recorded.

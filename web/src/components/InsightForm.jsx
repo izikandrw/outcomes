@@ -5,7 +5,7 @@ import MultiSelect from './MultiSelect.jsx';
 // Creates an insight or edits one in place. Evidence is linked to the outcomes
 // and projects it supports from here (a new insight started from an outcome
 // arrives already linked to it), since an insight is reusable across both.
-export default function InsightForm({ editing, outcome, project, teams, outcomes, projects, onSubmit, onCancel, onDelete }) {
+export default function InsightForm({ editing, outcome, project, outcomes, projects, onSubmit, onCancel, onDelete }) {
   const [form, setForm] = useState({
     name: editing?.name ?? '',
     type: editing?.type ?? 'interview',
@@ -15,7 +15,6 @@ export default function InsightForm({ editing, outcome, project, teams, outcomes
     dollar_impact: editing?.dollar_impact ?? '',
     impact_area: editing?.impact_area ?? '',
     sentiment: editing?.sentiment ?? '',
-    team_id: editing?.team_id ? String(editing.team_id) : '',
   });
   const [outcomeIds, setOutcomeIds] = useState(
     () => new Set((editing ? editing.outcome_ids : outcome ? [outcome.id] : []).map(String))
@@ -46,7 +45,6 @@ export default function InsightForm({ editing, outcome, project, teams, outcomes
         dollar_impact: form.dollar_impact === '' ? null : Number(form.dollar_impact),
         impact_area: form.impact_area || null,
         sentiment: form.sentiment || null,
-        team_id: form.team_id ? Number(form.team_id) : null,
         outcome_ids: [...outcomeIds].map(Number),
         project_ids: [...projectIds].map(Number),
       });
@@ -144,18 +142,6 @@ export default function InsightForm({ editing, outcome, project, teams, outcomes
           value={form.description}
           onChange={(event) => update('description', event.target.value)}
         />
-      </label>
-
-      <label>
-        Recorded by
-        <select value={form.team_id} onChange={(event) => update('team_id', event.target.value)}>
-          <option value="">No team</option>
-          {teams.map((team) => (
-            <option key={team.id} value={team.id}>
-              {team.name}
-            </option>
-          ))}
-        </select>
       </label>
 
       <MultiSelect

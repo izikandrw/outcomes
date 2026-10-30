@@ -83,11 +83,11 @@ async function seed(client, account) {
     );
   const link = (table, aCol, a, bCol, b) =>
     client.query(`INSERT INTO ${table} (account_id, ${aCol}, ${bCol}) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`, [accountId, a, b]);
-  const insight = (teamId, type, name, description, source, observedDaysAgo, dollars, area) =>
+  const insight = (type, name, description, source, observedDaysAgo, dollars, area) =>
     one(
-      `INSERT INTO insights (account_id, team_id, type, name, description, source, observed_at, dollar_impact, impact_area)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-      [accountId, teamId, type, name, description, source, daysAgo(observedDaysAgo), dollars, area]
+      `INSERT INTO insights (account_id, type, name, description, source, observed_at, dollar_impact, impact_area)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+      [accountId, type, name, description, source, daysAgo(observedDaysAgo), dollars, area]
     );
 
   // A target plus its readings. `progress` is how far along baseline -> target
@@ -164,17 +164,17 @@ async function seed(client, account) {
 
   // Insights (evidence), each linked to whatever it justifies.
   const evidence = [
-    [onboarding, 'interview', '11 of 14 interviewed admins never invited anyone during setup', 'Most said they wanted to "get it working first" and then forgot.', 'Admin interviews, Sept batch', 55, null, 'activation', [invites, checklist], [inviteFlow, setupChecklist]],
-    [onboarding, 'funnel', 'Invite modal drops 63% of admins at the role picker', 'Of admins who open the invite modal, 37% reach "send".', 'Funnel: invite_modal_opened → invite_sent', 48, 86000, 'activation', [invites], [inviteFlow]],
-    [onboarding, 'experiment', 'Day-one reminder email lifted acceptance 9 points', 'Holdout test on 2,400 invites; small sample on enterprise plans.', 'Experiment EXP-214', 20, null, 'retention', [accepts], [inviteNudges]],
-    [platform, 'support_ticket', 'SSO tickets cluster on the SAML certificate step', '31 of the last 46 tickets mention the signing certificate format.', 'Zendesk tag sso-setup', 70, 120000, 'expansion', [sso], [ssoWizard]],
-    [success, 'support_ticket', 'Top 12 ticket topics all have an existing help article', 'Customers did not find the article, or did not look.', 'Zendesk topic report, last 90 days', 35, 54000, 'cost', [selfServe], [helpSearch]],
-    [growth, 'session_recording', 'Trial users stall on the OAuth consent screen', 'Seven of ten recordings show a user leaving when asked for admin approval.', 'Session recordings, trial cohort', 30, null, 'acquisition', [connect, sample], [connectors, sampleData]],
-    [growth, 'funnel', 'Trials with a source by day 3 convert at 4.1x', '38% vs 9% trial-to-paid conversion.', 'Funnel: trial cohorts, Q2', 62, 410000, 'acquisition', [connect], [connectors]],
-    [collaboration, 'interview', 'Analysts export to PDF "so people can comment on it"', 'Four of six analysts described pasting screenshots into chat to discuss a chart.', 'Analyst interviews', 15, null, 'retention', [comments], [commentThreads]],
+    ['interview', '11 of 14 interviewed admins never invited anyone during setup', 'Most said they wanted to "get it working first" and then forgot.', 'Admin interviews, Sept batch', 55, null, 'activation', [invites, checklist], [inviteFlow, setupChecklist]],
+    ['funnel', 'Invite modal drops 63% of admins at the role picker', 'Of admins who open the invite modal, 37% reach "send".', 'Funnel: invite_modal_opened → invite_sent', 48, 86000, 'activation', [invites], [inviteFlow]],
+    ['experiment', 'Day-one reminder email lifted acceptance 9 points', 'Holdout test on 2,400 invites; small sample on enterprise plans.', 'Experiment EXP-214', 20, null, 'retention', [accepts], [inviteNudges]],
+    ['support_ticket', 'SSO tickets cluster on the SAML certificate step', '31 of the last 46 tickets mention the signing certificate format.', 'Zendesk tag sso-setup', 70, 120000, 'expansion', [sso], [ssoWizard]],
+    ['support_ticket', 'Top 12 ticket topics all have an existing help article', 'Customers did not find the article, or did not look.', 'Zendesk topic report, last 90 days', 35, 54000, 'cost', [selfServe], [helpSearch]],
+    ['session_recording', 'Trial users stall on the OAuth consent screen', 'Seven of ten recordings show a user leaving when asked for admin approval.', 'Session recordings, trial cohort', 30, null, 'acquisition', [connect, sample], [connectors, sampleData]],
+    ['funnel', 'Trials with a source by day 3 convert at 4.1x', '38% vs 9% trial-to-paid conversion.', 'Funnel: trial cohorts, Q2', 62, 410000, 'acquisition', [connect], [connectors]],
+    ['interview', 'Analysts export to PDF "so people can comment on it"', 'Four of six analysts described pasting screenshots into chat to discuss a chart.', 'Analyst interviews', 15, null, 'retention', [comments], [commentThreads]],
   ];
-  for (const [teamId, type, name, desc, source, ago, dollars, area, outcomes, projects] of evidence) {
-    const id = await insight(teamId, type, name, desc, source, ago, dollars, area);
+  for (const [type, name, desc, source, ago, dollars, area, outcomes, projects] of evidence) {
+    const id = await insight(type, name, desc, source, ago, dollars, area);
     for (const o of outcomes) await link('insight_outcomes', 'insight_id', id, 'outcome_id', o);
     for (const p of projects) await link('insight_projects', 'insight_id', id, 'project_id', p);
   }

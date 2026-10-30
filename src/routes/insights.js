@@ -76,7 +76,7 @@ function parseObservedAt(value) {
 // doesn't check out; otherwise returns the normalised values.
 async function readBody(req, res) {
   const {
-    name, type, description, source, observed_at, dollar_impact, impact_area, sentiment, team_id,
+    name, type, description, source, observed_at, dollar_impact, impact_area, sentiment,
     outcome_ids, project_ids, link_rationales, proposed_links,
   } = req.body;
 
@@ -106,10 +106,6 @@ async function readBody(req, res) {
       res.status(400).json({ error: 'dollar_impact must be a number' });
       return null;
     }
-  }
-  if (team_id && !(await belongsToAccount('teams', team_id, req.accountId))) {
-    res.status(400).json({ error: 'team_id not found in this account' });
-    return null;
   }
 
   const links = {};
@@ -156,7 +152,6 @@ async function readBody(req, res) {
     dollarImpact: dollar_impact === undefined || dollar_impact === null || dollar_impact === '' ? null : Number(dollar_impact),
     impactArea: impact_area || null,
     sentiment: sentiment || null,
-    teamId: team_id || null,
     outcomeIds: links.outcome_ids,
     projectIds: links.project_ids,
     rationales,
@@ -319,13 +314,12 @@ router.post('/', async (req, res, next) => {
     client = await pool.connect();
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `INSERT INTO insights (account_id, team_id, name, type, description, source, observed_at, dollar_impact, impact_area,
+      `INSERT INTO insights (account_id, name, type, description, source, observed_at, dollar_impact, impact_area,
          status, source_system, source_url, source_external_id, source_excerpt, firsthand, collection_run_id, proposed_links,
          sentiment)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING id`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id`,
       [
         req.accountId,
-        input.teamId,
         input.name,
         input.type,
         input.description,
@@ -376,10 +370,10 @@ router.put('/:insightId', forbidCollector, async (req, res, next) => {
       // Changing a suggestion before approving it is recorded: how often
       // reviewers have to fix the collector's output is a quality signal.
       `UPDATE insights SET name = $1, type = $2, description = $3, source = $4, observed_at = $5,
-         dollar_impact = $6, impact_area = $7, team_id = $8, updated_at = now(),
-         proposed_links = COALESCE($11::jsonb, proposed_links), sentiment = $12,
+         dollar_impact = $6, impact_area = $7, updated_at = now(),
+         proposed_links = COALESCE($10::jsonb, proposed_links), sentiment = $11,
          edited_in_review = edited_in_review OR status = 'unvalidated'
-       WHERE id = $9 AND account_id = $10 RETURNING id`,
+       WHERE id = $8 AND account_id = $9 RETURNING id`,
       [
         input.name,
         input.type,
@@ -388,7 +382,6 @@ router.put('/:insightId', forbidCollector, async (req, res, next) => {
         input.observedAt,
         input.dollarImpact,
         input.impactArea,
-        input.teamId,
         req.params.insightId,
         req.accountId,
         input.proposedLinks === undefined ? null : JSON.stringify(input.proposedLinks),
