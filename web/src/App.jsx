@@ -30,7 +30,7 @@ import Roadmap from './components/Roadmap.jsx';
 import TopNav from './components/TopNav.jsx';
 import { PlusIcon } from './components/icons.jsx';
 import { insightsForOutcome, insightsForProject, isEvidence, targetLabel, targetsFor } from './lib/links.js';
-import { flaggedBy, ruleById } from './lib/validation.js';
+import { flaggedBy, ruleById, validateTree } from './lib/validation.js';
 
 const STORED_PAGE = 'outcomes.page';
 const STORED_TEAM = 'outcomes.team';
@@ -827,20 +827,23 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
           </section>
         ) : (
         <section className="card" aria-label={page === 'map' ? 'Map' : 'Outcomes'}>
-          <div className="list-head">
-            <div className="actions">
-              {page === 'map' && (
-                <button type="button" className="with-icon btn-impact" onClick={openCreateImpact}>
+          {/* The outcome list carries New outcome in its own toolbar. */}
+          {(page === 'map' || loading || outcomes.length === 0 || flagged?.length === 0) && (
+            <div className="list-head">
+              <div className="actions">
+                {page === 'map' && (
+                  <button type="button" className="with-icon btn-impact" onClick={openCreateImpact}>
+                    <PlusIcon />
+                    New impact
+                  </button>
+                )}
+                <button type="button" className="with-icon btn-outcome" onClick={openCreate}>
                   <PlusIcon />
-                  New impact
+                  New outcome
                 </button>
-              )}
-              <button type="button" className="with-icon btn-outcome" onClick={openCreate}>
-                <PlusIcon />
-                New outcome
-              </button>
+              </div>
             </div>
-          </div>
+          )}
           {!loading && issueBanner(page === 'map' ? impacts : outcomes)}
           {loading ? (
             <p className="empty">Loading…</p>
@@ -876,9 +879,12 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               outcomes={flagged ?? outcomes}
               teams={teams}
               projects={projects}
+              impacts={impacts}
               targets={targets}
               insights={evidence}
               suggestions={suggestions}
+              issues={validateTree({ outcomes, projects, insights: evidence, impacts }).outcome}
+              onCreate={openCreate}
               onShowInsights={showInsights}
               onOpenTeam={openTeam}
               onEdit={openEdit}

@@ -2927,6 +2927,12 @@ button.team-chip.link:hover {
   border-bottom: 1px solid var(--border);
 }
 
+/* Under a header issue banner the toolbar isn't at the top of the card, so it
+   keeps its own place rather than tucking up into the card's padding. */
+.issue-filter + .list-toolbar {
+  margin-top: 0;
+}
+
 /* Stuck, a band of the same surface fills the space up to the top of the
    window, so the pinned nav sits inside one panel with the toolbar. The nav
    drops its own pill there; the panel carries the edge and the shadow. */

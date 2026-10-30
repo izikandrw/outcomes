@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { formatDollars, impactAreaLabel, insightTypeLabel } from '../lib/links.js';
 import { INSIGHT_SORTS, insightFilterFields, matchesFilters } from '../lib/insightFilters.js';
+import useStuck from '../lib/useStuck.js';
 import FilterBar from './FilterBar.jsx';
 import SentimentBadge from './SentimentBadge.jsx';
 import { PencilIcon, PlusIcon, SearchIcon, SortIcon, TrashIcon } from './icons.jsx';
@@ -14,20 +15,7 @@ export default function InsightList({ insights, outcomes = [], projects = [], on
   const [filters, setFilters] = useState({});
   const [sort, setSort] = useState(INSIGHT_SORTS[0].id);
   const toolbarRef = useRef(null);
-  const [stuck, setStuck] = useState(false);
-
-  // Whether the toolbar has scrolled up to where it sticks, under the pinned
-  // nav. Stuck, it grows a band up to the top of the window, so the nav and
-  // the toolbar read as one panel rather than two things floating apart.
-  useEffect(() => {
-    function check() {
-      const toolbar = toolbarRef.current;
-      if (toolbar) setStuck(toolbar.getBoundingClientRect().top <= parseFloat(getComputedStyle(toolbar).top) + 0.5);
-    }
-    check();
-    window.addEventListener('scroll', check, { passive: true });
-    return () => window.removeEventListener('scroll', check);
-  }, []);
+  const stuck = useStuck(toolbarRef);
 
   const fields = useMemo(
     () => insightFilterFields({ insights, outcomes, projects }),
