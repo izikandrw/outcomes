@@ -19,6 +19,7 @@ const SORT_KEYS = {
   type: (insight) => insightTypeLabel(insight.type).toLowerCase(),
   area: (insight) => (insight.impact_area ? impactAreaLabel(insight.impact_area).toLowerCase() : null),
   impact: (insight) => (insight.dollar_impact != null ? Number(insight.dollar_impact) : null),
+  source: (insight) => sourceOf(insight)?.label.toLowerCase() ?? null,
   observed: (insight) => (insight.observed_at ? new Date(insight.observed_at).getTime() : null),
 };
 
@@ -138,6 +139,7 @@ export default function EntityInsights({
               {heading('type', 'Type')}
               {heading('area', 'Area')}
               {heading('impact', 'Impact', 'num')}
+              {heading('source', 'Source')}
               {heading('observed', 'Observed')}
               <th />
             </tr>
@@ -204,6 +206,9 @@ export default function EntityInsights({
                   />
                 </td>
                 <td>
+                  <SourceCell insight={insight} />
+                </td>
+                <td>
                   <input
                     className="cell-input"
                     type="date"
@@ -266,6 +271,38 @@ function SortHeading({ column, label, className, sort, onSort }) {
         </span>
       </button>
     </th>
+  );
+}
+
+// Where an insight came from, short enough for a table cell: a link labelled
+// with the site's domain when the source is a URL, otherwise the reference text.
+function sourceOf(insight) {
+  const url = insight.source_url || (/^https?:\/\/\S+$/.test(insight.source?.trim() ?? '') ? insight.source.trim() : null);
+  if (url) {
+    try {
+      return { label: new URL(url).hostname.replace(/^www\./, ''), href: url };
+    } catch {
+      return { label: url, href: url };
+    }
+  }
+  const text = insight.source_external_id || insight.source;
+  return text ? { label: text, href: null } : null;
+}
+
+// The Source column: one line, truncated, with the whole source on hover.
+// Edit it from the full form.
+function SourceCell({ insight }) {
+  const source = sourceOf(insight);
+  if (!source) return <span className="hint">—</span>;
+  const full = insight.source || source.href;
+  return source.href ? (
+    <a className="source-cell" href={source.href} target="_blank" rel="noreferrer" title={full}>
+      {source.label}
+    </a>
+  ) : (
+    <span className="source-cell" title={full}>
+      {source.label}
+    </span>
   );
 }
 

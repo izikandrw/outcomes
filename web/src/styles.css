@@ -1550,7 +1550,13 @@ button.tag.insight-badge.suggested:not(.empty) {
 .insight-table td:nth-child(3) .cell-input { min-width: 7.5rem; }
 .insight-table td:nth-child(4) .cell-input { min-width: 9rem; }
 .insight-table td:nth-child(5) .cell-input { min-width: 5.5rem; }
-.insight-table td:nth-child(6) .cell-input { min-width: 8rem; }
+.insight-table td:nth-child(7) .cell-input { min-width: 8rem; }
+.insight-table .source-cell {
+  display: block;
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .insight-table td:last-child { padding-right: 0; }
 .insight-table .row-actions { display: flex; gap: 6px; }
 
