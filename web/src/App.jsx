@@ -803,6 +803,10 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               onLink={link}
               onOpenTeam={openTeam}
               onShowIssue={showIssue}
+              onOpenSuggested={() => {
+                changePage('review');
+                window.scrollTo({ top: 0 });
+              }}
             />
           ) : view === 'list' ? (
             <OutcomeList

@@ -7,6 +7,7 @@ import {
   formatDollars,
   outcomesForImpact,
   projectsForOutcome,
+  suggestedEntities,
   targetsForImpact,
   targetsForOutcome,
   teamsOnOutcome,
@@ -43,6 +44,18 @@ const MAX_LINES = 4;
 // How far the pointer must travel with the button down before a press on a
 // node turns into dragging a link from it rather than a click.
 const DRAG_THRESHOLD = 5;
+// Whether the map draws suggested outcomes and projects; on until turned off.
+const SHOW_SUGGESTED_KEY = 'outcomes.mapSuggested';
+
+function readShowSuggested() {
+  try {
+    return localStorage.getItem(SHOW_SUGGESTED_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
+
+const isSuggestedId = (id) => String(id).startsWith('suggested:');
 
 // Top-down node-link diagram: each node is centred over the block its children
 // occupy, so sibling subtrees never overlap however wide they fan out.
@@ -64,20 +77,46 @@ export default function OutcomeTree({
   onLink,
   onOpenTeam,
   onShowIssue,
+  onOpenSuggested,
 }) {
+  // Outcomes and projects the insight collector proposed, drawn dashed among
+  // the real ones until someone creates or dismisses them. Only the layout
+  // sees them: issue checks, links and counts stay on what exists.
+  const [showSuggested, setShowSuggested] = useState(readShowSuggested);
+  const proposed = useMemo(
+    () => suggestedEntities(suggestions, outcomes, projects),
+    [suggestions, outcomes, projects]
+  );
+  const proposedCount = proposed.outcomes.length + proposed.projects.length;
+  const mapOutcomes = useMemo(
+    () => (showSuggested ? [...outcomes, ...proposed.outcomes] : outcomes),
+    [showSuggested, outcomes, proposed]
+  );
+  const mapProjects = useMemo(
+    () => (showSuggested ? [...projects, ...proposed.projects] : projects),
+    [showSuggested, projects, proposed]
+  );
+  function toggleSuggested(next) {
+    setShowSuggested(next);
+    try {
+      localStorage.setItem(SHOW_SUGGESTED_KEY, next ? '1' : '0');
+    } catch {
+      // Storage can be off; the toggle still works for this visit.
+    }
+  }
   const { nodes, edges, width, height: treeHeight } = useMemo(
-    () => layout(outcomes, projects, impacts),
-    [outcomes, projects, impacts]
+    () => layout(mapOutcomes, mapProjects, impacts),
+    [mapOutcomes, mapProjects, impacts]
   );
   // Room below the bottom row for a long name's overlay.
   const dollarsOf = (node) =>
-    node.type === 'impact'
+    node.type === 'impact' || node.data.suggested
       ? null
       : totalDollarImpact(
           node.type === 'project' ? insightsForProject(insights, node.data) : insightsForOutcome(insights, node.data)
         );
   const suggestedOf = (node) =>
-    node.type === 'impact'
+    node.type === 'impact' || node.data.suggested
       ? 0
       : (node.type === 'project' ? insightsForProject(suggestions, node.data) : insightsForOutcome(suggestions, node.data))
           .length;
@@ -131,7 +170,7 @@ export default function OutcomeTree({
   latest.current = { nodes, impacts, outcomes, projects, onLink };
 
   function startLink(event, from) {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || from.data.suggested) return;
     // The node's own buttons keep their clicks.
     if (event.target.closest('.node-add, .node-insights, .node-issue, .tree-node-target')) return;
     const start = { x: event.clientX, y: event.clientY };
@@ -146,6 +185,7 @@ export default function OutcomeTree({
         latest.current.nodes.find(
           (node) =>
             keyOf(node) !== keyOf(from) &&
+            !node.data.suggested &&
             Math.abs(point.x - node.x) <= NODE_W / 2 &&
             point.y >= node.y &&
             point.y <= node.y + NODE_H
@@ -228,6 +268,17 @@ export default function OutcomeTree({
   return (
     <div>
       <div className="tree-toolbar">
+        <label
+          className="tree-toggle"
+          title="Outcomes and projects the insight collector proposed, not created yet. Click one to review it."
+        >
+          <input
+            type="checkbox"
+            checked={showSuggested}
+            onChange={(event) => toggleSuggested(event.target.checked)}
+          />
+          Suggested outcomes{proposedCount > 0 ? ` (${proposedCount})` : ''}
+        </label>
         <ZoomControls zoom={zoom} {...zoomActions} />
       </div>
       <div className="tree-scroll" ref={scrollRef}>
@@ -285,15 +336,20 @@ export default function OutcomeTree({
             </marker>
           </defs>
 
-          {edges.map((edge) => (
+          {edges.map((edge) => {
+            // A line to a suggested node isn't a saved link, so there's nothing to break.
+            const suggested = isSuggestedId(edge.from.id) || isSuggestedId(edge.to.id);
+            return (
             <g
               key={edge.key}
               className={hoverEdge?.key === edge.key ? 'edge-hover' : undefined}
-              onMouseEnter={() => hoverOn(edge)}
-              onMouseLeave={hoverOff}
+              onMouseEnter={suggested ? undefined : () => hoverOn(edge)}
+              onMouseLeave={suggested ? undefined : hoverOff}
             >
               <path
-                className={['tree-edge', edge.kind !== 'outcome' && edge.kind].filter(Boolean).join(' ')}
+                className={['tree-edge', edge.kind !== 'outcome' && edge.kind, suggested && 'suggested']
+                  .filter(Boolean)
+                  .join(' ')}
                 d={edge.d}
                 fill="none"
                 markerEnd={
@@ -305,9 +361,10 @@ export default function OutcomeTree({
                 }
               />
               {/* Wider invisible stroke so the thin line is easy to hover. */}
-              <path className="tree-edge-hit" d={edge.d} fill="none" />
+              {!suggested && <path className="tree-edge-hit" d={edge.d} fill="none" />}
             </g>
-          ))}
+            );
+          })}
 
           {drawOrder.map((node) => (
             <g
@@ -353,9 +410,9 @@ export default function OutcomeTree({
                 insightCount={insightsForProject(insights, node.data).length}
                 suggestedCount={suggestedOf(node)}
                 insightDollars={dollarsOf(node)}
-                issues={issuesFor(validation, 'project', node.data)}
+                issues={node.data.suggested ? [] : issuesFor(validation, 'project', node.data)}
                 onShowInsights={onShowInsights}
-                onEdit={onEditProject}
+                onEdit={node.data.suggested ? onOpenSuggested : onEditProject}
                 onAddChild={onAddChildProject}
                 {...node}
               />
@@ -371,9 +428,9 @@ export default function OutcomeTree({
                 insightCount={insightsForOutcome(insights, node.data).length}
                 suggestedCount={suggestedOf(node)}
                 insightDollars={dollarsOf(node)}
-                issues={issuesFor(validation, 'outcome', node.data)}
+                issues={node.data.suggested ? [] : issuesFor(validation, 'outcome', node.data)}
                 onShowInsights={onShowInsights}
-                onEdit={onEdit}
+                onEdit={node.data.suggested ? onOpenSuggested : onEdit}
                 onViewTarget={onViewTarget}
                 onOpenMenu={openMenu}
                 {...node}
@@ -504,7 +561,7 @@ function OutcomeNode({
   const { lines, targetLine } = nodeLabel(outcome.name, quantified);
   const className = [
     'tree-node',
-    outcome.parent_outcome_id == null && 'root',
+    outcome.suggested ? 'suggested' : outcome.parent_outcome_id == null && 'root',
     issues.length > 0 && 'has-issue',
   ]
     .filter(Boolean)
@@ -515,7 +572,7 @@ function OutcomeNode({
       className={className}
       role="treeitem"
       aria-level={depth + 1}
-      aria-label={outcome.name}
+      aria-label={outcome.suggested ? `Suggested outcome: ${outcome.name}` : outcome.name}
       tabIndex={0}
       onClick={() => onEdit(outcome)}
       onKeyDown={(event) => {
@@ -525,6 +582,7 @@ function OutcomeNode({
         }
       }}
     >
+      {outcome.suggested && <SuggestedTitle entity={outcome} noun="outcome" />}
       <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={NODE_H} rx="10" />
       <NodeText
         x={x}
@@ -537,38 +595,55 @@ function OutcomeNode({
 
       {revealed && <FullName node={{ type: 'outcome', data: outcome, x, y, dollars: insightDollars, suggested: suggestedCount }} />}
       <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, outcome)} />
-      <InsightPill
-        x={x}
-        y={y}
-        count={insightCount}
-        suggested={suggestedCount}
-        dollars={insightDollars}
-        label={outcome.name}
-        onOpen={(filter) => onShowInsights(outcome, 'outcome', filter)}
-      />
-      {/* Revealed on hover or keyboard focus; opens the add menu. */}
-      <g
-        className="node-add"
-        role="button"
-        tabIndex={0}
-        aria-label={`Add to ${outcome.name}`}
-        onClick={(event) => onOpenMenu(event, outcome)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            event.stopPropagation();
-            onOpenMenu(event, outcome);
-          }
-        }}
-      >
-        <circle cx={x + NODE_W / 2} cy={y + NODE_H / 2} r="11" />
-        <path
-          d={`M${x + NODE_W / 2 - 5} ${y + NODE_H / 2}h10M${x + NODE_W / 2} ${
-            y + NODE_H / 2 - 5
-          }v10`}
+      {/* Nothing exists yet to back up or add to. */}
+      {!outcome.suggested && (
+        <InsightPill
+          x={x}
+          y={y}
+          count={insightCount}
+          suggested={suggestedCount}
+          dollars={insightDollars}
+          label={outcome.name}
+          onOpen={(filter) => onShowInsights(outcome, 'outcome', filter)}
         />
-      </g>
+      )}
+      {/* Revealed on hover or keyboard focus; opens the add menu. */}
+      {!outcome.suggested && (
+        <g
+          className="node-add"
+          role="button"
+          tabIndex={0}
+          aria-label={`Add to ${outcome.name}`}
+          onClick={(event) => onOpenMenu(event, outcome)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              event.stopPropagation();
+              onOpenMenu(event, outcome);
+            }
+          }}
+        >
+          <circle cx={x + NODE_W / 2} cy={y + NODE_H / 2} r="11" />
+          <path
+            d={`M${x + NODE_W / 2 - 5} ${y + NODE_H / 2}h10M${x + NODE_W / 2} ${
+              y + NODE_H / 2 - 5
+            }v10`}
+          />
+        </g>
+      )}
     </g>
+  );
+}
+
+// Hovering a suggested node says where it came from and what clicking does.
+function SuggestedTitle({ entity, noun }) {
+  const count = entity.insight_ids.length;
+  return (
+    <title>
+      {`Suggested ${noun}, not created yet: proposed by ${count} insight${count === 1 ? '' : 's'} awaiting review.${
+        entity.description ? `\n${entity.description}` : ''
+      }\nClick to review.`}
+    </title>
   );
 }
 
@@ -763,10 +838,12 @@ function ProjectNode({
 
   return (
     <g
-      className={['tree-node project', issues.length > 0 && 'has-issue'].filter(Boolean).join(' ')}
+      className={['tree-node project', project.suggested && 'suggested', issues.length > 0 && 'has-issue']
+        .filter(Boolean)
+        .join(' ')}
       role="treeitem"
       aria-level={depth + 1}
-      aria-label={project.name}
+      aria-label={project.suggested ? `Suggested project: ${project.name}` : project.name}
       tabIndex={0}
       onClick={() => onEdit(project)}
       onKeyDown={(event) => {
@@ -776,6 +853,7 @@ function ProjectNode({
         }
       }}
     >
+      {project.suggested && <SuggestedTitle entity={project} noun="project" />}
       <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={NODE_H} rx="10" />
       <text x={x} y={y + NODE_H / 2 - LABEL_LIFT} textAnchor="middle" dominantBaseline="middle">
         {lines.map((line, index) => (
@@ -800,39 +878,43 @@ function ProjectNode({
 
       {revealed && <FullName node={{ type: 'project', data: project, x, y, dollars: insightDollars, suggested: suggestedCount }} />}
       <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, project)} />
-      <InsightPill
-        x={x}
-        y={y}
-        count={insightCount}
-        suggested={suggestedCount}
-        dollars={insightDollars}
-        label={project.name}
-        onOpen={(filter) => onShowInsights(project, 'project', filter)}
-      />
-      <g
-        className="node-add"
-        role="button"
-        tabIndex={0}
-        aria-label={`Add child project to ${project.name}`}
-        onClick={(event) => {
-          event.stopPropagation();
-          onAddChild(project);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
+      {!project.suggested && (
+        <InsightPill
+          x={x}
+          y={y}
+          count={insightCount}
+          suggested={suggestedCount}
+          dollars={insightDollars}
+          label={project.name}
+          onOpen={(filter) => onShowInsights(project, 'project', filter)}
+        />
+      )}
+      {!project.suggested && (
+        <g
+          className="node-add"
+          role="button"
+          tabIndex={0}
+          aria-label={`Add child project to ${project.name}`}
+          onClick={(event) => {
             event.stopPropagation();
             onAddChild(project);
-          }
-        }}
-      >
-        <circle cx={x + NODE_W / 2} cy={y + NODE_H / 2} r="11" />
-        <path
-          d={`M${x + NODE_W / 2 - 5} ${y + NODE_H / 2}h10M${x + NODE_W / 2} ${
-            y + NODE_H / 2 - 5
-          }v10`}
-        />
-      </g>
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              event.stopPropagation();
+              onAddChild(project);
+            }
+          }}
+        >
+          <circle cx={x + NODE_W / 2} cy={y + NODE_H / 2} r="11" />
+          <path
+            d={`M${x + NODE_W / 2 - 5} ${y + NODE_H / 2}h10M${x + NODE_W / 2} ${
+              y + NODE_H / 2 - 5
+            }v10`}
+          />
+        </g>
+      )}
     </g>
   );
 }

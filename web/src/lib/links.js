@@ -350,6 +350,59 @@ export const REJECTION_REASONS = [
 export const rejectionReasonLabel = (reason) =>
   REJECTION_REASONS.find((entry) => entry.id === reason)?.label ?? reason;
 
+// The outcomes and projects the insight collector has proposed but nobody has
+// created yet, shaped like real ones so the map can draw them. Insights awaiting
+// review each keep their own copy of a proposal, so the same name (ignoring case
+// and surrounding space, as src/lib/adoptProposals.js matches) is merged into
+// one. A name that already exists is skipped: creating it adopts those
+// proposals anyway. None has a parent; a suggested project drives whatever its
+// insights link to, plus any outcome the same insight proposed alongside it.
+// Ids are strings prefixed "suggested:" so they never clash with real ones.
+export function suggestedEntities(suggestions, outcomes, projects) {
+  const key = (name) => String(name ?? '').trim().toLowerCase();
+  const taken = {
+    outcome: new Set(outcomes.map((outcome) => key(outcome.name))),
+    project: new Set(projects.map((project) => key(project.name))),
+  };
+  const found = { outcome: new Map(), project: new Map() };
+  for (const insight of suggestions) {
+    for (const proposal of insight.proposed_links ?? []) {
+      const kind = proposal.kind === 'project' ? 'project' : 'outcome';
+      const name = key(proposal.name);
+      if (!name || taken[kind].has(name)) continue;
+      if (!found[kind].has(name)) {
+        found[kind].set(name, {
+          id: `suggested:${kind}:${name}`,
+          name: proposal.name.trim(),
+          description: proposal.description ?? null,
+          suggested: true,
+          insight_ids: [],
+          ...(kind === 'project'
+            ? { outcome_ids: [], parent_project_id: null }
+            : { parent_outcome_id: null, impact_id: null }),
+        });
+      }
+      const entity = found[kind].get(name);
+      if (!entity.insight_ids.some((id) => same(id, insight.id))) entity.insight_ids.push(insight.id);
+    }
+  }
+  for (const insight of suggestions) {
+    const proposals = insight.proposed_links ?? [];
+    const proposedOutcomes = proposals
+      .filter((proposal) => proposal.kind !== 'project')
+      .map((proposal) => found.outcome.get(key(proposal.name))?.id)
+      .filter(Boolean);
+    for (const proposal of proposals) {
+      const project = proposal.kind === 'project' && found.project.get(key(proposal.name));
+      if (!project) continue;
+      for (const id of [...(insight.outcome_ids ?? []), ...proposedOutcomes]) {
+        if (!project.outcome_ids.some((linked) => same(linked, id))) project.outcome_ids.push(id);
+      }
+    }
+  }
+  return { outcomes: [...found.outcome.values()], projects: [...found.project.values()] };
+}
+
 // Sum of the dollar impact across a set of insights; null when none is priced.
 export function totalDollarImpact(insights) {
   const priced = insights.filter((insight) => insight.dollar_impact != null);
