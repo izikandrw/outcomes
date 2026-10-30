@@ -1,19 +1,30 @@
-import { useMemo, useRef } from 'react';
-import { formatDollars, impactAreaLabel, insightTypeLabel } from '../lib/links.js';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { INSIGHT_SORTS, insightFilterFields, matchesFilters } from '../lib/insightFilters.js';
 import useSlashFocus from '../lib/useSlashFocus.js';
 import useStuck from '../lib/useStuck.js';
 import FilterBar from './FilterBar.jsx';
-import SentimentBadge from './SentimentBadge.jsx';
-import { PencilIcon, PlusIcon, SearchIcon, SortIcon, TrashIcon } from './icons.jsx';
-import LinkedText from './LinkedText.jsx';
+import InsightCard, { NewInsight } from './InsightCard.jsx';
+import { PlusIcon, SearchIcon, SortIcon, TrashIcon } from './icons.jsx';
 
 // Every insight in the account, narrowed by text search and by any of the
 // fields in insightFilters.js, then sorted. Each row shows how much work leans
-// on it, since the point of an insight is to be reused.
+// on it, since the point of an insight is to be reused, and edits in place.
+// New insights are added by name at the top and stay there, whatever the sort
+// and filters, until the page is left, so their other fields can be filled in.
 // `view` holds the search, filters and sort ({ q, filters, sort }, a null sort
 // meaning the first), which the app keeps in the URL; onViewChange takes the next one.
-export default function InsightList({ view, onViewChange, insights, outcomes = [], projects = [], onCreate, onEdit, onDelete }) {
+// focusId names an insight a link pointed at: it is scrolled to and outlined.
+export default function InsightList({
+  view,
+  onViewChange,
+  insights,
+  outcomes = [],
+  projects = [],
+  focusId,
+  onCreate,
+  onUpdate,
+  onDelete,
+}) {
   const { q: query, filters } = view;
   const sort = INSIGHT_SORTS.some((entry) => entry.id === view.sort) ? view.sort : INSIGHT_SORTS[0].id;
   const setQuery = (q) => onViewChange({ ...view, q });
@@ -23,6 +34,19 @@ export default function InsightList({ view, onViewChange, insights, outcomes = [
   const stuck = useStuck(toolbarRef);
   const searchRef = useRef(null);
   useSlashFocus(searchRef);
+  const [adding, setAdding] = useState(false);
+  // Ids of the insights added here, newest first.
+  const [added, setAdded] = useState([]);
+
+  useEffect(() => {
+    if (focusId == null) return;
+    document.getElementById(`insight-${focusId}`)?.scrollIntoView({ block: 'center' });
+  }, [focusId]);
+
+  async function create(name) {
+    const created = await onCreate({ name });
+    setAdded((current) => [created.id, ...current]);
+  }
 
   const fields = useMemo(
     () => insightFilterFields({ insights, outcomes, projects }),
@@ -37,9 +61,13 @@ export default function InsightList({ view, onViewChange, insights, outcomes = [
           .includes(needle),
       )
     : insights;
-  const visible = searched
-    .filter((insight) => matchesFilters(insight, fields, filters))
-    .sort(INSIGHT_SORTS.find((entry) => entry.id === sort).compare);
+  const isAdded = (insight) => added.includes(insight.id);
+  const visible = [
+    ...added.map((id) => insights.find((insight) => insight.id === id)).filter(Boolean),
+    ...searched
+      .filter((insight) => !isAdded(insight) && matchesFilters(insight, fields, filters))
+      .sort(INSIGHT_SORTS.find((entry) => entry.id === sort).compare),
+  ];
 
   // How many insights an option would show, given the search and the other fields' filters.
   function countFor(fieldId, optionId) {
@@ -49,7 +77,6 @@ export default function InsightList({ view, onViewChange, insights, outcomes = [
     ).length;
   }
 
-  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
   const filtered = needle || Object.keys(filters).length > 0;
 
   return (
@@ -80,7 +107,7 @@ export default function InsightList({ view, onViewChange, insights, outcomes = [
               the row's flow, so they can come and go without leaving a gap
               or re-centring the toolbar under an open filter menu. */}
           <span className="list-toolbar-end">
-            <button type="button" className="with-icon" aria-label="New insight" title="New insight" onClick={onCreate}>
+            <button type="button" className="with-icon" aria-label="New insight" title="New insight" onClick={() => setAdding(true)}>
               <PlusIcon />
             </button>
             <span className="list-toolbar-status">
@@ -95,54 +122,18 @@ export default function InsightList({ view, onViewChange, insights, outcomes = [
         </div>
         <FilterBar fields={fields} filters={filters} onChange={setFilters} countFor={countFor} showClear={false} />
       </div>
+      {adding && <NewInsight onCreate={create} onClose={() => setAdding(false)} />}
       {insights.length === 0 ? (
-        <p className="empty">No insights yet. Record the evidence behind your outcomes and projects.</p>
+        !adding && <p className="empty">No insights yet. Record the evidence behind your outcomes and projects.</p>
       ) : visible.length === 0 ? (
         <p className="empty">No insights match.</p>
       ) : (
         <ul className="outcome-list">
           {visible.map((insight) => (
-            <li key={insight.id}>
-              <div className="outcome">
-                <div>
-                  <h3>
-                    <SentimentBadge sentiment={insight.sentiment} /> {insight.name}
-                  </h3>
-                  <p className="meta">
-                    {insight.status === 'unvalidated' && (
-                      <span className="tag parent" title="Waiting for review; not counted as evidence yet">
-                        Suggested
-                      </span>
-                    )}
-                    <span className="tag">{insightTypeLabel(insight.type)}</span>
-                    <span className="tag">{plural(insight.outcome_ids.length, 'outcome')}</span>
-                    <span className="tag project">{plural(insight.project_ids.length, 'project')}</span>
-                    {insight.impact_area && <span className="tag">{impactAreaLabel(insight.impact_area)}</span>}
-                    {insight.dollar_impact != null && (
-                      <span className="tag">{formatDollars(insight.dollar_impact)}</span>
-                    )}
-                    {insight.observed_at && (
-                      <span className="id">{new Date(insight.observed_at).toISOString().slice(0, 10)}</span>
-                    )}
-                    <span className="id">#{insight.id}</span>
-                  </p>
-                  {insight.source_excerpt && <blockquote className="excerpt">“{insight.source_excerpt}”</blockquote>}
-                  {insight.source && (
-                    <p className="hint">
-                      <LinkedText text={insight.source} />
-                    </p>
-                  )}
-                </div>
+            <li key={insight.id} id={`insight-${insight.id}`}>
+              <div className={`outcome${String(insight.id) === String(focusId) ? ' focused' : ''}`}>
+                <InsightCard insight={insight} outcomes={outcomes} projects={projects} onUpdate={onUpdate} />
                 <div className="actions">
-                  <button
-                    type="button"
-                    className="icon-button"
-                    aria-label={`Edit insight ${insight.id}`}
-                    title="Edit"
-                    onClick={() => onEdit(insight)}
-                  >
-                    <PencilIcon />
-                  </button>
                   <button
                     type="button"
                     className="icon-button danger"

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import * as api from './api.js';
 import ImpactForm from './components/ImpactForm.jsx';
 import ImpactList from './components/ImpactList.jsx';
-import InsightForm from './components/InsightForm.jsx';
 import ConfirmDialog from './components/ConfirmDialog.jsx';
 import AccountLogo from './components/AccountLogo.jsx';
 import AccountMenu from './components/AccountMenu.jsx';
@@ -96,6 +95,9 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   // An item a link names ({ kind, id }), opened once the data it needs has
   // loaded. It stays in the URL until then.
   const [pendingItem, setPendingItem] = useState(initialUrl.item);
+  // The insight a link named, outlined on the Insights page; insights edit in
+  // place there rather than opening over the page.
+  const [focusInsightId, setFocusInsightId] = useState(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => setHeaderHidden(!entry.isIntersecting));
@@ -174,6 +176,10 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   // 'project' | 'insight' | 'impact', and parentKind says whether the node it
   // was opened from is an 'outcome' (default) or an 'impact'.
   const openAdd = (parent, kind, parentKind = 'outcome') => {
+    // Insights are added in place, in the list of the outcome's own.
+    if (kind === 'insight') {
+      return setModal({ kind: 'entity-insights', entity: parent, entityKind: parentKind, filter: 'all', adding: true });
+    }
     if (kind === 'impact') return setModal({ kind: 'impact', impact: null, parent });
     // An outcome added under an impact is top-level and carries the link.
     if (kind === 'outcome' && parentKind === 'impact') {
@@ -208,6 +214,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   function changePage(next) {
     setPage(next);
     setIssueFilter(null);
+    setFocusInsightId(null);
     if (next !== page) setPageView(emptyPageView());
   }
 
@@ -219,7 +226,10 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   // Keep the address bar in step with the view. Moving to another page, team,
   // tab or run adds a history entry, so Back returns to it; opening an item or
   // changing a list's search or filters rewrites the current one.
-  const shownItem = itemOfModal(modal) ?? pendingItem;
+  const shownItem =
+    itemOfModal(modal) ??
+    pendingItem ??
+    (page === 'insights' && focusInsightId != null ? { kind: 'insight', id: String(focusInsightId) } : null);
   const search = buildSearch({ page, teamId, issue: issueFilter, item: shownItem, pageView });
   useEffect(() => {
     localStorage.setItem(STORED_PAGE, page);
@@ -244,6 +254,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
       setIssueFilter(ruleById(next.issue) ? next.issue : null);
       setPageView(next.pageView);
       setModal(null);
+      setFocusInsightId(null);
       setPendingItem(next.item);
     };
     window.addEventListener('popstate', onPopState);
@@ -262,7 +273,10 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
     else if (kind === 'impact') openEditImpact(item);
     else if (kind === 'project') openEditProject(item);
     else if (kind === 'target') viewTarget(item);
-    else setModal({ kind: 'insight', insight: item });
+    else {
+      if (page !== 'insights') changePage('insights');
+      setFocusInsightId(item.id);
+    }
     // The open* helpers are recreated each render; the item only needs opening once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingItem, loading, outcomes, impacts, projects, targets, insights]);
@@ -407,16 +421,16 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
     }
   }
 
-  async function saveInsight(insight) {
-    const editing = modal?.insight;
-    if (editing) {
-      const updated = await api.updateInsight(accountId, editing.id, insight);
-      setInsights((current) => current.map((item) => (item.id === updated.id ? updated : item)));
-    } else {
-      const created = await api.createInsight(accountId, insight);
-      setInsights((current) => [...current, created]);
-    }
-    setModal(null);
+  // A new insight from just its observation; the rest is filled in on its card.
+  async function createInsight(fields) {
+    const created = await api.createInsight(accountId, {
+      type: 'interview',
+      outcome_ids: [],
+      project_ids: [],
+      ...fields,
+    });
+    setInsights((current) => [...current, created]);
+    return created;
   }
 
   // Inline edit of one field from a table; the PUT replaces the whole insight,
@@ -589,7 +603,6 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
     try {
       await api.deleteInsight(accountId, insight.id);
       setInsights((current) => current.filter((item) => item.id !== insight.id));
-      setModal(null);
       setError(null);
     } catch (err) {
       setError(`Could not delete: ${err.message}`);
@@ -815,8 +828,9 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
                 insights={activeInsights}
                 outcomes={outcomes}
                 projects={projects}
-                onCreate={() => setModal({ kind: 'insight', insight: null })}
-                onEdit={(insight) => setModal({ kind: 'insight', insight })}
+                focusId={focusInsightId}
+                onCreate={createInsight}
+                onUpdate={patchInsight}
                 onDelete={removeInsight}
               />
             )}
@@ -1014,7 +1028,11 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
             <EntityInsights
               key={`${modal.entityKind}-${modal.entity.id}-${modal.filter}`}
               entity={modal.entity}
+              entityKind={modal.entityKind}
+              outcomes={outcomes}
+              projects={projects}
               initialFilter={modal.filter}
+              startAdding={modal.adding}
               insights={
                 // A suggested one from the map: the insights awaiting review that proposed it.
                 modal.entity.suggested
@@ -1023,31 +1041,12 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
                     ? insightsForProject(activeInsights, modal.entity)
                     : insightsForOutcome(activeInsights, modal.entity)
               }
-              onOpen={(insight) => setModal({ kind: 'insight', insight })}
+              onCreate={createInsight}
               onUpdate={patchInsight}
+              onDelete={removeInsight}
               onValidate={approveInsight}
               onReject={rejectInsight}
               onReopen={reopenInsight}
-              onAdd={() =>
-                setModal({
-                  kind: 'insight',
-                  insight: null,
-                  parent: modal.entityKind === 'outcome' ? modal.entity : null,
-                  parentProject: modal.entityKind === 'project' ? modal.entity : null,
-                })
-              }
-            />
-          ) : modal.kind === 'insight' ? (
-            <InsightForm
-              key={modal.insight?.id ?? 'new'}
-              editing={modal.insight}
-              outcome={modal.parent}
-              project={modal.parentProject}
-              outcomes={outcomes}
-              projects={projects}
-              onSubmit={saveInsight}
-              onCancel={() => setModal(null)}
-              onDelete={() => removeInsight(modal.insight)}
             />
           ) : modal.kind === 'impact' ? (
             <ImpactForm
@@ -1156,13 +1155,12 @@ function sameValue(a, b) {
   return a === b;
 }
 
-function modalTitle({ kind, rule, outcome, parent, target, project, team, insight, impact, entity }) {
+function modalTitle({ kind, rule, outcome, parent, target, project, team, impact, entity }) {
   if (kind === 'account') return 'Account settings';
   if (kind === 'members') return 'Members';
   if (kind === 'issue') return `${rule.emoji} ${rule.title}`;
   if (kind === 'impact') return impact ? `Edit impact #${impact.id}` : parent ? 'New child impact' : 'New impact';
   if (kind === 'entity-insights') return `Insights · ${entity.name}`;
-  if (kind === 'insight') return insight ? `Edit insight #${insight.id}` : 'New insight';
   if (kind === 'team') return team ? `Edit team #${team.id}` : 'New team';
   if (kind === 'target') return target ? `Edit target #${target.id}` : 'New target';
   if (kind === 'measurement') return 'New measurement';

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { ArrowLeftIcon, ExpandIcon, PencilIcon } from './icons.jsx';
-import LinkedText from './LinkedText.jsx';
+import { ArrowLeftIcon, ExpandIcon, TrashIcon } from './icons.jsx';
+import InsightCard, { NewInsight } from './InsightCard.jsx';
 import {
   IMPACT_AREAS,
   INSIGHT_TYPES,
@@ -52,24 +52,31 @@ function sortInsights(insights, sort, first) {
   });
 }
 
-// The insights behind one outcome or project, shown in a modal. Fields edit in
-// place; the pencil goes to the full form, where links and details can be changed.
+// The insights behind one outcome or project (entityKind says which), shown in
+// a modal. Fields edit in place; expanding a row opens the whole insight, where
+// links, details and source edit in place too. A new insight is added by name
+// below the table, linked to the entity, and opens so the rest can be filled in.
 // Clicking a column heading sorts by it; clicking again reverses the order.
 export default function EntityInsights({
   entity,
+  entityKind,
   insights: all,
+  outcomes,
+  projects,
   initialFilter = 'verified',
-  onOpen,
+  startAdding = false,
+  onCreate,
   onUpdate,
+  onDelete,
   onValidate,
   onReject,
   onReopen,
-  onAdd,
 }) {
   const [error, setError] = useState(null);
   const [readingId, setReadingId] = useState(null);
   const [sort, setSort] = useState(null);
   const [filter, setFilter] = useState(initialFilter);
+  const [adding, setAdding] = useState(startAdding);
   const shown = all.filter(FILTERS.find((entry) => entry.id === filter).matches);
   const insights = sortInsights(shown, sort, initialFilter);
 
@@ -105,6 +112,17 @@ export default function EntityInsights({
     }
   }
 
+  async function create(name) {
+    const created = await onCreate({
+      name,
+      outcome_ids: entityKind === 'outcome' ? [Number(entity.id)] : [],
+      project_ids: entityKind === 'project' ? [Number(entity.id)] : [],
+    });
+    setAdding(false);
+    if (!FILTERS.find((entry) => entry.id === filter).matches(created)) setFilter('all');
+    setReadingId(created.id);
+  }
+
   const readingIndex = insights.findIndex((insight) => insight.id === readingId);
   if (readingIndex !== -1) {
     return (
@@ -114,7 +132,10 @@ export default function EntityInsights({
         onBack={() => setReadingId(null)}
         onPrev={readingIndex > 0 ? () => setReadingId(insights[readingIndex - 1].id) : null}
         onNext={readingIndex < insights.length - 1 ? () => setReadingId(insights[readingIndex + 1].id) : null}
-        onEdit={() => onOpen(insights[readingIndex])}
+        outcomes={outcomes}
+        projects={projects}
+        onUpdate={onUpdate}
+        onDelete={onDelete}
       />
     );
   }
@@ -253,20 +274,11 @@ export default function EntityInsights({
                       <button
                         type="button"
                         className="icon-button"
-                        aria-label={`Read insight ${insight.id}`}
-                        title="Read full text"
+                        aria-label={`Open insight ${insight.id}`}
+                        title="Open: full text, links, details and source"
                         onClick={() => setReadingId(insight.id)}
                       >
                         <ExpandIcon />
-                      </button>
-                      <button
-                        type="button"
-                        className="icon-button"
-                        aria-label={`Edit insight ${insight.id}`}
-                        title="Edit all details"
-                        onClick={() => onOpen(insight)}
-                      >
-                        <PencilIcon />
                       </button>
                     </div>
                   </td>
@@ -278,13 +290,16 @@ export default function EntityInsights({
       )}
       {error && <p className="error">{error}</p>}
       {/* A suggested outcome or project doesn't exist yet, so nothing can link to it. */}
-      {!entity.suggested && (
-        <div className="actions form-actions">
-          <button type="button" onClick={onAdd}>
-            Add insight
-          </button>
-        </div>
-      )}
+      {!entity.suggested &&
+        (adding ? (
+          <NewInsight onCreate={create} onClose={() => setAdding(false)} />
+        ) : (
+          <div className="actions form-actions">
+            <button type="button" onClick={() => setAdding(true)}>
+              Add insight
+            </button>
+          </div>
+        ))}
     </div>
   );
 }
@@ -321,7 +336,7 @@ function sourceOf(insight) {
 }
 
 // The Source column: one line, truncated, with the whole source on hover.
-// Edit it from the full form.
+// Edit it from the open insight.
 function SourceCell({ insight }) {
   const source = sourceOf(insight);
   if (!source) return <span className="hint">—</span>;
@@ -337,17 +352,9 @@ function SourceCell({ insight }) {
   );
 }
 
-// Everything about one insight as plain readable text, with a way back to the
+// One insight in full, every field editable in place, with a way back to the
 // list and to the neighbouring insights without leaving the modal.
-function InsightDetail({ insight, position, onBack, onPrev, onNext, onEdit }) {
-  const facts = [
-    ['Type', insightTypeLabel(insight.type)],
-    ['Sentiment', sentimentOf(insight.sentiment) && `${sentimentOf(insight.sentiment).emoji} ${sentimentOf(insight.sentiment).label}`],
-    ['Area', insight.impact_area ? impactAreaLabel(insight.impact_area) : null],
-    ['Impact', insight.dollar_impact != null ? formatDollars(insight.dollar_impact) : null],
-    ['Observed', insight.observed_at ? new Date(insight.observed_at).toISOString().slice(0, 10) : null],
-  ].filter(([, value]) => value);
-
+function InsightDetail({ insight, position, onBack, onPrev, onNext, outcomes, projects, onUpdate, onDelete }) {
   return (
     <div className="entity-insights insight-detail">
       <div className="detail-nav">
@@ -361,38 +368,17 @@ function InsightDetail({ insight, position, onBack, onPrev, onNext, onEdit }) {
         <button type="button" className="ghost small" disabled={!onNext} onClick={onNext}>
           Next
         </button>
-      </div>
-      <h3>
-        {insight.name}
-        {insight.status === 'unvalidated' && <span className="tag parent">Suggested</span>}
-      </h3>
-      <dl className="detail-facts">
-        {facts.map(([label, value]) => (
-          <div key={label}>
-            <dt>{label}</dt>
-            <dd>{value}</dd>
-          </div>
-        ))}
-      </dl>
-      {insight.source_excerpt && (
-        <section>
-          <h4>Quote</h4>
-          <blockquote className="excerpt">“{insight.source_excerpt}”</blockquote>
-        </section>
-      )}
-      <section>
-        <h4>Details</h4>
-        <p className="detail-text">{insight.description || <span className="hint">No details written.</span>}</p>
-      </section>
-      <section>
-        <h4>Source</h4>
-        <p className="detail-text">{insight.source ? <LinkedText text={insight.source} /> : <span className="hint">No source given.</span>}</p>
-      </section>
-      <div className="actions form-actions">
-        <button type="button" onClick={onEdit}>
-          Edit insight
+        <button
+          type="button"
+          className="icon-button danger"
+          aria-label={`Delete insight ${insight.id}`}
+          title="Delete"
+          onClick={() => onDelete(insight)}
+        >
+          <TrashIcon />
         </button>
       </div>
+      <InsightCard key={insight.id} insight={insight} outcomes={outcomes} projects={projects} onUpdate={onUpdate} />
     </div>
   );
 }

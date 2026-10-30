@@ -1,19 +1,20 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import * as api from '../api.js';
 import { insightFilterFields, matchesFilters } from '../lib/insightFilters.js';
-import {
-  IMPACT_AREAS,
-  INSIGHT_TYPES,
-  REJECTION_REASONS,
-  SENTIMENTS,
-  formatDollars,
-  rejectionReasonLabel,
-  sentimentOf,
-} from '../lib/links.js';
-import LinkedText from './LinkedText.jsx';
+import { IMPACT_AREAS, INSIGHT_TYPES, REJECTION_REASONS, formatDollars, rejectionReasonLabel } from '../lib/links.js';
 import FilterBar from './FilterBar.jsx';
 import CollectionRuns, { formatTime } from './CollectionRuns.jsx';
-import { ChevronDownIcon } from './icons.jsx';
+import {
+  EVIDENCE,
+  InlineText,
+  LinkPicker,
+  PillField,
+  PillSelect,
+  SentimentSelect,
+  SourceLine,
+  linkableItems,
+  toggleLinkPatch,
+} from './InlineFields.jsx';
 
 // Insights waiting for a person: mostly the insight collector's suggestions
 // (product/agents/insight-collector/spec.md). Each card shows the excerpt it
@@ -195,28 +196,7 @@ function ReviewCard({
   // Only suggestions still waiting for review edit in place.
   const locked = !pending || busy;
   // Every outcome and project, ticked when this insight already links to it.
-  const linkable = [
-    ...outcomes.map((outcome) => ({
-      kind: 'outcome',
-      id: Number(outcome.id),
-      name: outcome.name,
-      group: 'Outcomes',
-      linked: insight.outcome_ids.map(String).includes(String(outcome.id)),
-    })),
-    ...projects.map((project) => ({
-      kind: 'project',
-      id: Number(project.id),
-      name: project.name,
-      group: 'Projects',
-      linked: insight.project_ids.map(String).includes(String(project.id)),
-    })),
-  ];
-
-  function toggleLink(item) {
-    const field = item.kind === 'project' ? 'project_ids' : 'outcome_ids';
-    const ids = insight[field].map(Number);
-    save({ [field]: item.linked ? ids.filter((id) => id !== item.id) : [...ids, item.id] });
-  }
+  const linkable = linkableItems(insight, outcomes, projects);
 
   return (
     <li className="review-card">
@@ -404,7 +384,14 @@ function ReviewCard({
               </button>
             ))}
             {linkable.length > 0 && (
-              <LinkExisting items={linkable} disabled={busy} onToggle={toggleLink} />
+              <LinkPicker
+                items={linkable}
+                label="Link to existing outcomes and projects"
+                disabled={busy}
+                onToggle={(item) => save(toggleLinkPatch(insight, item))}
+              >
+                Link existing…
+              </LinkPicker>
             )}
           </div>
         )}
@@ -479,288 +466,4 @@ function ReviewCard({
       )}
     </li>
   );
-}
-
-const EVIDENCE = [
-  { id: 'true', label: 'Firsthand' },
-  { id: 'false', label: 'Relayed' },
-];
-
-// Where to go to check the observation: the link into the external tool when
-// there is one, otherwise whatever reference was recorded. Clicking the text
-// edits it; the arrow beside a link opens it.
-// "Link existing…" opens a filterable checklist of every outcome and project;
-// ticking one links the insight to it and unticking unlinks it, so several can
-// be picked without reopening the menu.
-function LinkExisting({ items, disabled, onToggle }) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const ref = useRef(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function onPointerDown(event) {
-      if (ref.current && !ref.current.contains(event.target)) setOpen(false);
-    }
-    function onKeyDown(event) {
-      if (event.key === 'Escape') setOpen(false);
-    }
-    document.addEventListener('mousedown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [open]);
-
-  const needle = query.trim().toLowerCase();
-  const matches = needle ? items.filter((item) => item.name.toLowerCase().includes(needle)) : items;
-
-  return (
-    <div className="link-existing multi-select-anchor" ref={ref}>
-      <button
-        type="button"
-        className="ghost small"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        disabled={disabled}
-        onClick={() => {
-          setQuery('');
-          setOpen((current) => !current);
-        }}
-      >
-        Link existing… <ChevronDownIcon />
-      </button>
-      {open && (
-        <div className="multi-select-menu">
-          <input
-            autoFocus
-            value={query}
-            placeholder="Search outcomes and projects…"
-            aria-label="Search outcomes and projects"
-            onChange={(event) => setQuery(event.target.value)}
-          />
-          <ul role="listbox" aria-multiselectable="true" aria-label="Link to existing outcomes and projects">
-            {matches.length === 0 && <li className="hint">No matches.</li>}
-            {['Outcomes', 'Projects'].map((group) => {
-              const inGroup = matches.filter((item) => item.group === group);
-              return inGroup.length === 0
-                ? null
-                : [
-                    <li key={group} className="multi-select-group" role="presentation">
-                      {group}
-                    </li>,
-                    ...inGroup.map((item) => (
-                      <li key={`${item.kind}:${item.id}`} role="option" aria-selected={item.linked}>
-                        <label>
-                          <input type="checkbox" checked={item.linked} onChange={() => onToggle(item)} />
-                          {item.name}
-                        </label>
-                      </li>
-                    )),
-                  ];
-            })}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SourceLine({ insight, disabled, onSave }) {
-  if (insight.source_url) {
-    return (
-      <span className="hint source-line">
-        {disabled ? (
-          <a href={insight.source_url} target="_blank" rel="noreferrer">
-            {insight.source_external_id || 'Open source'}
-          </a>
-        ) : (
-          <>
-            <InlineText
-              value={insight.source_url}
-              display={insight.source_external_id || insight.source_url}
-              label="Source link"
-              className="source-link"
-              // The old label named the old link, so a new link drops it.
-              onCommit={(url) => onSave({ source_url: url || null, source_external_id: null })}
-            />
-            <a href={insight.source_url} target="_blank" rel="noreferrer" title="Open source" aria-label="Open source">
-              ↗
-            </a>
-          </>
-        )}
-      </span>
-    );
-  }
-  const reference = insight.source || insight.source_external_id;
-  if (disabled) {
-    return reference ? (
-      <span className="hint">
-        <LinkedText text={reference} />
-      </span>
-    ) : null;
-  }
-  return (
-    <span className="hint source-line">
-      <InlineText
-        value={insight.source ?? ''}
-        display={reference || null}
-        label="Source"
-        placeholder="Add a source"
-        onCommit={(source) => onSave({ source: source || null })}
-      />
-    </span>
-  );
-}
-
-// A field name beside its value, e.g. "Type [Interview]".
-function PillField({ label, title, children }) {
-  return (
-    <span className="tag-field" title={title}>
-      <span className="tag-key">{label}</span>
-      {children}
-    </span>
-  );
-}
-
-// A choice that reads as a tag; `empty`, when given, labels the no-value option.
-function PillSelect({ label, value, options, empty, disabled, onChange }) {
-  return (
-    <select
-      className={value ? 'cell-input pill' : 'cell-input pill empty'}
-      data-value={value}
-      aria-label={label}
-      value={value}
-      disabled={disabled}
-      onChange={(event) => onChange(event.target.value)}
-    >
-      {empty !== undefined && <option value="">{empty}</option>}
-      {options.map((option) => (
-        <option key={option.id} value={option.id}>
-          {option.label}
-        </option>
-      ))}
-    </select>
-  );
-}
-
-function SentimentSelect({ value, disabled, onChange }) {
-  return (
-    <select
-      className="cell-input sentiment-select"
-      aria-label="Sentiment"
-      title={sentimentOf(value)?.label ?? 'No sentiment'}
-      value={value ?? ''}
-      disabled={disabled}
-      onChange={(event) => onChange(event.target.value || null)}
-    >
-      <option value="">—</option>
-      {SENTIMENTS.map((sentiment) => (
-        <option key={sentiment.id} value={sentiment.id}>
-          {sentiment.emoji} {sentiment.label}
-        </option>
-      ))}
-    </select>
-  );
-}
-
-// Text that becomes an input when clicked and saves when you click away or
-// press Enter; Escape puts back what was there. `display`, when given, is what
-// shows while it isn't being edited. `multiline` edits in a textarea that grows
-// to fit (Shift+Enter for a new line); `pill` shows the value as a tag.
-function InlineText({ value, label, display, placeholder = '', type = 'text', required, multiline, pill, className = '', disabled, onCommit }) {
-  const [draft, setDraft] = useState(null);
-  // Set by Escape, so the blur that follows doesn't save.
-  const cancelled = useRef(false);
-  const current = String(value);
-  const shown = display ?? current;
-
-  if (disabled || draft === null) {
-    const empty = !shown;
-    if (disabled && empty) return pill ? <span className="tag project empty">—</span> : null;
-    const classes = [
-      pill ? 'tag project' : '',
-      empty ? 'empty' : '',
-      disabled ? '' : 'inline-edit',
-      className,
-    ].filter(Boolean).join(' ');
-    if (disabled) return <span className={classes}>{shown}</span>;
-    return (
-      <span
-        className={classes}
-        role="button"
-        tabIndex={0}
-        aria-label={`Edit ${label.toLowerCase()}`}
-        title="Click to edit"
-        onClick={() => setDraft(current)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            setDraft(current);
-          }
-        }}
-      >
-        {empty ? placeholder : shown}
-      </span>
-    );
-  }
-
-  function commit() {
-    const next = draft.trim();
-    setDraft(null);
-    if (cancelled.current) {
-      cancelled.current = false;
-      return;
-    }
-    if (next === current || (required && !next)) return;
-    onCommit(next);
-  }
-
-  function onKeyDown(event) {
-    if (event.key === 'Enter' && !(multiline && event.shiftKey)) {
-      event.preventDefault();
-      event.currentTarget.blur();
-    }
-    if (event.key === 'Escape') {
-      cancelled.current = true;
-      event.currentTarget.blur();
-    }
-  }
-
-  const classes = `cell-input inline-input${pill ? ' pill-input' : ''} ${className}`.trim();
-  return multiline ? (
-    <textarea
-      className={classes}
-      rows={1}
-      autoFocus
-      aria-label={label}
-      value={draft}
-      ref={fitHeight}
-      onChange={(event) => {
-        setDraft(event.target.value);
-        fitHeight(event.target);
-      }}
-      onBlur={commit}
-      onKeyDown={onKeyDown}
-    />
-  ) : (
-    <input
-      className={classes}
-      type={type}
-      step={type === 'number' ? '0.01' : undefined}
-      autoFocus
-      aria-label={label}
-      value={draft}
-      onChange={(event) => setDraft(event.target.value)}
-      onBlur={commit}
-      onKeyDown={onKeyDown}
-    />
-  );
-}
-
-function fitHeight(textarea) {
-  if (!textarea) return;
-  textarea.style.height = 'auto';
-  textarea.style.height = `${textarea.scrollHeight + 2}px`;
 }
