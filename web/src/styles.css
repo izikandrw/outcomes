@@ -2921,7 +2921,7 @@ button.team-chip.link:hover {
 .list-toolbar {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   position: sticky;
   top: 58px;
   z-index: 10;
@@ -2958,12 +2958,21 @@ body:has(.list-toolbar.stuck) .pinned-nav {
 .list-toolbar-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
-.list-toolbar-count {
-  margin-left: auto;
+/* Centred under the nav and sized like its links, so the two line up. */
+.list-toolbar input,
+.list-toolbar select,
+.list-toolbar-row button {
+  font-size: 13px;
+  padding: 5px 10px;
+}
+
+.list-toolbar .filter-bar {
+  justify-content: center;
 }
 
 .search-box,
@@ -2977,6 +2986,10 @@ body:has(.list-toolbar.stuck) .pinned-nav {
 .search-box {
   flex: 1 1 260px;
   max-width: 420px;
+}
+
+.list-toolbar .search-box {
+  flex: 0 1 260px;
 }
 
 .search-box svg,
@@ -2993,7 +3006,6 @@ body:has(.list-toolbar.stuck) .pinned-nav {
 .sort-select select {
   width: auto;
   padding-left: 32px;
-  font-size: 14px;
 }
 
 .filter-bar {
