@@ -49,12 +49,6 @@ export const TrashIcon = () => (
   </Icon>
 );
 
-export const ListIcon = () => (
-  <Icon>
-    <path d="M2.5 4h11M2.5 8h11M2.5 12h11" />
-  </Icon>
-);
-
 // A node with two children below it, matching the shape of the tree view.
 export const TreeIcon = () => (
   <Icon>
@@ -74,14 +68,6 @@ export const CloseIcon = () => (
 export const ChevronDownIcon = () => (
   <Icon>
     <path d="M3.75 5.75L8 10.25l4.25-4.5" />
-  </Icon>
-);
-
-export const WarningIcon = () => (
-  <Icon>
-    <path d="M8 2.4 14.5 13.5h-13z" />
-    <path d="M8 6.5v3" />
-    <path d="M8 11.6h.01" />
   </Icon>
 );
 

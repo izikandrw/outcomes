@@ -24,16 +24,13 @@ import IssueCounts, { IssueFilter } from './components/IssueCounts.jsx';
 import IssueExplainer from './components/IssueExplainer.jsx';
 import JumpToTop from './components/JumpToTop.jsx';
 import OutcomeTree from './components/OutcomeTree.jsx';
-import PotentialIssues from './components/PotentialIssues.jsx';
 import ReviewQueue from './components/ReviewQueue.jsx';
 import Roadmap from './components/Roadmap.jsx';
 import TopNav from './components/TopNav.jsx';
-import ViewToggle from './components/ViewToggle.jsx';
 import { PlusIcon } from './components/icons.jsx';
 import { insightsForOutcome, insightsForProject, isEvidence, targetLabel, targetsFor } from './lib/links.js';
 import { flaggedBy, ruleById } from './lib/validation.js';
 
-const STORED_VIEW = 'outcomes.view';
 const STORED_PAGE = 'outcomes.page';
 const STORED_TEAM = 'outcomes.team';
 // Where a header issue count takes you, by the kind of thing its rule applies to.
@@ -74,7 +71,6 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   const [modal, setModal] = useState(null);
   // { title, message, resolve } while a delete confirmation is showing.
   const [confirmation, setConfirmation] = useState(null);
-  const [view, setView] = useState(() => localStorage.getItem(STORED_VIEW) || 'list');
   const [page, setPage] = useState(() => localStorage.getItem(STORED_PAGE) || 'outcomes');
   // Which team the 'team' page shows: that page is a team's home, reached by
   // clicking a team card or a team badge.
@@ -86,7 +82,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   const [headerHidden, setHeaderHidden] = useState(false);
   // The id of the delivery rule a header issue count was clicked for. The list
   // of the kind of thing it applies to shows only what breaks it, until the
-  // filter is cleared or the person moves to another page or view.
+  // filter is cleared or the person moves to another page.
   const [issueFilter, setIssueFilter] = useState(null);
 
   useEffect(() => {
@@ -210,16 +206,9 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
     changePage('team');
   }
 
-  function changeView(next) {
-    setView(next);
-    localStorage.setItem(STORED_VIEW, next);
-    setIssueFilter(null);
-  }
-
   // Impacts are only listed on the map; outcomes have their list, projects the roadmap.
   function openIssues(rule) {
     changePage(ISSUE_PAGES[rule.appliesTo]);
-    if (rule.appliesTo === 'outcome') changeView('list');
     setIssueFilter(rule.id);
     window.scrollTo({ top: 0 });
   }
@@ -810,7 +799,6 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
         ) : (
         <section className="card" aria-label={page === 'map' ? 'Map' : 'Outcomes'}>
           <div className="list-head">
-            {page === 'map' ? <span /> : <ViewToggle view={view === 'issues' ? 'issues' : 'list'} onChange={changeView} />}
             <div className="actions">
               {page === 'map' && (
                 <button type="button" className="with-icon btn-impact" onClick={openCreateImpact}>
@@ -854,7 +842,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
                 window.scrollTo({ top: 0 });
               }}
             />
-          ) : view === 'list' ? (
+          ) : (
             <OutcomeList
               outcomes={flagged ?? outcomes}
               teams={teams}
@@ -870,17 +858,6 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               onEditTarget={openEditTarget}
               onDeleteTarget={removeTarget}
               onViewTarget={viewTarget}
-            />
-          ) : (
-            <PotentialIssues
-              impacts={impacts}
-              outcomes={outcomes}
-              projects={projects}
-              teams={teams}
-              insights={evidence}
-              onEdit={openEdit}
-              onEditImpact={openEditImpact}
-              onEditProject={openEditProject}
             />
           )}
         </section>
