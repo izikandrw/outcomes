@@ -81,7 +81,14 @@ export default function InsightList({ insights, outcomes = [], projects = [], on
               ))}
             </select>
           </label>
-          {filtered && <span className="id list-toolbar-count">{`${visible.length} of ${insights.length}`}</span>}
+          {/* Always holds its widest width, shown or not, so filtering never
+              re-centres or re-wraps the toolbar under an open filter menu. */}
+          <span
+            className="id list-toolbar-count"
+            style={{ minWidth: `${`${insights.length} of ${insights.length}`.length}ch`, visibility: filtered ? 'visible' : 'hidden' }}
+          >
+            {`${visible.length} of ${insights.length}`}
+          </span>
           <button type="button" className="with-icon" aria-label="New insight" title="New insight" onClick={onCreate}>
             <PlusIcon />
           </button>

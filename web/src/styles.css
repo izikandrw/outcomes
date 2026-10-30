@@ -2970,6 +2970,11 @@ body:has(.list-toolbar.stuck) .pinned-nav {
   order: 1;
 }
 
+.list-toolbar-count {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .list-toolbar input,
 .list-toolbar select,
 .list-toolbar-row > button,

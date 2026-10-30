@@ -10,9 +10,19 @@ import { ChevronDownIcon, CloseIcon, FilterIcon } from './icons.jsx';
 export default function FilterBar({ fields, filters, onChange, countFor }) {
   // Which menu is open: 'more' for the More filters button, or a field id for a pill.
   const [open, setOpen] = useState(null);
-  const inUse = (field) => filters[field.id]?.length > 0;
+  // The filters as they stood when the open menu opened. The pills keep that
+  // shape until it closes: a pill growing as you tick would re-centre and
+  // re-wrap the toolbar, dragging the open menu around under the pointer.
+  const [frozen, setFrozen] = useState(filters);
+  const shown = open ? frozen : filters;
+  const inUse = (field) => shown[field.id]?.length > 0;
   const pills = fields.filter((field) => field.primary || inUse(field));
   const more = fields.filter((field) => !field.primary);
+
+  function toggle(id) {
+    if (open !== id) setFrozen(filters);
+    setOpen(open === id ? null : id);
+  }
 
   function setField(fieldId, picked) {
     const next = { ...filters };
@@ -25,7 +35,9 @@ export default function FilterBar({ fields, filters, onChange, countFor }) {
     <div className="filter-bar">
       {pills.map((field) => {
         const picked = filters[field.id] ?? [];
-        const labels = field.options.filter((option) => picked.includes(option.id)).map((option) => option.label);
+        const labels = field.options
+          .filter((option) => shown[field.id]?.includes(option.id))
+          .map((option) => option.label);
         return (
           <Anchor key={field.id} open={open === field.id} onClose={() => setOpen(null)}>
             <span className={`filter-chip${labels.length ? '' : ' empty'}`}>
@@ -35,7 +47,7 @@ export default function FilterBar({ fields, filters, onChange, countFor }) {
                 aria-haspopup="listbox"
                 aria-expanded={open === field.id}
                 title={labels.join(', ') || undefined}
-                onClick={() => setOpen(open === field.id ? null : field.id)}
+                onClick={() => toggle(field.id)}
               >
                 <span className="filter-chip-key">{field.label}</span>
                 {labels.length > 0 ? (
@@ -51,7 +63,10 @@ export default function FilterBar({ fields, filters, onChange, countFor }) {
                   type="button"
                   className="filter-chip-remove"
                   aria-label={`Clear ${field.label.toLowerCase()} filter`}
-                  onClick={() => setField(field.id, [])}
+                  onClick={() => {
+                    setOpen(null);
+                    setField(field.id, []);
+                  }}
                 >
                   <CloseIcon />
                 </button>
@@ -69,7 +84,7 @@ export default function FilterBar({ fields, filters, onChange, countFor }) {
             className="ghost with-icon filter-button"
             aria-haspopup="menu"
             aria-expanded={open === 'more'}
-            onClick={() => setOpen(open === 'more' ? null : 'more')}
+            onClick={() => toggle('more')}
           >
             <FilterIcon />
             More filters
@@ -78,7 +93,7 @@ export default function FilterBar({ fields, filters, onChange, countFor }) {
         </Anchor>
       )}
 
-      {Object.keys(filters).length > 0 && (
+      {Object.keys(shown).length > 0 && (
         <button type="button" className="filter-clear" onClick={() => onChange({})}>
           Clear
         </button>
