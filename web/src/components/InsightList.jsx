@@ -1,17 +1,26 @@
 import { useState } from 'react';
-import { INSIGHT_TYPES, formatDollars, impactAreaLabel, insightTypeLabel } from '../lib/links.js';
+import { INSIGHT_TYPES, formatDollars, impactAreaLabel, insightTypeLabel, isEvidence } from '../lib/links.js';
 import { PencilIcon, PlusIcon, TrashIcon } from './icons.jsx';
 import LinkedText from './LinkedText.jsx';
 
-// Every insight in the account, filterable by text and type. Each row shows how
+// Whether an insight has been verified by a person or is a collector
+// suggestion still waiting for review.
+const STATUSES = [
+  { id: 'verified', label: 'Verified', matches: (insight) => isEvidence(insight) },
+  { id: 'suggested', label: 'Suggested', matches: (insight) => !isEvidence(insight) },
+];
+
+// Every insight in the account, filterable by text, type and status. Each row shows how
 // much work leans on it, since the point of an insight is to be reused.
 export default function InsightList({ insights, onCreate, onEdit, onDelete }) {
   const [query, setQuery] = useState('');
   const [type, setType] = useState('');
+  const [status, setStatus] = useState('');
 
   const needle = query.trim().toLowerCase();
   const visible = insights.filter((insight) => {
     if (type && insight.type !== type) return false;
+    if (status && !STATUSES.find((entry) => entry.id === status).matches(insight)) return false;
     if (!needle) return true;
     return `${insight.name} ${insight.source ?? ''} ${insight.description ?? ''}`
       .toLowerCase()
@@ -19,7 +28,7 @@ export default function InsightList({ insights, onCreate, onEdit, onDelete }) {
   });
 
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
-  const filtered = needle || type;
+  const filtered = needle || type || status;
 
   return (
     <>
@@ -36,6 +45,14 @@ export default function InsightList({ insights, onCreate, onEdit, onDelete }) {
           {INSIGHT_TYPES.map((entry) => (
             <option key={entry.id} value={entry.id}>
               {entry.label}
+            </option>
+          ))}
+        </select>
+        <select value={status} aria-label="Filter by status" onChange={(event) => setStatus(event.target.value)}>
+          <option value="">Verified and suggested</option>
+          {STATUSES.map((entry) => (
+            <option key={entry.id} value={entry.id}>
+              {entry.label} · {insights.filter(entry.matches).length}
             </option>
           ))}
         </select>
