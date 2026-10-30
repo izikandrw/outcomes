@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDownIcon, CloseIcon, FilterIcon } from './icons.jsx';
 
 // Filters as a row of pills. Fields marked `primary` always show a pill, so the
@@ -11,9 +11,11 @@ import { ChevronDownIcon, CloseIcon, FilterIcon } from './icons.jsx';
 export default function FilterBar({ fields, filters, onChange, countFor, showClear = true }) {
   // Which menu is open: 'more' for the More filters button, or a field id for a pill.
   const [open, setOpen] = useState(null);
-  // The filters as they stood when the open menu opened. The pills keep that
-  // shape until it closes: a pill growing as you tick would re-centre and
-  // re-wrap the toolbar, dragging the open menu around under the pointer.
+  // The filters as they stood when the open menu opened. The set of pills
+  // keeps that shape until it closes: a pill appearing as you tick would
+  // re-centre and re-wrap the toolbar, dragging the open menu around under the
+  // pointer. Each pill is a fixed width (see PillValue), so its text can follow
+  // the ticks live.
   const [frozen, setFrozen] = useState(filters);
   const shown = open ? frozen : filters;
   const inUse = (field) => shown[field.id]?.length > 0;
@@ -37,7 +39,7 @@ export default function FilterBar({ fields, filters, onChange, countFor, showCle
       {pills.map((field) => {
         const picked = filters[field.id] ?? [];
         const labels = field.options
-          .filter((option) => shown[field.id]?.includes(option.id))
+          .filter((option) => picked.includes(option.id))
           .map((option) => option.label);
         return (
           <Anchor key={field.id} open={open === field.id} onClose={() => setOpen(null)}>
@@ -51,12 +53,11 @@ export default function FilterBar({ fields, filters, onChange, countFor, showCle
                 onClick={() => toggle(field.id)}
               >
                 <span className="filter-chip-key">{field.label}</span>
-                {labels.length > 0 ? (
-                  <span className="filter-chip-value">
-                    {labels.length > 2 ? `${labels.length} selected` : labels.join(', ')}
+                <PillValue field={field} labels={labels} />
+                {labels.length === 0 && (
+                  <span className="filter-chip-caret">
+                    <ChevronDownIcon />
                   </span>
-                ) : (
-                  <ChevronDownIcon />
                 )}
               </button>
               {labels.length > 0 && (
@@ -100,6 +101,33 @@ export default function FilterBar({ fields, filters, onChange, countFor, showCle
         </button>
       )}
     </div>
+  );
+}
+
+// A pill's picks, in a slot as wide as the field's longest option (up to a cap
+// that follows the window width), whatever is picked. The longest labels sit
+// hidden in the same grid cell to set that width, so ticking an option or
+// clearing it never resizes the pill and shifts the toolbar.
+function PillValue({ field, labels }) {
+  const sizers = useMemo(
+    () => [
+      `${field.options.length} selected`,
+      ...field.options
+        .map((option) => option.label)
+        .sort((a, b) => b.length - a.length)
+        .slice(0, 3),
+    ],
+    [field.options],
+  );
+  return (
+    <span className="filter-chip-value">
+      {sizers.map((text, index) => (
+        <span key={index} className="filter-chip-sizer" aria-hidden="true">
+          {text}
+        </span>
+      ))}
+      <span className="filter-chip-text">{labels.length > 2 ? `${labels.length} selected` : labels.join(', ')}</span>
+    </span>
   );
 }
 

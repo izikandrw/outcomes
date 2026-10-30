@@ -3066,23 +3066,57 @@ body:has(.list-toolbar.stuck) .pinned-nav {
   display: inline-flex;
   gap: 6px;
   padding: 5px 8px 5px 10px;
-  max-width: 320px;
 }
 
 .filter-chip-key {
   color: var(--muted);
+  white-space: nowrap;
 }
 
+/* A fixed slot: its hidden sizers stack in one cell, so the slot is as wide
+   as the longest option, capped, and the shown text lies over them without
+   taking part in the sizing, so no pick can stretch it. */
 .filter-chip-value {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, max-content);
+  flex: none;
+  max-width: clamp(70px, 11vw, 170px);
+  text-align: left;
+}
+
+.filter-chip-sizer,
+.filter-chip-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.filter-chip-sizer {
+  grid-area: 1 / 1;
+  visibility: hidden;
+}
+
+.filter-chip-text {
+  position: absolute;
+  inset: 0;
+}
+
+/* The caret (nothing picked) and the × (something picked) take the same
+   room: the body's 6px gap plus 24px here matches the 30px × button. */
+.filter-chip-caret {
+  display: inline-flex;
+  justify-content: center;
+  width: 24px;
+}
+
 .filter-chip-remove {
   display: inline-flex;
   align-items: center;
-  padding: 0 7px;
+  justify-content: center;
+  width: 30px;
+  padding: 0 !important;
   color: var(--muted) !important;
   border-left: 1px solid var(--border) !important;
 }
