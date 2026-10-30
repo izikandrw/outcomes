@@ -384,6 +384,16 @@ export const IMPACT_AREAS = [
 export const impactAreaLabel = (area) =>
   IMPACT_AREAS.find((entry) => entry.id === area)?.label ?? area;
 
+// Good, bad or neither for the customer. Insights from before sentiment existed
+// have none.
+export const SENTIMENTS = [
+  { id: 'positive', label: 'Positive', emoji: '😊' },
+  { id: 'neutral', label: 'Neutral', emoji: '😐' },
+  { id: 'negative', label: 'Negative', emoji: '😞' },
+];
+
+export const sentimentOf = (sentiment) => SENTIMENTS.find((entry) => entry.id === sentiment) ?? null;
+
 // Whole dollars when the amount is whole, cents otherwise. NUMERIC columns
 // arrive as strings, so this takes either.
 export const formatDollars = (value) =>

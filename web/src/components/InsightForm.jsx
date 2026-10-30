@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { IMPACT_AREAS, INSIGHT_TYPES } from '../lib/links.js';
+import { IMPACT_AREAS, INSIGHT_TYPES, SENTIMENTS } from '../lib/links.js';
 import MultiSelect from './MultiSelect.jsx';
 
 // Creates an insight or edits one in place. Evidence is linked to the outcomes
@@ -14,6 +14,7 @@ export default function InsightForm({ editing, outcome, project, teams, outcomes
     observed_at: asDateInput(editing?.observed_at),
     dollar_impact: editing?.dollar_impact ?? '',
     impact_area: editing?.impact_area ?? '',
+    sentiment: editing?.sentiment ?? '',
     team_id: editing?.team_id ? String(editing.team_id) : '',
   });
   const [outcomeIds, setOutcomeIds] = useState(
@@ -44,6 +45,7 @@ export default function InsightForm({ editing, outcome, project, teams, outcomes
         observed_at: form.observed_at ? new Date(form.observed_at).toISOString() : null,
         dollar_impact: form.dollar_impact === '' ? null : Number(form.dollar_impact),
         impact_area: form.impact_area || null,
+        sentiment: form.sentiment || null,
         team_id: form.team_id ? Number(form.team_id) : null,
         outcome_ids: [...outcomeIds].map(Number),
         project_ids: [...projectIds].map(Number),
@@ -78,6 +80,20 @@ export default function InsightForm({ editing, outcome, project, teams, outcomes
             ))}
           </select>
         </label>
+        <label>
+          Sentiment
+          <select value={form.sentiment} onChange={(event) => update('sentiment', event.target.value)}>
+            <option value="">Not specified</option>
+            {SENTIMENTS.map((sentiment) => (
+              <option key={sentiment.id} value={sentiment.id}>
+                {sentiment.emoji} {sentiment.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="row">
         <label>
           Observed on
           <input

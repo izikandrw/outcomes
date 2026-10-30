@@ -5,10 +5,12 @@ import {
   IMPACT_AREAS,
   INSIGHT_TYPES,
   REJECTION_REASONS,
+  SENTIMENTS,
   formatDollars,
   impactAreaLabel,
   insightTypeLabel,
   isEvidence,
+  sentimentOf,
 } from '../lib/links.js';
 
 // Columns the table can be sorted by, and the value each sorts on. A missing
@@ -17,6 +19,8 @@ const SORT_KEYS = {
   status: (insight) => (insight.status === 'validated' ? 0 : insight.status === 'unvalidated' ? 1 : 2),
   name: (insight) => insight.name.toLowerCase(),
   type: (insight) => insightTypeLabel(insight.type).toLowerCase(),
+  // Negative first ascending: the problems are what the evidence is usually for.
+  sentiment: (insight) => (insight.sentiment ? ['negative', 'neutral', 'positive'].indexOf(insight.sentiment) : null),
   area: (insight) => (insight.impact_area ? impactAreaLabel(insight.impact_area).toLowerCase() : null),
   impact: (insight) => (insight.dollar_impact != null ? Number(insight.dollar_impact) : null),
   source: (insight) => sourceOf(insight)?.label.toLowerCase() ?? null,
@@ -135,6 +139,7 @@ export default function EntityInsights({
           <thead>
             <tr>
               {heading('status', 'Verified')}
+              {heading('sentiment', 'Mood')}
               {heading('name', 'Insight')}
               {heading('type', 'Type')}
               {heading('area', 'Area')}
@@ -152,6 +157,22 @@ export default function EntityInsights({
                     status={insight.status}
                     onChange={(value) => review(insight, value)}
                   />
+                </td>
+                <td>
+                  <select
+                    className="cell-input sentiment-select"
+                    aria-label="Sentiment"
+                    title={sentimentOf(insight.sentiment)?.label ?? 'No sentiment'}
+                    value={insight.sentiment ?? ''}
+                    onChange={(event) => save(insight, { sentiment: event.target.value || null })}
+                  >
+                    <option value="">—</option>
+                    {SENTIMENTS.map((sentiment) => (
+                      <option key={sentiment.id} value={sentiment.id}>
+                        {sentiment.emoji} {sentiment.label}
+                      </option>
+                    ))}
+                  </select>
                 </td>
                 <td>
                   <TextCell
@@ -316,6 +337,7 @@ function SourceCell({ insight }) {
 function InsightDetail({ insight, position, onBack, onPrev, onNext, onEdit }) {
   const facts = [
     ['Type', insightTypeLabel(insight.type)],
+    ['Sentiment', sentimentOf(insight.sentiment) && `${sentimentOf(insight.sentiment).emoji} ${sentimentOf(insight.sentiment).label}`],
     ['Area', insight.impact_area ? impactAreaLabel(insight.impact_area) : null],
     ['Impact', insight.dollar_impact != null ? formatDollars(insight.dollar_impact) : null],
     ['Observed', insight.observed_at ? new Date(insight.observed_at).toISOString().slice(0, 10) : null],

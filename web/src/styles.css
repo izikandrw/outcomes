@@ -1520,7 +1520,7 @@ button.tag.insight-badge.suggested:not(.empty) {
   letter-spacing: 0.04em;
 }
 
-.insight-table td:nth-child(2) {
+.insight-table td:nth-child(3) {
   white-space: normal;
 }
 
@@ -1649,16 +1649,16 @@ button.tag.insight-badge.suggested:not(.empty) {
   outline: none;
 }
 
-.insight-table td:nth-child(2) {
+.insight-table td:nth-child(3) {
   width: 100%;
   min-width: 16rem;
 }
 
 /* Fixed widths so selects, amounts and dates aren't clipped. */
-.insight-table td:nth-child(3) .cell-input { min-width: 7.5rem; }
-.insight-table td:nth-child(4) .cell-input { min-width: 9rem; }
-.insight-table td:nth-child(5) .cell-input { min-width: 5.5rem; }
-.insight-table td:nth-child(7) .cell-input { min-width: 8rem; }
+.insight-table td:nth-child(4) .cell-input { min-width: 7.5rem; }
+.insight-table td:nth-child(5) .cell-input { min-width: 9rem; }
+.insight-table td:nth-child(6) .cell-input { min-width: 5.5rem; }
+.insight-table td:nth-child(8) .cell-input { min-width: 8rem; }
 .insight-table .source-cell {
   display: block;
   max-width: 12rem;
@@ -1666,6 +1666,14 @@ button.tag.insight-badge.suggested:not(.empty) {
   text-overflow: ellipsis;
 }
 .insight-table td:last-child { padding-right: 0; }
+
+/* The sentiment emoji stands alone; the options name it. */
+.insight-table select.sentiment-select {
+  width: 2.75rem;
+  text-align: center;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
 .insight-table .row-actions { display: flex; gap: 6px; }
 
 /* Type and area selects read as tags; the chevron is drawn in currentColor. */
@@ -1783,7 +1791,7 @@ button.tag.insight-badge.suggested:not(.empty) {
 }
 
 /* Spare width goes to the name column rather than being spread between the rest. */
-.insight-table th:nth-child(2) {
+.insight-table th:nth-child(3) {
   width: 100%;
 }
 
@@ -2690,4 +2698,10 @@ button.team-chip.link:hover {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-size: 13px;
+}
+
+/* An insight's sentiment emoji ahead of its name. */
+.sentiment {
+  font-weight: normal;
+  cursor: default;
 }

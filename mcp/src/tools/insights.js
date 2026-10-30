@@ -2,12 +2,15 @@ import { z } from 'zod';
 import { api } from '../client.js';
 import { id, text, path, update, registerReadAndDelete } from './shared.js';
 
-// Mirrors TYPES and IMPACT_AREAS in src/routes/insights.js.
+// Mirrors TYPES, IMPACT_AREAS and SENTIMENTS in src/routes/insights.js.
 const type = z.enum([
   'support_ticket', 'session_recording', 'interview', 'funnel', 'experiment',
   'sales_call', 'feature_request', 'survey', 'review', 'other',
 ]);
 const impactArea = z.enum(['acquisition', 'activation', 'retention', 'expansion', 'cost', 'other']);
+const sentiment = z
+  .enum(['positive', 'neutral', 'negative'])
+  .describe('Whether the observation is good news (praise, success), bad news (a complaint, pain, churn risk) or neither for the customer');
 
 const fields = {
   name: z
@@ -22,6 +25,7 @@ const fields = {
   observed_at: z.string().optional().describe('ISO 8601 date the observation was made'),
   dollar_impact: z.number().optional().describe('Money the observation represents, only when the source states it'),
   impact_area: impactArea.optional(),
+  sentiment: sentiment.optional(),
   team_id: id.optional().describe('Team that recorded it'),
   outcome_ids: z.array(id).optional().describe('Outcomes this is evidence for'),
   project_ids: z.array(id).optional().describe('Projects this is evidence for'),
@@ -35,7 +39,7 @@ export function registerInsightTools(server) {
     singular: 'insight',
     idField: 'insight_id',
     listDescription:
-      'List insights in the account, each with the outcomes and projects it is evidence for (outcome_ids, project_ids), its status and, for suggestions, where it came from (source_system, source_external_id, source_excerpt). Only validated insights are evidence.',
+      'List insights in the account, each with the outcomes and projects it is evidence for (outcome_ids, project_ids), its status, its sentiment (positive, neutral or negative) and, for suggestions, where it came from (source_system, source_external_id, source_excerpt). Only validated insights are evidence.',
     listFilters: {
       status: z
         .enum(['unvalidated', 'validated', 'rejected'])
@@ -72,6 +76,7 @@ export function registerInsightTools(server) {
         observed_at: fields.observed_at,
         dollar_impact: fields.dollar_impact,
         impact_area: impactArea.optional(),
+        sentiment,
         source_system: z.string().min(1).describe('Where it came from: csv, google_sheets, attention, jira, ...'),
         source_external_id: z
           .string()
@@ -160,6 +165,7 @@ export function registerInsightTools(server) {
         observed_at: z.string().nullable().optional().describe('Pass null to clear'),
         dollar_impact: z.number().nullable().optional().describe('Pass null to clear'),
         impact_area: impactArea.nullable().optional().describe('Pass null to clear'),
+        sentiment: sentiment.nullable().optional(),
         team_id: id.nullable().optional().describe('Pass null to clear'),
         outcome_ids: fields.outcome_ids,
         project_ids: fields.project_ids,

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { INSIGHT_TYPES, formatDollars, impactAreaLabel, insightTypeLabel, isEvidence } from '../lib/links.js';
+import SentimentBadge from './SentimentBadge.jsx';
 import { PencilIcon, PlusIcon, TrashIcon } from './icons.jsx';
 import LinkedText from './LinkedText.jsx';
 
@@ -74,7 +75,9 @@ export default function InsightList({ insights, onCreate, onEdit, onDelete }) {
             <li key={insight.id}>
               <div className="outcome">
                 <div>
-                  <h3>{insight.name}</h3>
+                  <h3>
+                    <SentimentBadge sentiment={insight.sentiment} /> {insight.name}
+                  </h3>
                   <p className="meta">
                     {insight.status === 'unvalidated' && (
                       <span className="tag parent" title="Waiting for review; not counted as evidence yet">
