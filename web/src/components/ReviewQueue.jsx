@@ -47,12 +47,12 @@ export default function ReviewQueue({
   const rejected = insights.filter((insight) => insight.status === 'rejected');
   const inTab = tab === 'pending' ? pending : rejected;
 
-  // Suggestions narrow by sentiment, with the insights page's filter bar.
+  // Suggestions narrow with the insights page's filters, all but status:
+  // everything here is a suggestion or a rejected one, and the tabs split those.
   const [filters, setFilters] = useState({});
   const fields = useMemo(
-    () =>
-      insightFilterFields({ insights, outcomes, projects, teams: [] }).filter((field) => field.id === 'sentiment'),
-    [insights, outcomes, projects],
+    () => insightFilterFields({ insights, outcomes, projects, teams }).filter((field) => field.id !== 'status'),
+    [insights, outcomes, projects, teams],
   );
   const shown = inTab.filter((insight) => matchesFilters(insight, fields, filters));
 
@@ -85,10 +85,10 @@ export default function ReviewQueue({
             Runs{lastRunAt && ` (${formatTime(lastRunAt)})`}
           </button>
         </div>
-        {tab !== 'runs' && inTab.length > 0 && (
-          <FilterBar fields={fields} filters={filters} onChange={setFilters} countFor={countFor} />
-        )}
       </div>
+      {tab !== 'runs' && inTab.length > 0 && (
+        <FilterBar fields={fields} filters={filters} onChange={setFilters} countFor={countFor} />
+      )}
       {tab === 'runs' ? (
         <CollectionRuns accountId={accountId} />
       ) : inTab.length === 0 ? (
