@@ -302,18 +302,20 @@ function ReviewCard({
         {insight.edited_in_review && <span className="tag parent">Edited</span>}
         <span className="id">#{insight.id}</span>
       </p>
-      <InlineText
-        value={insight.description ?? ''}
-        label="Details"
-        placeholder={locked ? '' : 'Add details'}
-        multiline
-        className="description"
-        disabled={locked}
-        onCommit={(value) => save({ description: value || null })}
-      />
-
       {insight.source_excerpt && <blockquote className="excerpt">“{insight.source_excerpt}”</blockquote>}
-      <SourceLine insight={insight} disabled={locked} onSave={save} />
+      {/* Who it's from runs into where it's from, like a citation under the quote. */}
+      <p className="source-row">
+        <InlineText
+          value={insight.description ?? ''}
+          label="Details"
+          placeholder={locked ? '' : 'Add details'}
+          multiline
+          className="description"
+          disabled={locked}
+          onCommit={(value) => save({ description: value || null })}
+        />{' '}
+        <SourceLine insight={insight} disabled={locked} onSave={save} />
+      </p>
 
       <div className="review-links">        <span className="hint">Supports</span>
         {links.length === 0 && proposals.length === 0 ? (
@@ -569,7 +571,7 @@ function LinkExisting({ items, disabled, onToggle }) {
 function SourceLine({ insight, disabled, onSave }) {
   if (insight.source_url) {
     return (
-      <p className="hint source-line">
+      <span className="hint source-line">
         {disabled ? (
           <a href={insight.source_url} target="_blank" rel="noreferrer">
             {insight.source_external_id || 'Open source'}
@@ -589,19 +591,19 @@ function SourceLine({ insight, disabled, onSave }) {
             </a>
           </>
         )}
-      </p>
+      </span>
     );
   }
   const reference = insight.source || insight.source_external_id;
   if (disabled) {
     return reference ? (
-      <p className="hint">
+      <span className="hint">
         <LinkedText text={reference} />
-      </p>
+      </span>
     ) : null;
   }
   return (
-    <p className="hint source-line">
+    <span className="hint source-line">
       <InlineText
         value={insight.source ?? ''}
         display={reference || null}
@@ -609,7 +611,7 @@ function SourceLine({ insight, disabled, onSave }) {
         placeholder="Add a source"
         onCommit={(source) => onSave({ source: source || null })}
       />
-    </p>
+    </span>
   );
 }
 

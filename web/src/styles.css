@@ -2631,8 +2631,8 @@ button.team-chip.link:hover {
   font-weight: 500;
 }
 
-.review-card .inline-edit.description {
-  display: block;
+.review-card .source-row {
+  overflow-wrap: anywhere;
 }
 
 .review-card .cell-input {
@@ -2696,12 +2696,6 @@ button.team-chip.link:hover {
   filter: none;
 }
 
-.source-line {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
 .review-card .inline-edit.source-link {
   color: var(--accent);
   text-decoration: underline;
@@ -2709,6 +2703,7 @@ button.team-chip.link:hover {
 }
 
 .source-line a[aria-label='Open source'] {
+  margin-left: 6px;
   text-decoration: none;
 }
 
