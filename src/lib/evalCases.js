@@ -84,30 +84,58 @@ const normalise = (text) =>
     .toLowerCase();
 
 // What stops `expected` being scored against `document`, as messages; empty
-// when it can be. Shape problems block saving; a missing excerpt only blocks
-// marking the case ready, so a draft can be saved half-done.
-function checkCase(document, expected) {
+// when it can be. Shape problems block saving; `unready` ones (an excerpt not
+// in the document, a link to something not in the case's frozen catalog) only
+// block marking the case ready, so a draft can be saved half-done.
+function checkCase(document, expected, catalog) {
   const shape = [];
   if (!document || typeof document !== 'object' || typeof document.text !== 'string' || !document.text.trim()) {
     shape.push('document needs its text');
   }
   if (!expected || typeof expected !== 'object' || Array.isArray(expected)) {
-    return { shape: [...shape, 'expected must be an object'], excerpts: [] };
+    return { shape: [...shape, 'expected must be an object'], unready: [] };
   }
   for (const field of ['insights', 'not_insights']) {
     if (expected[field] !== undefined && !Array.isArray(expected[field])) shape.push(`expected.${field} must be a list`);
   }
-  if (shape.length > 0) return { shape, excerpts: [] };
+  if (shape.length > 0) return { shape, unready: [] };
 
   const text = normalise(document.text);
-  const excerpts = [];
+  const unready = [];
   for (const field of ['insights', 'not_insights']) {
     (expected[field] ?? []).forEach((entry, i) => {
-      if (!entry?.excerpt) excerpts.push(`expected.${field}[${i}] needs an excerpt`);
-      else if (!text.includes(normalise(entry.excerpt))) excerpts.push(`expected.${field}[${i}]'s excerpt isn't in the document`);
+      if (!entry?.excerpt) unready.push(`expected.${field}[${i}] needs an excerpt`);
+      else if (!text.includes(normalise(entry.excerpt))) unready.push(`expected.${field}[${i}]'s excerpt isn't in the document`);
     });
   }
-  return { shape, excerpts };
+  if (catalog) {
+    const known = catalogKeys(catalog);
+    (expected.insights ?? []).forEach((entry, i) => {
+      for (const link of Array.isArray(entry?.links) ? entry.links : []) {
+        if (!known.has(`${link.kind}:${link.id}`)) {
+          unready.push(`expected.insights[${i}] links to ${link.kind} ${link.id}${link.name ? ` (${link.name})` : ''}, which isn't in this case's catalog`);
+        }
+      }
+    });
+  }
+  return { shape, unready };
 }
 
-module.exports = { documentFromRun, emptyExpected, draftFromReview, checkCase };
+const catalogKeys = (catalog) =>
+  new Set([
+    ...(catalog.outcomes ?? []).map((entry) => `outcome:${entry.id}`),
+    ...(catalog.projects ?? []).map((entry) => `project:${entry.id}`),
+  ]);
+
+// The account's outcomes and projects as a case freezes them: ids as text, in
+// id order, with what the link step reads (name and description).
+async function snapshotCatalog(executor, accountId) {
+  const pick = (rows) => rows.map((row) => ({ id: String(row.id), name: row.name, description: row.description ?? null }));
+  const [{ rows: outcomes }, { rows: projects }] = await Promise.all([
+    executor.query('SELECT id, name, description FROM outcomes WHERE account_id = $1 ORDER BY id', [accountId]),
+    executor.query('SELECT id, name, description FROM projects WHERE account_id = $1 ORDER BY id', [accountId]),
+  ]);
+  return { outcomes: pick(outcomes), projects: pick(projects) };
+}
+
+module.exports = { documentFromRun, emptyExpected, draftFromReview, checkCase, snapshotCatalog };

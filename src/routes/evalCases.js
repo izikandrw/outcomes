@@ -1,6 +1,6 @@
 const express = require('express');
 const pool = require('../db');
-const { documentFromRun, emptyExpected, draftFromReview, checkCase } = require('../lib/evalCases');
+const { documentFromRun, emptyExpected, draftFromReview, checkCase, snapshotCatalog } = require('../lib/evalCases');
 
 // The insight collector's eval set (product/agents/insight-collector/evals.md):
 // documents with the answer it should give, which an eval runner scores a
@@ -22,8 +22,8 @@ router.use((req, res, next) => {
 
 // Each case carries `problems`: what stops it being scored as it stands.
 function withProblems(row) {
-  const { shape, excerpts } = checkCase(row.document, row.expected);
-  return { ...row, problems: [...shape, ...excerpts] };
+  const { shape, unready } = checkCase(row.document, row.expected, row.catalog);
+  return { ...row, problems: [...shape, ...unready] };
 }
 
 async function fetchCase(executor, caseId, accountId) {
@@ -106,11 +106,13 @@ router.post('/', async (req, res, next) => {
     }
     if (!draft) return;
 
+    // The catalog the case is labelled against, frozen with it.
+    const catalog = draft.catalog ?? (await snapshotCatalog(pool, req.accountId));
     const name = await uniqueName(pool, req.accountId, draft.name);
     const split = SPLITS.includes(req.body.split) ? req.body.split : await nextSplit(pool, req.accountId);
     const { rows } = await pool.query(
-      `INSERT INTO eval_cases (account_id, name, label_source, status, split, document, expected, run_document_id, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO eval_cases (account_id, name, label_source, status, split, document, expected, run_document_id, created_by, catalog)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        ON CONFLICT (run_document_id, label_source) WHERE run_document_id IS NOT NULL DO NOTHING
        RETURNING id`,
       [
@@ -123,6 +125,7 @@ router.post('/', async (req, res, next) => {
         JSON.stringify(draft.expected),
         draft.runDocumentId ?? null,
         req.user.id,
+        JSON.stringify(catalog),
       ]
     );
     if (rows.length === 0) {
@@ -185,8 +188,10 @@ async function linkNames(insights, accountId) {
   return names;
 }
 
+// A given case may bring the catalog it was labelled against; otherwise the
+// account's current one is frozen with it.
 function readGivenCase(req, res) {
-  const { name, document, expected = emptyExpected() } = req.body;
+  const { name, document, expected = emptyExpected(), catalog } = req.body;
   if (typeof name !== 'string' || !name.trim()) {
     res.status(400).json({ error: 'name is required' });
     return null;
@@ -196,12 +201,22 @@ function readGivenCase(req, res) {
     res.status(400).json({ error: shape.join('; ') });
     return null;
   }
-  return { name, document, expected, ready: false };
+  if (catalog !== undefined && !isCatalog(catalog)) {
+    res.status(400).json({ error: 'catalog must be { outcomes: [...], projects: [...] }' });
+    return null;
+  }
+  return { name, document, expected, catalog, ready: false };
 }
 
+const isCatalog = (catalog) =>
+  catalog && typeof catalog === 'object' && Array.isArray(catalog.outcomes) && Array.isArray(catalog.projects);
+
 // Changes the fields named. Saving a draft only needs the right shape; marking
-// a case ready also needs every expected excerpt to be in the document, so a
-// runner never scores against a quote that isn't there.
+// a case ready also needs every expected excerpt to be in the document and
+// every expected link to be in the case's catalog, so a runner never scores
+// against a quote or a link that can't be right. { refresh_catalog: true }
+// replaces the frozen catalog with the account's current one, for relabelling
+// links against outcomes and projects made since.
 router.put('/:caseId', async (req, res, next) => {
   try {
     const current = await fetchCase(pool, req.params.caseId, req.accountId);
@@ -213,20 +228,30 @@ router.put('/:caseId', async (req, res, next) => {
       split: req.body.split ?? current.split,
       document: req.body.document ?? current.document,
       expected: req.body.expected ?? current.expected,
+      catalog: req.body.refresh_catalog === true ? await snapshotCatalog(pool, req.accountId) : current.catalog,
     };
     if (typeof updated.name !== 'string' || !updated.name.trim()) return res.status(400).json({ error: 'name is required' });
     if (!STATUSES.includes(updated.status)) return res.status(400).json({ error: `status must be one of: ${STATUSES.join(', ')}` });
     if (!SPLITS.includes(updated.split)) return res.status(400).json({ error: `split must be one of: ${SPLITS.join(', ')}` });
-    const { shape, excerpts } = checkCase(updated.document, updated.expected);
+    const { shape, unready } = checkCase(updated.document, updated.expected, updated.catalog);
     if (shape.length > 0) return res.status(400).json({ error: shape.join('; ') });
-    if (updated.status === 'ready' && excerpts.length > 0) {
-      return res.status(400).json({ error: `not ready: ${excerpts.join('; ')}` });
+    if (updated.status === 'ready' && unready.length > 0) {
+      return res.status(400).json({ error: `not ready: ${unready.join('; ')}` });
     }
 
     await pool.query(
-      `UPDATE eval_cases SET name = $1, status = $2, split = $3, document = $4, expected = $5, updated_at = now()
+      `UPDATE eval_cases SET name = $1, status = $2, split = $3, document = $4, expected = $5, catalog = $8, updated_at = now()
        WHERE id = $6 AND account_id = $7`,
-      [updated.name.trim(), updated.status, updated.split, JSON.stringify(updated.document), JSON.stringify(updated.expected), current.id, req.accountId]
+      [
+        updated.name.trim(),
+        updated.status,
+        updated.split,
+        JSON.stringify(updated.document),
+        JSON.stringify(updated.expected),
+        current.id,
+        req.accountId,
+        JSON.stringify(updated.catalog),
+      ]
     );
     res.json(await fetchCase(pool, current.id, req.accountId));
   } catch (err) {

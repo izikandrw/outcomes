@@ -3046,6 +3046,10 @@ button.team-chip.link:hover {
   width: auto;
 }
 
+.eval-case-catalog {
+  margin: 0 0 6px;
+}
+
 .eval-case-json {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;

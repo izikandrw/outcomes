@@ -116,12 +116,20 @@ test('a skipped document drafts as no insights, to be checked by a person', () =
 
 test('checkCase finds excerpts ignoring whitespace, curly quotes and case, and names the missing ones', () => {
   const document = { text: TEXT };
-  assert.deepEqual(checkCase(document, { insights: [{ excerpt: 'WE GAVE  up on SSO' }] }), { shape: [], excerpts: [] });
-  assert.deepEqual(checkCase(document, { insights: [{ excerpt: 'we loved SSO' }, {}] }).excerpts, [
+  assert.deepEqual(checkCase(document, { insights: [{ excerpt: 'WE GAVE  up on SSO' }] }), { shape: [], unready: [] });
+  assert.deepEqual(checkCase(document, { insights: [{ excerpt: 'we loved SSO' }, {}] }).unready, [
     "expected.insights[0]'s excerpt isn't in the document",
     'expected.insights[1] needs an excerpt',
   ]);
   assert.deepEqual(checkCase({ text: '' }, { insights: 'x' }).shape, ['document needs its text', 'expected.insights must be a list']);
+});
+
+test('checkCase holds expected links to the case\'s frozen catalog', () => {
+  const expected = { insights: [{ excerpt: 'we gave up on SSO', links: [{ kind: 'outcome', id: '12', name: 'SSO' }, { kind: 'project', id: '3' }] }] };
+  const catalog = { outcomes: [{ id: '12', name: 'SSO' }], projects: [] };
+  assert.deepEqual(checkCase({ text: TEXT }, expected, catalog).unready, [
+    "expected.insights[0] links to project 3, which isn't in this case's catalog",
+  ]);
 });
 
 test('the collector may not read the eval set', async () => {
@@ -190,4 +198,47 @@ test('PUT /:id saves a draft whose excerpts are still being fixed', async () => 
   assert.equal(res.status, 200);
   const update = db.calls.find((call) => /^UPDATE eval_cases/.test(call.sql));
   assert.deepEqual(JSON.parse(update.params[4]), { insights: [{ excerpt: 'not there' }] });
+});
+
+// The account's current outcomes and projects, as snapshotCatalog reads them.
+const liveCatalog = (sql) => {
+  if (/^SELECT id, name, description FROM outcomes/.test(sql)) return { rows: [{ id: 12, name: 'Admins finish SSO setup', description: null }] };
+  if (/^SELECT id, name, description FROM projects/.test(sql)) return { rows: [] };
+  return null;
+};
+
+test('POST / freezes the account’s current catalog with the new case', async () => {
+  db.respond = (sql) =>
+    liveCatalog(sql) ??
+    (/^SELECT count/.test(sql)
+      ? { rows: [{ total: 0, test: 0 }] }
+      : /^INSERT INTO eval_cases/.test(sql)
+        ? { rows: [{ id: 6 }] }
+        : { rows: [] });
+  await request('POST', '/', { label_source: 'golden', name: 'hand-made', document: { text: TEXT } });
+  const insert = db.calls.find((call) => /^INSERT INTO eval_cases/.test(call.sql));
+  assert.deepEqual(JSON.parse(insert.params[9]), {
+    outcomes: [{ id: '12', name: 'Admins finish SSO setup', description: null }],
+    projects: [],
+  });
+});
+
+test('PUT /:id with refresh_catalog replaces the frozen catalog, so a link to a new outcome can be marked ready', async () => {
+  const stale = { outcomes: [], projects: [] };
+  db.respond = (sql) =>
+    liveCatalog(sql) ??
+    (/^SELECT \* FROM eval_cases/.test(sql)
+      ? { rows: [{ id: 5, name: 'c', status: 'draft', split: 'dev', document: { text: TEXT }, expected: { insights: [] }, catalog: stale }] }
+      : { rows: [], rowCount: 1 });
+  const expected = { insights: [{ excerpt: 'we gave up on SSO', links: [{ kind: 'outcome', id: '12' }] }] };
+
+  const refused = await request('PUT', '/5', { status: 'ready', expected });
+  assert.equal(refused.status, 400);
+  assert.match(refused.body.error, /links to outcome 12, which isn't in this case's catalog/);
+
+  db.calls = [];
+  const res = await request('PUT', '/5', { status: 'ready', expected, refresh_catalog: true });
+  assert.equal(res.status, 200);
+  const update = db.calls.find((call) => /^UPDATE eval_cases/.test(call.sql));
+  assert.deepEqual(JSON.parse(update.params[7]).outcomes.map((o) => o.id), ['12']);
 });

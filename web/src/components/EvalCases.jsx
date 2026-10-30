@@ -174,18 +174,26 @@ export function CaseEditor({ accountId, evalCase, onSaved, onDeleted, onClose })
   const [answer, setAnswer] = useState(JSON.stringify(rest, null, 2));
   const [selection, setSelection] = useState('');
   const [mode, setMode] = useState('easy');
-  const [catalog, setCatalog] = useState({ outcomes: [], projects: [] });
+  // Links point into the catalog frozen with the case, so its score can't move
+  // when outcomes change later. "Use today's catalog" swaps in the current one,
+  // saved with the case.
+  const [catalog, setCatalog] = useState(evalCase.catalog ?? { outcomes: [], projects: [] });
+  const [refreshCatalog, setRefreshCatalog] = useState(false);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const textRef = useRef(null);
 
-  // Outcomes and projects an expected insight can link to, for Easy mode.
-  useEffect(() => {
-    Promise.all([api.listOutcomes(accountId), api.listProjects(accountId)])
-      .then(([outcomes, projects]) => setCatalog({ outcomes, projects }))
-      .catch(() => {});
-  }, [accountId]);
+  async function switchToTodaysCatalog() {
+    try {
+      const [outcomes, projects] = await Promise.all([api.listOutcomes(accountId), api.listProjects(accountId)]);
+      const pick = (rows) => rows.map(({ id, name, description }) => ({ id: String(id), name, description: description ?? null }));
+      setCatalog({ outcomes: pick(outcomes), projects: pick(projects) });
+      setRefreshCatalog(true);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
   // Both modes edit the same JSON text, so switching between them loses nothing.
   let parsedAnswer = null;
@@ -236,6 +244,7 @@ export function CaseEditor({ accountId, evalCase, onSaved, onDeleted, onClose })
           firsthand: details.firsthand,
         },
         expected: { ...parsed, notes: labelNotes },
+        ...(refreshCatalog ? { refresh_catalog: true } : {}),
       });
       onSaved(saved);
     } catch (err) {
@@ -351,6 +360,16 @@ export function CaseEditor({ accountId, evalCase, onSaved, onDeleted, onClose })
               </button>
             </div>
           </div>
+          <p className="hint eval-case-catalog">
+            {refreshCatalog
+              ? `Using today’s catalog (${catalog.outcomes.length} outcomes, ${catalog.projects.length} projects); it replaces the frozen one when you save.`
+              : `Links point into the ${catalog.outcomes.length} outcomes and ${catalog.projects.length} projects frozen with this case, which the eval also gives the model, so later changes to your outcomes don’t move its score.`}{' '}
+            {!refreshCatalog && (
+              <button type="button" className="link-button" onClick={switchToTodaysCatalog}>
+                Use today’s catalog
+              </button>
+            )}
+          </p>
           {mode === 'easy' ? (
             parsedAnswer && typeof parsedAnswer === 'object' && !Array.isArray(parsedAnswer) ? (
               <EasyAnswer
@@ -692,9 +711,10 @@ function NotInsightCard({ entry, found, onChange, onRemove, onMove }) {
 }
 
 // Every ready case in one file, each as { name, split, label_source,
-// document, expected }: the cases/<name>/ folders of agent/evals/, flattened.
+// document, expected, catalog }: the cases/<name>/ folders of agent/evals/,
+// flattened, each with the catalog it was labelled against.
 function downloadSet(cases) {
-  const set = cases.map(({ name, split, label_source, document, expected }) => ({ name, split, label_source, document, expected }));
+  const set = cases.map(({ name, split, label_source, document, expected, catalog }) => ({ name, split, label_source, document, expected, catalog }));
   const blob = new Blob([`${JSON.stringify(set, null, 2)}\n`], { type: 'application/json' });
   const link = window.document.createElement('a');
   link.href = URL.createObjectURL(blob);

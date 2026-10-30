@@ -19,10 +19,13 @@ async function pool(items, concurrency, work) {
   );
 }
 
-// options: { client, catalog, model, effort, reps, concurrency, goldLinks,
-// predict?, onProgress? }. Returns per-run results, errors and the summary.
+// options: { client, catalog, liveCatalog, model, effort, reps, concurrency,
+// goldLinks, predict?, onProgress? }. Each case is linked against the catalog
+// frozen with it, so its expected links and the model's choices match;
+// `catalog` stands in for cases without one, or for all of them with
+// liveCatalog. Returns per-run results, errors and the summary.
 export async function runEval(cases, options) {
-  const { client, catalog, model, effort, reps = 3, concurrency = 4, goldLinks = true, predict, onProgress } = options;
+  const { client, catalog, liveCatalog = false, model, effort, reps = 3, concurrency = 4, goldLinks = true, predict, onProgress } = options;
   const jobs = cases.flatMap((evalCase) => Array.from({ length: reps }, (_, rep) => ({ evalCase, rep })));
   const results = [];
   const errors = [];
@@ -31,16 +34,17 @@ export async function runEval(cases, options) {
 
   await pool(jobs, concurrency, async ({ evalCase, rep }) => {
     const started = Date.now();
+    const caseCatalog = (!liveCatalog && evalCase.catalog) || catalog;
     try {
       const output = predict
         ? await predict(evalCase)
-        : await runDocument(client, evalCase.document, catalog, { model, effort });
+        : await runDocument(client, evalCase.document, caseCatalog, { model, effort });
       let runUsage = output.usage;
       const goldLinkScores = [];
       if (goldLinks && !predict) {
         for (const gold of evalCase.expected.insights ?? []) {
           if (!Array.isArray(gold.links)) continue;
-          const linked = await link(client, gold, catalog, { model, effort });
+          const linked = await link(client, gold, caseCatalog, { model, effort });
           runUsage = addUsage(runUsage, linked.usage);
           goldLinkScores.push(scoreLinks(linked.links, gold.links));
         }

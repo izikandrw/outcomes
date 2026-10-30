@@ -103,3 +103,31 @@ test('costOf prices known models and leaves unknown ones unpriced', () => {
   assert.equal(costOf('claude-opus-5-5', { input: 1e6, output: 0, cache_read: 0, cache_write: 0 }), 4);
   assert.equal(costOf('some-other-model', { input: 1, output: 1, cache_read: 0, cache_write: 0 }), null);
 });
+
+test('each case is linked against its own frozen catalog unless liveCatalog is set', async () => {
+  const frozen = { outcomes: [{ id: '12', name: 'Admins finish SSO setup', description: null }], projects: [] };
+  const today = { outcomes: [], projects: [] };
+  const cases = [
+    {
+      name: 'globex',
+      label_source: 'golden',
+      split: 'dev',
+      document: DOC,
+      catalog: frozen,
+      expected: { insights: [{ excerpt: 'we gave up on SSO after two days', name: 'g', links: [{ kind: 'outcome', id: '12' }] }] },
+    },
+  ];
+  const run = (liveCatalog) =>
+    runEval(cases, {
+      client: fakeClient({ extracted: [candidate('we gave up on SSO after two days')], links: [{ kind: 'outcome', id: '12', rationale: 'r' }] }),
+      catalog: today,
+      liveCatalog,
+      model: 'claude-opus-5-5',
+      effort: 'high',
+      reps: 1,
+    });
+  // Frozen: outcome 12 is in the case's catalog, so the link stands.
+  assert.equal((await run(false)).summary.groups.all.link_recall.mean, 1);
+  // Live: today's catalog has no outcome 12, so the link is dropped as unknown.
+  assert.equal((await run(true)).summary.groups.all.link_recall.mean, 0);
+});

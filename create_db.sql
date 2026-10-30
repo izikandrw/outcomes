@@ -306,6 +306,9 @@ CREATE TABLE eval_cases (
     split           TEXT NOT NULL DEFAULT 'dev' CHECK (split IN ('dev', 'test')),
     document        JSONB NOT NULL,
     expected        JSONB NOT NULL DEFAULT '{"insights": []}',
+    -- The outcomes and projects it was labelled against, frozen, so the
+    -- catalog changing later can't move its score: { outcomes, projects }.
+    catalog         JSONB NOT NULL,
     run_document_id BIGINT REFERENCES collection_run_documents(id) ON DELETE SET NULL,
     created_by      BIGINT REFERENCES users(id) ON DELETE SET NULL,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),

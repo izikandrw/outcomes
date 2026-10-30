@@ -54,13 +54,13 @@ function row(key, label, metric, previous) {
 
 const money = (value) => (value === null || value === undefined ? 'unknown' : `$${value.toFixed(value < 1 ? 4 : 2)}`);
 
-// meta: { promptVersion, split, sets, caseCount, startedAt, previousName,
-// showFailures }. `results` and `errors` give the reading list.
+// meta: { promptVersion, split, sets, catalog, caseCount, startedAt,
+// previousName, showFailures }. `results` and `errors` give the reading list.
 export function summaryMarkdown(summary, previous, meta, results, errors) {
   const lines = [
     `# Eval: ${meta.promptVersion} · ${summary.model} · effort ${summary.effort}`,
     '',
-    `${meta.startedAt} · split **${meta.split}** · sets ${meta.sets} · ${meta.caseCount} cases × ${summary.reps} reps = ${summary.runs} runs, ${summary.errors} errors`,
+    `${meta.startedAt} · split **${meta.split}** · sets ${meta.sets} · ${meta.caseCount} cases × ${summary.reps} reps = ${summary.runs} runs, ${summary.errors} errors · catalog: ${meta.catalog}`,
     `Cost ${money(summary.cost)} (${money(summary.cost_per_document)} per document) · ${summary.ms_per_document === null ? '—' : `${(summary.ms_per_document / 1000).toFixed(1)} s`} per document · tokens: ${summary.usage.input} in, ${summary.usage.output} out, ${summary.usage.cache_read} cache read, ${summary.usage.cache_write} cache write`,
     previous ? `Compared with **${meta.previousName}** (${previous.prompt_version} · ${previous.model} · effort ${previous.effort}).` : 'No earlier run to compare with.',
     '',

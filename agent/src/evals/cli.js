@@ -19,7 +19,8 @@
 //   --concurrency <n>        documents in flight (default 4)
 //   --no-gold-links          skip running the linker on the gold insights
 //   --file <eval-set.json>   cases from a downloaded file instead of the API
-//   --catalog <file>         { outcomes, projects } instead of the API's
+//   --live-catalog           link against today's outcomes and projects, not each case's frozen catalog
+//   --catalog <file>         { outcomes, projects } for --live-catalog, or for cases without a catalog
 //   --baseline <dir>         compare with this results dir (default: the last run of the same split)
 //   --show-test-failures     list failures even on the test split
 //   --self-check             grade the expected answers themselves (no model calls)
@@ -51,6 +52,7 @@ const { values: args } = parseArgs({
     'no-gold-links': { type: 'boolean', default: false },
     file: { type: 'string' },
     catalog: { type: 'string' },
+    'live-catalog': { type: 'boolean', default: false },
     baseline: { type: 'string' },
     'show-test-failures': { type: 'boolean', default: false },
     'self-check': { type: 'boolean', default: false },
@@ -101,7 +103,10 @@ function findBaseline() {
     .reverse();
   for (const name of dirs) {
     const summary = readJson(path.join(RESULTS_DIR, name, 'summary.json'));
-    if (summary.split === args.split && summary.sets === args.set) return path.join(RESULTS_DIR, name);
+    const catalogMode = args['live-catalog'] ? 'live' : 'frozen';
+    if (summary.split === args.split && summary.sets === args.set && (summary.catalog ?? 'frozen') === catalogMode) {
+      return path.join(RESULTS_DIR, name);
+    }
   }
   return null;
 }
@@ -149,13 +154,17 @@ async function main() {
 
   const { default: Anthropic } = await import('@anthropic-ai/sdk');
   const client = new Anthropic({ maxRetries: 4 });
-  const catalog = await loadCatalog();
+  // Each case brings the catalog it was labelled against; today's is only
+  // needed to test against it, or for cases from before catalogs were frozen.
+  const needsCatalog = args['live-catalog'] || cases.some((c) => !c.catalog);
+  const catalog = needsCatalog ? await loadCatalog() : null;
   const startedAt = new Date().toISOString();
   console.log(`Scoring ${cases.length} cases × ${args.reps} reps on ${args.model} (effort ${args.effort}), ${PROMPT_VERSION}…`);
 
   const { results, errors, summary } = await runEval(cases, {
     client,
     catalog,
+    liveCatalog: args['live-catalog'],
     model: args.model,
     effort: args.effort,
     reps: Number(args.reps),
@@ -165,7 +174,15 @@ async function main() {
   });
   process.stdout.write('\n');
 
-  const record = { ...summary, prompt_version: PROMPT_VERSION, split: args.split, sets: args.set, started_at: startedAt, cases: cases.map((c) => c.name) };
+  const record = {
+    ...summary,
+    prompt_version: PROMPT_VERSION,
+    split: args.split,
+    sets: args.set,
+    catalog: args['live-catalog'] ? 'live' : 'frozen',
+    started_at: startedAt,
+    cases: cases.map((c) => c.name),
+  };
   const baselineDir = findBaseline();
   const previous = baselineDir ? readJson(path.join(baselineDir, 'summary.json')) : null;
   const outDir = path.join(RESULTS_DIR, `${startedAt.replace(/[:.]/g, '-')}-${slug(PROMPT_VERSION)}-${args.model}-${args.effort}`);
@@ -177,6 +194,7 @@ async function main() {
     promptVersion: PROMPT_VERSION,
     split: args.split,
     sets: args.set,
+    catalog: args['live-catalog'] ? 'today’s (--live-catalog)' : 'each case’s frozen one',
     caseCount: cases.length,
     startedAt,
     previousName: baselineDir ? path.basename(baselineDir) : null,
