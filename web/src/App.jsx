@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as api from './api.js';
 import ImpactForm from './components/ImpactForm.jsx';
+import ImpactList from './components/ImpactList.jsx';
 import InsightForm from './components/InsightForm.jsx';
 import ConfirmDialog from './components/ConfirmDialog.jsx';
 import AccountLogo from './components/AccountLogo.jsx';
@@ -34,7 +35,7 @@ import { flaggedBy, ruleById } from './lib/validation.js';
 const STORED_PAGE = 'outcomes.page';
 const STORED_TEAM = 'outcomes.team';
 // Where a header issue count takes you, by the kind of thing its rule applies to.
-const ISSUE_PAGES = { impact: 'map', outcome: 'outcomes', project: 'roadmap' };
+const ISSUE_PAGES = { impact: 'impacts', outcome: 'outcomes', project: 'roadmap' };
 
 // The fields a project PUT replaces; parent_project_id is sent explicitly so a
 // partial update never clears it.
@@ -206,7 +207,6 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
     changePage('team');
   }
 
-  // Impacts are only listed on the map; outcomes have their list, projects the roadmap.
   function openIssues(rule) {
     changePage(ISSUE_PAGES[rule.appliesTo]);
     setIssueFilter(rule.id);
@@ -775,6 +775,35 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
                 onCreateOwn={createForInsight}
                 onDismissProposed={dismissProposal}
                 onAcceptAll={acceptAllProposals}
+              />
+            )}
+          </section>
+        ) : page === 'impacts' ? (
+          <section className="card" aria-label="Impacts">
+            <div className="list-head">
+              <div className="actions">
+                <button type="button" className="with-icon btn-impact" onClick={openCreateImpact}>
+                  <PlusIcon />
+                  New impact
+                </button>
+              </div>
+            </div>
+            {!loading && issueBanner(impacts)}
+            {loading ? (
+              <p className="empty">Loading…</p>
+            ) : impacts.length === 0 ? (
+              <p className="empty">No impacts yet.</p>
+            ) : flagged?.length === 0 ? null : (
+              <ImpactList
+                impacts={flagged ?? impacts}
+                outcomes={outcomes}
+                targets={targets}
+                onEdit={openEditImpact}
+                onDelete={removeImpact}
+                onAddTarget={(impact) => openAdd(impact, 'target', 'impact')}
+                onEditTarget={openEditTarget}
+                onDeleteTarget={removeTarget}
+                onViewTarget={viewTarget}
               />
             )}
           </section>

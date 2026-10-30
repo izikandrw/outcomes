@@ -122,7 +122,7 @@ export default function OutcomeList({
   );
 }
 
-function Target({ target, onView, onEdit, onDelete }) {
+export function Target({ target, onView, onEdit, onDelete }) {
   const progress = progressOf(target);
   // The bar is clamped so an overshoot or a slide backwards still draws, while
   // the percentage beside it keeps reporting the real number.
