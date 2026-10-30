@@ -1322,7 +1322,7 @@ button.tag.insight-badge.empty {
 }
 
 /* Suggestions are unconfirmed, so they read as an outline rather than a fill. */
-button.tag.insight-badge.suggested:not(.empty) {
+button.tag.insight-badge.suggested {
   background: transparent;
   border: 1px dashed var(--target);
   color: var(--target);
