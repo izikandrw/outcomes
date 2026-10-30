@@ -42,6 +42,17 @@ test('a proposal naming an existing outcome becomes a link and is dropped', asyn
   assert.equal(update.params[1], 5);
 });
 
+test("an adopted proposal is recorded on the insight's history", async () => {
+  const proposal = { kind: 'outcome', name: 'Faster onboarding', rationale: 'users stall at setup' };
+  const client = fakeClient({ insights: [{ id: 5, proposed_links: [proposal] }], outcomes: [{ id: 12, name: 'Faster onboarding' }] });
+
+  await adoptProposals(client, '7', 3);
+
+  const event = client.calls.find((call) => call.sql.startsWith('INSERT INTO insight_events'));
+  assert.deepEqual(event.params.slice(0, 4), ['7', 5, 'proposal_adopted', 3]);
+  assert.deepEqual(JSON.parse(event.params[6]), { kind: 'outcome', id: '12', proposal });
+});
+
 test('proposals with nothing to match are left alone', async () => {
   const client = fakeClient({
     insights: [{ id: 5, proposed_links: [{ kind: 'outcome', name: 'New thing' }] }],

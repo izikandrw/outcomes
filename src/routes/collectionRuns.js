@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db');
 const { missingFromAccount } = require('../lib/validateRef');
+const { listEvents } = require('../lib/insightEvents');
 
 // Runs of the insight collector agent: what it read, what it decided about each
 // document and why, and how people then judged its suggestions. This is the
@@ -39,7 +40,8 @@ router.get('/', async (req, res, next) => {
 });
 
 // The full trace: the run, every document in the order it was read, and the
-// run's suggestions with their review outcome.
+// run's suggestions with their review outcome and history (insight_events):
+// what the collector said, and every change and verdict since.
 router.get('/:runId', async (req, res, next) => {
   try {
     const run = await fetchRun(req.params.runId, req.accountId);
@@ -56,6 +58,8 @@ router.get('/:runId', async (req, res, next) => {
         [run.id, req.accountId]
       ),
     ]);
+    const events = await listEvents(pool, req.accountId, insights.map((insight) => insight.id));
+    for (const insight of insights) insight.events = events.filter((event) => String(event.insight_id) === String(insight.id));
     res.json({ ...run, documents, insights });
   } catch (err) {
     next(err);

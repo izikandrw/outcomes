@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const { belongsToAccount, missingFromAccount } = require('../lib/validateRef');
 const { adoptProposals } = require('../lib/adoptProposals');
+const { snapshotOf, recordEvent, listEvents } = require('../lib/insightEvents');
 
 const router = express.Router({ mergeParams: true });
 
@@ -343,8 +344,15 @@ router.post('/', async (req, res, next) => {
       projectIds: input.projectIds ?? [],
       rationales: input.rationales,
     });
+    await recordEvent(client, {
+      accountId: req.accountId,
+      insightId: rows[0].id,
+      action: 'created',
+      actorId: req.user.id,
+      after: snapshotOf(await fetchInsight(client, rows[0].id, req.accountId)),
+    });
     // A proposal for an outcome or project that already exists becomes a link to it.
-    await adoptProposals(client, req.accountId);
+    await adoptProposals(client, req.accountId, req.user.id);
     await client.query('COMMIT');
 
     res.status(201).json(await fetchInsight(pool, rows[0].id, req.accountId));
@@ -366,6 +374,7 @@ router.put('/:insightId', forbidCollector, async (req, res, next) => {
 
     client = await pool.connect();
     await client.query('BEGIN');
+    const before = snapshotOf(await fetchInsight(client, req.params.insightId, req.accountId));
     const { rows } = await client.query(
       // Changing a suggestion before approving it is recorded: how often
       // reviewers have to fix the collector's output is a quality signal.
@@ -401,9 +410,15 @@ router.put('/:insightId', forbidCollector, async (req, res, next) => {
       );
     }
     await replaceAllLinks(client, rows[0].id, req.accountId, input);
+    const insight = await fetchInsight(client, rows[0].id, req.accountId);
+    const after = snapshotOf(insight);
+    // Saving without changing anything isn't an edit worth tracing.
+    if (JSON.stringify(after) !== JSON.stringify(before)) {
+      await recordEvent(client, { accountId: req.accountId, insightId: rows[0].id, action: 'edited', actorId: req.user.id, before, after });
+    }
     await client.query('COMMIT');
 
-    res.json(await fetchInsight(pool, req.params.insightId, req.accountId));
+    res.json(insight);
   } catch (err) {
     if (client) await client.query('ROLLBACK').catch(() => {});
     next(err);
@@ -412,55 +427,84 @@ router.put('/:insightId', forbidCollector, async (req, res, next) => {
   }
 });
 
-// Approves a suggestion: it becomes evidence. Also undoes a rejection.
-router.post('/:insightId/validate', forbidCollector, async (req, res, next) => {
+// Applies a review verdict (`sql`, given the insight id and account id as $1
+// and $2 after `params`) and records it with the insight before and after.
+async function changeStatus(req, res, next, action, sql, params = []) {
+  let client;
   try {
-    const { rowCount } = await pool.query(
-      `UPDATE insights SET status = 'validated', reviewed_by = $1, reviewed_at = now(),
-         rejection_reason = NULL, review_note = NULL, updated_at = now()
-       WHERE id = $2 AND account_id = $3`,
-      [req.user.id, req.params.insightId, req.accountId]
-    );
-    if (rowCount === 0) return res.status(404).json({ error: 'insight not found' });
-    res.json(await fetchInsight(pool, req.params.insightId, req.accountId));
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const before = await fetchInsight(client, req.params.insightId, req.accountId);
+    if (!before) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'insight not found' });
+    }
+    await client.query(sql, [req.params.insightId, req.accountId, ...params]);
+    const insight = await fetchInsight(client, req.params.insightId, req.accountId);
+    await recordEvent(client, {
+      accountId: req.accountId,
+      insightId: insight.id,
+      action,
+      actorId: req.user.id,
+      before: snapshotOf(before),
+      after: snapshotOf(insight),
+    });
+    await client.query('COMMIT');
+    res.json(insight);
   } catch (err) {
+    if (client) await client.query('ROLLBACK').catch(() => {});
     next(err);
+  } finally {
+    if (client) client.release();
   }
-});
+}
+
+// Approves a suggestion: it becomes evidence. Also undoes a rejection.
+router.post('/:insightId/validate', forbidCollector, (req, res, next) =>
+  changeStatus(
+    req, res, next, 'validated',
+    `UPDATE insights SET status = 'validated', reviewed_by = $3, reviewed_at = now(),
+       rejection_reason = NULL, review_note = NULL, updated_at = now()
+     WHERE id = $1 AND account_id = $2`,
+    [req.user.id]
+  )
+);
 
 // Turns a suggestion down. The row is kept so the collector never suggests it
 // again, and the reason feeds its evals.
-router.post('/:insightId/reject', forbidCollector, async (req, res, next) => {
+router.post('/:insightId/reject', forbidCollector, (req, res, next) => {
   const { reason, note } = req.body;
   if (!REJECTION_REASONS.includes(reason)) {
     return res.status(400).json({ error: `reason must be one of: ${REJECTION_REASONS.join(', ')}` });
   }
-  try {
-    const { rowCount } = await pool.query(
-      `UPDATE insights SET status = 'rejected', rejection_reason = $1, review_note = $2,
-         reviewed_by = $3, reviewed_at = now(), updated_at = now()
-       WHERE id = $4 AND account_id = $5`,
-      [reason, note || null, req.user.id, req.params.insightId, req.accountId]
-    );
-    if (rowCount === 0) return res.status(404).json({ error: 'insight not found' });
-    res.json(await fetchInsight(pool, req.params.insightId, req.accountId));
-  } catch (err) {
-    next(err);
-  }
+  return changeStatus(
+    req, res, next, 'rejected',
+    `UPDATE insights SET status = 'rejected', rejection_reason = $3, review_note = $4,
+       reviewed_by = $5, reviewed_at = now(), updated_at = now()
+     WHERE id = $1 AND account_id = $2`,
+    [reason, note || null, req.user.id]
+  );
 });
 
 // Undoes a review, approval or rejection: the insight goes back to the review
 // queue and stops counting as evidence.
-router.post('/:insightId/reopen', forbidCollector, async (req, res, next) => {
+router.post('/:insightId/reopen', forbidCollector, (req, res, next) =>
+  changeStatus(
+    req, res, next, 'reopened',
+    `UPDATE insights SET status = 'unvalidated', reviewed_by = NULL, reviewed_at = NULL,
+       rejection_reason = NULL, review_note = NULL, updated_at = now()
+     WHERE id = $1 AND account_id = $2`
+  )
+);
+
+// The insight's history, oldest first: what the collector suggested and every
+// change and verdict since, with who made it.
+router.get('/:insightId/events', async (req, res, next) => {
   try {
-    const { rowCount } = await pool.query(
-      `UPDATE insights SET status = 'unvalidated', reviewed_by = NULL, reviewed_at = NULL,
-         rejection_reason = NULL, review_note = NULL, updated_at = now()
-       WHERE id = $1 AND account_id = $2`,
-      [req.params.insightId, req.accountId]
-    );
-    if (rowCount === 0) return res.status(404).json({ error: 'insight not found' });
-    res.json(await fetchInsight(pool, req.params.insightId, req.accountId));
+    if (!(await belongsToAccount('insights', req.params.insightId, req.accountId))) {
+      return res.status(404).json({ error: 'insight not found' });
+    }
+    res.json(await listEvents(pool, req.accountId, [req.params.insightId]));
   } catch (err) {
     next(err);
   }

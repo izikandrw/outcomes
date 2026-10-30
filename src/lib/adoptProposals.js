@@ -4,6 +4,10 @@
 // review that proposed it should link to the real one instead: this turns
 // those proposals into links, carrying the rationale over, and drops them.
 // Names match ignoring case and surrounding space; the oldest match wins.
+// Each adoption is recorded on the insight's history, as done by `actorId`
+// (whoever's change made the match).
+const { recordEvent } = require('./insightEvents');
+
 const TABLES = {
   outcome: { entities: 'outcomes', links: 'insight_outcomes', column: 'outcome_id' },
   project: { entities: 'projects', links: 'insight_projects', column: 'project_id' },
@@ -11,7 +15,7 @@ const TABLES = {
 
 const key = (name) => String(name ?? '').trim().toLowerCase();
 
-async function adoptProposals(client, accountId) {
+async function adoptProposals(client, accountId, actorId = null) {
   const { rows: insights } = await client.query(
     `SELECT id, proposed_links FROM insights
       WHERE account_id = $1 AND status = 'unvalidated' AND jsonb_array_length(proposed_links) > 0
@@ -43,6 +47,13 @@ async function adoptProposals(client, accountId) {
          ON CONFLICT (insight_id, ${column}) DO UPDATE SET rationale = COALESCE(${links}.rationale, EXCLUDED.rationale)`,
         [accountId, insight.id, id, proposal.rationale || null]
       );
+      await recordEvent(client, {
+        accountId,
+        insightId: insight.id,
+        action: 'proposal_adopted',
+        actorId,
+        details: { kind: proposal.kind, id: String(id), proposal },
+      });
     }
     if (kept.length < insight.proposed_links.length) {
       await client.query(`UPDATE insights SET proposed_links = $1::jsonb WHERE id = $2`, [

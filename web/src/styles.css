@@ -2902,6 +2902,40 @@ button.team-chip.link:hover {
   font-size: 13px;
 }
 
+/* A suggestion's history in a run trace (InsightHistory.jsx). */
+.insight-history-toggle {
+  margin: 2px 0 6px;
+}
+
+.insight-history {
+  margin: 6px 0 0;
+  padding: 0 0 0 14px;
+  border-left: 2px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+}
+
+.insight-history p,
+.insight-history blockquote {
+  margin: 2px 0;
+}
+
+.insight-history blockquote {
+  padding-left: 8px;
+  border-left: 2px solid var(--border);
+}
+
+.insight-history-changes {
+  margin: 2px 0;
+  padding-left: 18px;
+}
+
+.insight-history del {
+  color: var(--muted);
+}
+
 /* An insight's sentiment emoji ahead of its name. */
 .sentiment {
   font-weight: normal;

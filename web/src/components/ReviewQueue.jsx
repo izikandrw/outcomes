@@ -99,6 +99,8 @@ export default function ReviewQueue({
       {tab === 'runs' ? (
         <CollectionRuns
           accountId={accountId}
+          outcomes={outcomes}
+          projects={projects}
           openId={view.run}
           onOpen={(run) => onViewChange({ ...view, run: run == null ? null : String(run) })}
         />

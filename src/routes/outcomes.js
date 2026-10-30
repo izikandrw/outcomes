@@ -151,7 +151,7 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json({ error: redundant });
     }
     // Insights awaiting review that proposed this outcome by name now link to it.
-    await adoptProposals(client, req.accountId);
+    await adoptProposals(client, req.accountId, req.user.id);
     await client.query('COMMIT');
 
     res.status(201).json(await fetchOutcome(pool, rows[0].id, req.accountId));
@@ -201,7 +201,7 @@ router.put('/:outcomeId', async (req, res, next) => {
       return res.status(400).json({ error: redundant });
     }
     // Insights awaiting review that proposed this outcome by name now link to it.
-    await adoptProposals(client, req.accountId);
+    await adoptProposals(client, req.accountId, req.user.id);
     await client.query('COMMIT');
 
     res.json(await fetchOutcome(pool, req.params.outcomeId, req.accountId));

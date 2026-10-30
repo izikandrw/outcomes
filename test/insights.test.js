@@ -177,3 +177,79 @@ test('PUT /:id rejects a firsthand that is not true or false', async () => {
   assert.match(res.body.error, /firsthand must be true or false/);
   assert.equal(db.calls.length, 0);
 });
+
+// insight_events: the history that keeps what the collector suggested.
+const eventInserts = () => db.calls.filter((call) => /^INSERT INTO insight_events/.test(call.sql));
+
+test('POST / records the insight as created, with a snapshot of it', async () => {
+  db.respond = (sql) => {
+    if (/^INSERT INTO insights/.test(sql)) return { rows: [{ id: 9 }] };
+    if (/^SELECT i\.\*/.test(sql)) {
+      return { rows: [{ id: 9, name: 'Admins abandon setup at SSO', status: 'unvalidated', outcome_ids: [12], project_ids: [] }] };
+    }
+    return { rows: [] };
+  };
+  await request('POST', '/', { name: 'Admins abandon setup at SSO', status: 'unvalidated' });
+  const [event] = eventInserts();
+  assert.deepEqual(event.params.slice(0, 5), [ACCOUNT_ID, 9, 'created', 3, null]);
+  const after = JSON.parse(event.params[5]);
+  assert.equal(after.name, 'Admins abandon setup at SSO');
+  assert.deepEqual(after.outcome_ids, ['12']);
+});
+
+test('PUT /:id records an edit with the insight before and after', async () => {
+  let reads = 0;
+  db.respond = (sql) => {
+    if (/^UPDATE insights/.test(sql)) return { rows: [{ id: 5 }], rowCount: 1 };
+    if (/^SELECT i\.\*/.test(sql)) {
+      reads += 1;
+      return { rows: [{ id: 5, name: reads === 1 ? 'Customers find SSO confusing' : 'Globex abandoned SSO setup' }] };
+    }
+    return { rows: [] };
+  };
+  await request('PUT', '/5', { name: 'Globex abandoned SSO setup' });
+  const [event] = eventInserts();
+  assert.equal(event.params[2], 'edited');
+  assert.equal(JSON.parse(event.params[4]).name, 'Customers find SSO confusing');
+  assert.equal(JSON.parse(event.params[5]).name, 'Globex abandoned SSO setup');
+});
+
+test('PUT /:id records nothing when nothing changed', async () => {
+  db.respond = (sql) => (/^UPDATE insights/.test(sql) ? { rows: [{ id: 5 }], rowCount: 1 } : { rows: [{ id: 5, name: 'Same' }] });
+  await request('PUT', '/5', { name: 'Same' });
+  assert.equal(eventInserts().length, 0);
+});
+
+test('POST /:id/reject records the verdict with the insight before and after', async () => {
+  let reads = 0;
+  db.respond = (sql) => {
+    if (/^UPDATE insights/.test(sql)) return { rowCount: 1 };
+    if (/^SELECT i\.\*/.test(sql)) {
+      reads += 1;
+      return { rows: [reads === 1 ? { id: 5, status: 'unvalidated' } : { id: 5, status: 'rejected', rejection_reason: 'wrong_link' }] };
+    }
+    return { rows: [] };
+  };
+  const res = await request('POST', '/5/reject', { reason: 'wrong_link' });
+  assert.equal(res.status, 200);
+  const [event] = eventInserts();
+  assert.equal(event.params[2], 'rejected');
+  assert.equal(JSON.parse(event.params[4]).status, 'unvalidated');
+  assert.equal(JSON.parse(event.params[5]).rejection_reason, 'wrong_link');
+});
+
+test('GET /:id/events lists the history of an insight in the account', async () => {
+  db.respond = (sql) => {
+    if (/^SELECT id FROM insights/.test(sql)) return { rows: [{ id: 5 }] };
+    if (/FROM insight_events/.test(sql)) return { rows: [{ id: 1, action: 'created' }] };
+    return { rows: [] };
+  };
+  const res = await request('GET', '/5/events');
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.body, [{ id: 1, action: 'created' }]);
+});
+
+test('GET /:id/events is 404 for an insight outside the account', async () => {
+  const res = await request('GET', '/5/events');
+  assert.equal(res.status, 404);
+});

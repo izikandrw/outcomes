@@ -131,7 +131,7 @@ Change **one** thing at a time, or you won't know what helped.
 
 ## Closing the loop with production
 
-Once real people are reviewing, every decision in the queue is labeled data:
+Once real people are reviewing, every decision in the queue is labeled data. `insight_events` records each one with the insight before and after, so the collector's original output survives the review:
 
 - **Rejected** insights (with reason) → candidate *precision* cases
 - **Edited then approved** → the diff shows what the agent got slightly wrong
