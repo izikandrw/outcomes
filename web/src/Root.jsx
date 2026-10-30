@@ -58,5 +58,13 @@ export default function Root() {
 
   if (checking) return null;
   if (!session) return <AuthScreen inviteToken={inviteToken()} resetToken={resetToken()} onSignedIn={signedIn} />;
-  return <App key={session.account.id} user={session.user} account={session.account} onSignOut={signOut} />;
+  return (
+    <App
+      key={session.account.id}
+      user={session.user}
+      account={session.account}
+      onAccountChange={(account) => setSession((current) => ({ ...current, account }))}
+      onSignOut={signOut}
+    />
+  );
 }

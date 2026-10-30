@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db');
 const { requireAdmin } = require('../middleware/requireAuth');
+const { validLogo, LOGO_ERROR } = require('../lib/logo');
 const usersRouter = require('./users');
 const accountScope = require('../middleware/accountScope');
 const collectorScope = require('../middleware/collectorScope');
@@ -27,13 +28,16 @@ router.get('/:accountId', accountScope, async (req, res, next) => {
   }
 });
 
+// Leaving logo out keeps the current one; null removes it.
 router.put('/:accountId', accountScope, requireAdmin, async (req, res, next) => {
-  const { name } = req.body;
+  const { name, logo } = req.body;
   if (!name) return res.status(400).json({ error: 'name is required' });
+  if (!validLogo(logo)) return res.status(400).json({ error: LOGO_ERROR });
   try {
     const { rows } = await pool.query(
-      'UPDATE accounts SET name = $1, updated_at = now() WHERE id = $2 RETURNING *',
-      [name, req.params.accountId]
+      `UPDATE accounts SET name = $1, logo = CASE WHEN $3::boolean THEN $4 ELSE logo END, updated_at = now()
+       WHERE id = $2 RETURNING *`,
+      [name, req.params.accountId, logo !== undefined, logo ?? null]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'account not found' });
     res.json(rows[0]);

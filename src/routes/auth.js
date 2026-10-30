@@ -14,7 +14,7 @@ function session(user, account) {
   return {
     token: signToken(user.id),
     user: { id: user.id, email: user.email, role: user.role },
-    account: { id: account.id, name: account.name },
+    account: { id: account.id, name: account.name, logo: account.logo ?? null },
   };
 }
 
@@ -60,7 +60,7 @@ router.post('/login', async (req, res, next) => {
   const { password } = req.body;
   try {
     const { rows } = await pool.query(
-      `SELECT u.*, a.name AS account_name FROM users u JOIN accounts a ON a.id = u.account_id
+      `SELECT u.*, a.name AS account_name, a.logo AS account_logo FROM users u JOIN accounts a ON a.id = u.account_id
        WHERE lower(u.email) = $1`,
       [email]
     );
@@ -68,7 +68,7 @@ router.post('/login', async (req, res, next) => {
     if (!user || typeof password !== 'string' || !verifyPassword(password, user.password_hash)) {
       return res.status(401).json({ error: 'incorrect email or password' });
     }
-    res.json(session(user, { id: user.account_id, name: user.account_name }));
+    res.json(session(user, { id: user.account_id, name: user.account_name, logo: user.account_logo }));
   } catch (err) {
     next(err);
   }
@@ -78,7 +78,7 @@ router.post('/login', async (req, res, next) => {
 router.get('/invites/:token', async (req, res, next) => {
   try {
     const { rows } = await pool.query(
-      `SELECT i.email, i.role, a.name AS account_name FROM invites i JOIN accounts a ON a.id = i.account_id
+      `SELECT i.email, i.role, a.name AS account_name, a.logo AS account_logo FROM invites i JOIN accounts a ON a.id = i.account_id
        WHERE i.token_hash = $1 AND i.accepted_at IS NULL AND i.expires_at > now()`,
       [hashInviteToken(req.params.token)]
     );
@@ -195,13 +195,13 @@ router.post('/dev-login', async (req, res, next) => {
   try {
     const existing = (
       await pool.query(
-        `SELECT u.*, a.name AS account_name FROM users u JOIN accounts a ON a.id = u.account_id
+        `SELECT u.*, a.name AS account_name, a.logo AS account_logo FROM users u JOIN accounts a ON a.id = u.account_id
          WHERE lower(u.email) = $1`,
         [DEV_EMAIL]
       )
     ).rows[0];
     if (existing) {
-      return res.json(session(existing, { id: existing.account_id, name: existing.account_name }));
+      return res.json(session(existing, { id: existing.account_id, name: existing.account_name, logo: existing.account_logo }));
     }
     const client = await pool.connect();
     try {
@@ -231,7 +231,7 @@ router.post('/dev-login', async (req, res, next) => {
 
 router.get('/me', requireAuth, async (req, res, next) => {
   try {
-    const { rows } = await pool.query('SELECT id, name FROM accounts WHERE id = $1', [req.user.accountId]);
+    const { rows } = await pool.query('SELECT id, name, logo FROM accounts WHERE id = $1', [req.user.accountId]);
     const { id, email, role } = req.user;
     res.json({ user: { id, email, role }, account: rows[0] });
   } catch (err) {

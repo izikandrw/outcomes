@@ -63,6 +63,7 @@ export default function AuthScreen({ inviteToken, resetToken, onSignedIn }) {
         <h1>Outcomes</h1>
       </header>
       <form className="card" onSubmit={submit}>
+        {joining && invite.account_logo && <img className="auth-account-logo" src={invite.account_logo} alt="" />}
         <h2>{title}</h2>
         {error && <p className="error banner">{error}</p>}
         {resetting || joining ? (

@@ -6,7 +6,9 @@ An account is the tenancy boundary. Every team, impact, outcome, project, insigh
 
 An account is not an organizational concept. Structure inside a company is expressed with nested teams, not with several accounts. One customer, one account.
 
-Because it is a boundary rather than a thing people work on, an account has no state of its own beyond a name — no progress, no owner, no parent.
+Because it is a boundary rather than a thing people work on, an account has no state of its own beyond a name and a logo — no progress, no owner, no parent.
+
+An account can have a logo, so the people in it see their own company's brand in the app: beside the product name in the header, in the account menu, and on the invite link a new member opens. Only admins can change it.
 
 # Relationships
 

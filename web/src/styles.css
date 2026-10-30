@@ -1380,11 +1380,63 @@ button.tag.insight-badge.suggested:not(.empty) {
 }
 
 .account-menu-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 6px 10px 8px;
   font-size: 13px;
   color: var(--muted);
   border-bottom: 1px solid var(--border, #e5e7eb);
   margin-bottom: 4px;
+}
+
+.account-menu-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.account-menu-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The account's logo, or its initial on a neutral square when it has none.
+   Squared off rather than round so it reads as an organisation, not a person. */
+.account-logo {
+  flex: none;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.account-initial-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: var(--text);
+  color: var(--surface);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pinned-nav .pinned-logo {
+  margin-left: 4px;
+}
+
+.auth-account-logo {
+  display: block;
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  border-radius: 8px;
+  margin-bottom: 12px;
 }
 
 .account-menu-panel button {

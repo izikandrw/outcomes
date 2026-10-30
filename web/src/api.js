@@ -45,7 +45,10 @@ export const getPasswordReset = (token) => request(`/auth/password-resets/${toke
 export const resetPassword = (token, password) =>
   request(`/auth/password-resets/${token}`, json('POST', { password }));
 
-export const listUsers = (accountId) => request(`/accounts/${accountId}/users`);
+// Leaving logo out keeps the current one; null removes it.
+export const updateAccount = (accountId, account) => request(`/accounts/${accountId}`, json('PUT', account));
+
+export const listUsers =(accountId) => request(`/accounts/${accountId}/users`);
 export const deleteUser = (accountId, userId) =>
   request(`/accounts/${accountId}/users/${userId}`, { method: 'DELETE' });
 export const createPasswordReset = (accountId, userId) =>

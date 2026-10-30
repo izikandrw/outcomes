@@ -1,11 +1,7 @@
 const express = require('express');
 const pool = require('../db');
 const { belongsToAccount } = require('../lib/validateRef');
-
-// Logos are small data URLs the web client downsizes before upload.
-const MAX_LOGO_LENGTH = 100000;
-const validLogo = (logo) =>
-  logo == null || (typeof logo === 'string' && logo.length <= MAX_LOGO_LENGTH && /^data:image\/(png|jpeg|webp|gif);base64,/.test(logo));
+const { validLogo, LOGO_ERROR } = require('../lib/logo');
 
 const router = express.Router({ mergeParams: true });
 
@@ -34,7 +30,7 @@ router.get('/:teamId', async (req, res, next) => {
 router.post('/', async (req, res, next) => {
   const { name, parent_team_id, logo } = req.body;
   if (!name) return res.status(400).json({ error: 'name is required' });
-  if (!validLogo(logo)) return res.status(400).json({ error: 'logo must be a small png, jpeg, webp or gif data URL' });
+  if (!validLogo(logo)) return res.status(400).json({ error: LOGO_ERROR });
   try {
     if (parent_team_id && !(await belongsToAccount('teams', parent_team_id, req.accountId))) {
       return res.status(400).json({ error: 'parent_team_id not found in this account' });
@@ -52,7 +48,7 @@ router.post('/', async (req, res, next) => {
 router.put('/:teamId', async (req, res, next) => {
   const { name, parent_team_id, logo } = req.body;
   if (!name) return res.status(400).json({ error: 'name is required' });
-  if (!validLogo(logo)) return res.status(400).json({ error: 'logo must be a small png, jpeg, webp or gif data URL' });
+  if (!validLogo(logo)) return res.status(400).json({ error: LOGO_ERROR });
   try {
     if (parent_team_id && !(await belongsToAccount('teams', parent_team_id, req.accountId))) {
       return res.status(400).json({ error: 'parent_team_id not found in this account' });

@@ -3,7 +3,9 @@ import * as api from './api.js';
 import ImpactForm from './components/ImpactForm.jsx';
 import InsightForm from './components/InsightForm.jsx';
 import ConfirmDialog from './components/ConfirmDialog.jsx';
+import AccountLogo from './components/AccountLogo.jsx';
 import AccountMenu from './components/AccountMenu.jsx';
+import AccountSettings from './components/AccountSettings.jsx';
 import EntityInsights from './components/EntityInsights.jsx';
 import InsightList from './components/InsightList.jsx';
 import MeasurementForm from './components/MeasurementForm.jsx';
@@ -53,7 +55,7 @@ const outcomePayload = (outcome) => ({
   impact_id: outcome.impact_id,
 });
 
-export default function App({ user, account, onSignOut }) {
+export default function App({ user, account, onAccountChange, onSignOut }) {
   const accountId = account.id;
   const [teams, setTeams] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -638,12 +640,16 @@ export default function App({ user, account, onSignOut }) {
   return (
     <div className="app">
       <header ref={headerRef}>
-        <h1>Outcomes</h1>
+        <div className="brand">
+          {account.logo && <AccountLogo account={account} size={32} />}
+          <h1>Outcomes</h1>
+        </div>
         <TopNav page={page === 'team' ? 'teams' : page} onChange={changePage} counts={{ review: pendingReview }} />
         <IssueCounts impacts={impacts} outcomes={outcomes} projects={projects} insights={evidence} onOpen={openIssues} />
         <AccountMenu
           user={user}
           account={account}
+          onSettings={() => setModal({ kind: 'account' })}
           onMembers={() => setModal({ kind: 'members' })}
           onSignOut={onSignOut}
         />
@@ -651,6 +657,7 @@ export default function App({ user, account, onSignOut }) {
 
       {headerHidden && (
         <div className="pinned-nav">
+          {account.logo && <AccountLogo account={account} size={24} className="pinned-logo" />}
           <TopNav
             page={page === 'team' ? 'teams' : page}
             onChange={(next) => {
@@ -844,6 +851,15 @@ export default function App({ user, account, onSignOut }) {
         >
           {modal.kind === 'issue' ? (
             <IssueExplainer rule={modal.rule} entity={modal.entity} />
+          ) : modal.kind === 'account' ? (
+            <AccountSettings
+              account={account}
+              onSaved={(saved) => {
+                onAccountChange(saved);
+                setModal(null);
+              }}
+              onCancel={() => setModal(null)}
+            />
           ) : modal.kind === 'members' ? (
             <Members accountId={accountId} currentUserId={user.id} />
           ) : modal.kind === 'entity-insights' ? (
@@ -985,6 +1001,7 @@ export default function App({ user, account, onSignOut }) {
 }
 
 function modalTitle({ kind, rule, outcome, parent, target, project, team, insight, impact, entity }) {
+  if (kind === 'account') return 'Account settings';
   if (kind === 'members') return 'Members';
   if (kind === 'issue') return `${rule.emoji} ${rule.title}`;
   if (kind === 'impact') return impact ? `Edit impact #${impact.id}` : parent ? 'New child impact' : 'New impact';
