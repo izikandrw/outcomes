@@ -277,11 +277,14 @@ export default function EntityInsights({
         </div>
       )}
       {error && <p className="error">{error}</p>}
-      <div className="actions form-actions">
-        <button type="button" onClick={onAdd}>
-          Add insight
-        </button>
-      </div>
+      {/* A suggested outcome or project doesn't exist yet, so nothing can link to it. */}
+      {!entity.suggested && (
+        <div className="actions form-actions">
+          <button type="button" onClick={onAdd}>
+            Add insight
+          </button>
+        </div>
+      )}
     </div>
   );
 }

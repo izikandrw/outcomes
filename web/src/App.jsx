@@ -896,9 +896,12 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               entity={modal.entity}
               initialFilter={modal.filter}
               insights={
-                modal.entityKind === 'project'
-                  ? insightsForProject(activeInsights, modal.entity)
-                  : insightsForOutcome(activeInsights, modal.entity)
+                // A suggested one from the map: the insights awaiting review that proposed it.
+                modal.entity.suggested
+                  ? activeInsights.filter((insight) => modal.entity.insight_ids.some((id) => String(id) === String(insight.id)))
+                  : modal.entityKind === 'project'
+                    ? insightsForProject(activeInsights, modal.entity)
+                    : insightsForOutcome(activeInsights, modal.entity)
               }
               onOpen={(insight) => setModal({ kind: 'insight', insight })}
               onUpdate={patchInsight}

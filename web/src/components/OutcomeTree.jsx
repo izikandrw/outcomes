@@ -116,10 +116,13 @@ export default function OutcomeTree({
       : totalDollarImpact(
           node.type === 'project' ? insightsForProject(insights, node.data) : insightsForOutcome(insights, node.data)
         );
+  // A suggested node's suggestions are the insights that proposed it.
   const suggestedOf = (node) =>
-    node.type === 'impact' || node.data.suggested
+    node.type === 'impact'
       ? 0
-      : (node.type === 'project' ? insightsForProject(suggestions, node.data) : insightsForOutcome(suggestions, node.data))
+      : node.data.suggested
+        ? node.data.insight_ids.length
+        : (node.type === 'project' ? insightsForProject(suggestions, node.data) : insightsForOutcome(suggestions, node.data))
           .length;
   const height = Math.max(
     treeHeight,
@@ -597,19 +600,17 @@ function OutcomeNode({
 
       {revealed && <FullName node={{ type: 'outcome', data: outcome, x, y, dollars: insightDollars, suggested: suggestedCount }} />}
       <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, outcome)} />
-      {/* Nothing exists yet to back up or add to. */}
-      {!outcome.suggested && (
-        <InsightPill
-          x={x}
-          y={y}
-          count={insightCount}
-          suggested={suggestedCount}
-          dollars={insightDollars}
-          label={outcome.name}
-          onOpen={(filter) => onShowInsights(outcome, 'outcome', filter)}
-        />
-      )}
-      {/* Revealed on hover or keyboard focus; opens the add menu. */}
+      <InsightPill
+        x={x}
+        y={y}
+        count={insightCount}
+        suggested={suggestedCount}
+        dollars={insightDollars}
+        label={outcome.name}
+        onOpen={(filter) => onShowInsights(outcome, 'outcome', filter)}
+      />
+      {/* Revealed on hover or keyboard focus; opens the add menu. A suggested
+          outcome doesn't exist yet, so there's nothing to add to. */}
       {!outcome.suggested && (
         <g
           className="node-add"
@@ -880,17 +881,15 @@ function ProjectNode({
 
       {revealed && <FullName node={{ type: 'project', data: project, x, y, dollars: insightDollars, suggested: suggestedCount }} />}
       <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, project)} />
-      {!project.suggested && (
-        <InsightPill
-          x={x}
-          y={y}
-          count={insightCount}
-          suggested={suggestedCount}
-          dollars={insightDollars}
-          label={project.name}
-          onOpen={(filter) => onShowInsights(project, 'project', filter)}
-        />
-      )}
+      <InsightPill
+        x={x}
+        y={y}
+        count={insightCount}
+        suggested={suggestedCount}
+        dollars={insightDollars}
+        label={project.name}
+        onOpen={(filter) => onShowInsights(project, 'project', filter)}
+      />
       {!project.suggested && (
         <g
           className="node-add"
