@@ -1155,6 +1155,8 @@ select.tag.verify-select {
   font-size: 12px;
   font-weight: 600;
   border: 1px solid transparent;
+  text-align: center;
+  text-align-last: center;
   cursor: pointer;
 }
 
@@ -1164,6 +1166,7 @@ select.tag.verify-select.parent {
 
 select.tag.verify-select option,
 select.tag.verify-select optgroup {
+  text-align: left;
   color: var(--text);
   background: var(--surface);
 }
