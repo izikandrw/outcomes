@@ -36,11 +36,18 @@ Each milestone produces something usable and teaches one idea.
 | 1 | **Label the first eval set.** 30 real documents from your sheets, Attention and Jira, labeled by hand (`evals.md`). | 30 cases with `expected.json`; insight definition updated where you and a second labeler disagreed | What "good" means, precisely enough for a machine to check it |
 | 2 | ✅ **Data model + review queue.** `status`, provenance, link status, `collection_runs`; validate/reject endpoints; queue page; evidence counts filter to validated. | You can create an unvalidated insight by hand and approve or reject it in the UI | Human in the loop as product, not afterthought |
 | 3 | 🟡 **v0 in Claude Code.** (built; your review pending) Insight tools on the MCP server + a `collect-insights` skill; run it on a CSV and a few Jira issues. | Real suggestions are in your queue; you've reviewed them | What an agent loop looks like from the inside; how prompts change behavior |
-| 4 | **v1 pipeline + eval runner.** `agent-insight-collector/` with the CSV connector, extract → verify → dedupe → link → write, and `npm run eval`. | Eval passes the ship gates on the test split | Workflows, structured outputs, verification in code, eval-driven iteration |
+| 4 | 🟡 **v1 pipeline + eval runner.** (built: `npm run collect`, `npm run eval`; ship gates pending) `agent-insight-collector/` with the CSV connector, extract → verify → dedupe → link → write, and `npm run eval`. | Eval passes the ship gates on the test split | Workflows, structured outputs, verification in code, eval-driven iteration |
 | 5 | **Attention and Jira connectors.** Incremental cursors, scheduled runs. | A nightly run fills the queue with nothing duplicated | Connectors, idempotency, cost tracking |
 | 6 | **Feedback loop.** Weekly: rejections and edits → new eval cases → prompt improvements. | Production approval rate ≥ 70% and rising | Agents improve through data, not one-off cleverness |
 
 Milestones 1 and 2 can run in parallel. Don't skip 1: it's what lets you tell whether 3 and 4 are any good.
+
+### Running v1 (files)
+
+1. `npm --prefix agent-insight-collector ci`, once.
+2. Set `ANTHROPIC_API_KEY`, and `OUTCOMES_API_URL`, `OUTCOMES_EMAIL` and `OUTCOMES_PASSWORD` to the collector user `npm run collector` prints.
+3. `npm run collect -- agent-insight-collector/samples/feedback-log.csv --dry-run` to see what it would suggest, then without `--dry-run` to suggest it. Transcripts: `npm run collect -- calls/*.txt --source attention`.
+4. Review the suggestions on the **Review** page; the trace is under **Review → Runs**, and its documents become eval cases the same way.
 
 ### Running v0
 

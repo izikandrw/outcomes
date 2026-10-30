@@ -11,6 +11,7 @@
     "migrate": "node scripts/migrate.js",
     "seed": "node scripts/seed.js",
     "collector": "node scripts/create-collector.js",
+    "collect": "node agent-insight-collector/src/cli.js",
     "dev": "node --watch src/server.js",
     "test": "node --test test/*.test.js",
     "web": "npm --prefix web run dev",

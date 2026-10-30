@@ -9,6 +9,7 @@
   },
   "scripts": {
     "eval": "node src/evals/cli.js",
+    "collect": "node src/cli.js",
     "test": "node --test test/*.test.js"
   },
   "dependencies": {
