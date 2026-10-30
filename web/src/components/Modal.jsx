@@ -1,6 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { CloseIcon } from './icons.jsx';
 
+// First text-entry field: selects are skipped since they usually arrive
+// preset (e.g. a measurement's target), leaving the value as the thing to type.
+const FIRST_FIELD =
+  'form :is(input:not([type="hidden"], [type="checkbox"], [type="radio"], [type="file"]), textarea):not(:disabled)';
+
 // Built on native <dialog>, so the browser supplies the top layer, the backdrop,
 // focus trapping and Esc handling rather than us reimplementing them.
 // `header`, when given, replaces the plain text title in the head (e.g. a
@@ -11,6 +16,10 @@ export default function Modal({ title, header, wide, onClose, children }) {
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog.open) dialog.showModal();
+    // React's autoFocus fires while the dialog is still closed (display: none),
+    // so it misses and showModal() then lands on the close button. Put the
+    // cursor in the form's first field instead.
+    dialog.querySelector(FIRST_FIELD)?.focus();
     document.body.classList.add('modal-open');
     return () => {
       document.body.classList.remove('modal-open');
