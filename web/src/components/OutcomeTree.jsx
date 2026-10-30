@@ -17,6 +17,7 @@ import {
 } from '../lib/links.js';
 import { issuesFor, validateTree } from '../lib/validation.js';
 import { useZoom, ZoomControls } from './Zoom.jsx';
+import { SuggestedIcon } from './icons.jsx';
 
 export const NODE_W = 160;
 export const NODE_H = 83;
@@ -268,17 +269,18 @@ export default function OutcomeTree({
   return (
     <div>
       <div className="tree-toolbar">
-        <label
-          className="tree-toggle"
-          title="Outcomes and projects the insight collector proposed, not created yet. Click one to review it."
-        >
-          <input
-            type="checkbox"
-            checked={showSuggested}
-            onChange={(event) => toggleSuggested(event.target.checked)}
-          />
-          Suggested outcomes{proposedCount > 0 ? ` (${proposedCount})` : ''}
-        </label>
+        <div className="view-toggle" role="group" aria-label="Suggested outcomes">
+          <button
+            type="button"
+            aria-pressed={showSuggested}
+            onClick={() => toggleSuggested(!showSuggested)}
+            title={`${showSuggested ? 'Hide' : 'Show'} the outcomes and projects the insight collector proposed but nobody has created yet. Click one on the map to review it.`}
+          >
+            <SuggestedIcon />
+            Suggested
+            {proposedCount > 0 && <span className="tree-toggle-count">{proposedCount}</span>}
+          </button>
+        </div>
         <ZoomControls zoom={zoom} {...zoomActions} />
       </div>
       <div className="tree-scroll" ref={scrollRef}>

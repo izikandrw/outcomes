@@ -30,6 +30,13 @@ export const MinusIcon = () => (
   </Icon>
 );
 
+// A dashed box: something proposed that doesn't exist yet.
+export const SuggestedIcon = () => (
+  <Icon>
+    <rect x="2.75" y="3.75" width="10.5" height="8.5" rx="2" strokeDasharray="2.2 1.8" />
+  </Icon>
+);
+
 export const PencilIcon = () => (
   <Icon>
     <path d="M11.1 2.9a1.55 1.55 0 0 1 2.2 2.2L6.1 12.3l-2.9.8.8-2.9z" />

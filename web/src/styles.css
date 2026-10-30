@@ -2158,17 +2158,24 @@ button.team-chip.link:hover {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
   margin: 0 0 12px;
 }
 
-.tree-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
+/* How many suggestions the map can show; muted while they're hidden. */
+.tree-toggle-count {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 22%, transparent);
   color: var(--muted);
-  cursor: pointer;
+}
+
+.view-toggle button[aria-pressed='true'] .tree-toggle-count {
+  background: var(--accent);
+  color: #fff;
 }
 
 /* Suggested by the insight collector and not created yet: dashed and faded,
