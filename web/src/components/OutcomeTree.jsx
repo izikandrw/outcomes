@@ -965,7 +965,7 @@ function NodeText({ x, y, lines, targetLine, lift = 0, onTargetClick }) {
   );
 }
 
-// Places impacts at the top, then outcomes as a node-link tree, then hangs each project as a node
+// Places impacts on the top row, then outcomes as a node-link tree, then hangs each project as a node
 // under the first outcome (in list order) it drives, or under its parent
 // project when it has one. A project linked to more than one outcome is still
 // drawn once — the other outcomes it drives get a cross-edge to that
@@ -1234,9 +1234,12 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth, weights) {
     const position = place({ kind: 'impact', data: root }, 0, left);
     left = position.right + H_GAP * 2;
   }
+  // Top-level impacts own the top row, so outcomes no impact claims start a
+  // row down, level with the outcomes that hang off an impact.
+  const rootDepth = impactRoots.length > 0 ? 1 : 0;
   for (const root of byWeight('outcome', roots)) {
     if (placed.has(root.id)) continue;
-    const position = place({ kind: 'outcome', data: root }, 0, left);
+    const position = place({ kind: 'outcome', data: root }, rootDepth, left);
     left = position.right + H_GAP * 2;
   }
 
