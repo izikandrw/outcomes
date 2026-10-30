@@ -274,6 +274,25 @@ CREATE INDEX idx_users_account_id ON users(account_id);
 
 ALTER TABLE insights ADD FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL;
 
+-- Everything that happens to an insight, with snapshots of it before and after
+-- (src/lib/insightEvents.js), so a review never overwrites what the collector
+-- originally suggested: the trace of each suggestion and its eval labels.
+CREATE TABLE insight_events (
+    id         BIGSERIAL PRIMARY KEY,
+    account_id BIGINT NOT NULL REFERENCES accounts(id),
+    insight_id BIGINT NOT NULL REFERENCES insights(id) ON DELETE CASCADE,
+    action     TEXT NOT NULL
+               CHECK (action IN ('created', 'edited', 'validated', 'rejected', 'reopened', 'proposal_adopted')),
+    actor_id   BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    before     JSONB,
+    after      JSONB,
+    details    JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_insight_events_account_id ON insight_events(account_id);
+CREATE INDEX idx_insight_events_insight_id ON insight_events(insight_id);
+
 CREATE TABLE invites (
     id          BIGSERIAL PRIMARY KEY,
     account_id  BIGINT NOT NULL REFERENCES accounts(id),

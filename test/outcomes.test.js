@@ -32,6 +32,7 @@ before(async () => {
   app.use(express.json());
   app.use((req, res, next) => {
     req.accountId = ACCOUNT_ID;
+    req.user = { id: 3, role: 'member' };
     next();
   });
   app.use('/outcomes', outcomesRouter);

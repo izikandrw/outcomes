@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import * as api from '../api.js';
 import { rejectionReasonLabel } from '../lib/links.js';
+import InsightHistory from './InsightHistory.jsx';
 
 // The insight collector's run traces (product/agents/insight-collector/design.md,
 // "Run traces"): every document it read, what it decided and why, and how its
 // suggestions then fared in review. Used to spot its mistakes and to pick eval
 // cases, which is why each document can be downloaded as an eval case's
-// document.json (agent/evals/LABELING.md).
-export default function CollectionRuns({ accountId }) {
+// document.json (agent/evals/LABELING.md). Each suggestion opens its history:
+// what the collector said, and what reviewers changed.
+export default function CollectionRuns({ accountId, outcomes, projects }) {
   const [runs, setRuns] = useState(null);
   const [openId, setOpenId] = useState(null);
   const [error, setError] = useState(null);
@@ -20,7 +22,11 @@ export default function CollectionRuns({ accountId }) {
       .catch((err) => setError(err.message));
   }, [accountId, openId]);
 
-  if (openId) return <RunTrace accountId={accountId} runId={openId} onBack={() => setOpenId(null)} />;
+  if (openId) {
+    return (
+      <RunTrace accountId={accountId} runId={openId} outcomes={outcomes} projects={projects} onBack={() => setOpenId(null)} />
+    );
+  }
   if (error) return <p className="error">{error}</p>;
   if (!runs) return <p className="empty">Loading…</p>;
   if (runs.length === 0) return <p className="empty">No runs yet. Each run of the insight collector shows up here.</p>;
@@ -75,7 +81,7 @@ function ReviewCounts({ review }) {
   return <span className="hint">{parts.map(([n, label]) => `${n} ${label}`).join(' · ')}</span>;
 }
 
-function RunTrace({ accountId, runId, onBack }) {
+function RunTrace({ accountId, runId, outcomes, projects, onBack }) {
   const [run, setRun] = useState(null);
   const [error, setError] = useState(null);
 
@@ -141,7 +147,13 @@ function RunTrace({ accountId, runId, onBack }) {
             {doc.insight_ids.length > 0 && (
               <ul className="run-suggestions">
                 {doc.insight_ids.map((id) => (
-                  <Suggestion key={id} id={id} insight={insightById.get(String(id))} />
+                  <Suggestion
+                    key={id}
+                    id={id}
+                    insight={insightById.get(String(id))}
+                    outcomes={outcomes}
+                    projects={projects}
+                  />
                 ))}
               </ul>
             )}
@@ -163,7 +175,7 @@ function RunTrace({ accountId, runId, onBack }) {
           <h3 className="run-heading">Suggestions not tied to a recorded document</h3>
           <ul className="run-suggestions">
             {unrecorded.map((insight) => (
-              <Suggestion key={insight.id} id={insight.id} insight={insight} />
+              <Suggestion key={insight.id} id={insight.id} insight={insight} outcomes={outcomes} projects={projects} />
             ))}
           </ul>
         </>
@@ -178,8 +190,8 @@ const DECISION_LABELS = {
   already_collected: 'Already collected',
 };
 
-// One suggestion and what a reviewer made of it.
-function Suggestion({ id, insight }) {
+// One suggestion, what a reviewer made of it, and its history.
+function Suggestion({ id, insight, outcomes, projects }) {
   if (!insight) return <li className="hint">#{id} (deleted)</li>;
   const verdict =
     insight.status === 'validated'
@@ -191,6 +203,10 @@ function Suggestion({ id, insight }) {
     <li>
       <span className={verdict.className}>{verdict.label}</span> {insight.name} <span className="id">#{insight.id}</span>
       {insight.review_note && <span className="hint"> · “{insight.review_note}”</span>}
+      <details className="insight-history-toggle">
+        <summary className="hint">History ({insight.events?.length ?? 0})</summary>
+        <InsightHistory events={insight.events} outcomes={outcomes} projects={projects} />
+      </details>
     </li>
   );
 }

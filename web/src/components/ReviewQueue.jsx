@@ -89,7 +89,7 @@ export default function ReviewQueue({
         <FilterBar fields={fields} filters={filters} onChange={setFilters} countFor={countFor} />
       )}
       {tab === 'runs' ? (
-        <CollectionRuns accountId={accountId} />
+        <CollectionRuns accountId={accountId} outcomes={outcomes} projects={projects} />
       ) : inTab.length === 0 ? (
         <p className="empty">
           {tab === 'pending'
