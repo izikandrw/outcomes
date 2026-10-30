@@ -1654,9 +1654,7 @@ button.tag.insight-badge.suggested:not(.empty) {
   min-width: 16rem;
 }
 
-/* Fixed widths so selects, amounts and dates aren't clipped. */
-.insight-table td:nth-child(4) .cell-input { min-width: 7.5rem; }
-.insight-table td:nth-child(5) .cell-input { min-width: 9rem; }
+/* Fixed widths so amounts and dates aren't clipped. */
 .insight-table td:nth-child(6) .cell-input { min-width: 5.5rem; }
 .insight-table td:nth-child(8) .cell-input { min-width: 8rem; }
 .insight-table .source-cell {
@@ -1667,18 +1665,31 @@ button.tag.insight-badge.suggested:not(.empty) {
 }
 .insight-table td:last-child { padding-right: 0; }
 
-/* The sentiment emoji stands alone; the options name it. */
-.insight-table select.sentiment-select {
-  width: 2.75rem;
-  text-align: center;
+/* The sentiment emoji stands alone; the options name it. A drawn chevron
+   replaces the native arrow, which left too little room for the emoji. */
+.insight-table select.cell-input.sentiment-select {
+  appearance: none;
+  width: 2.9rem;
+  padding-left: 0.2rem;
+  padding-right: 1.1rem;
   font-size: 1.1rem;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position:
+    right 8px center,
+    right 4px center;
+  background-size: 4px 4px;
+  background-repeat: no-repeat;
   cursor: pointer;
 }
 .insight-table .row-actions { display: flex; gap: 6px; }
 
-/* Type and area selects read as tags; the chevron is drawn in currentColor. */
+/* Type and area selects read as tags, as wide as the chosen value rather
+   than the longest option; the chevron is drawn in currentColor. */
 .insight-table select.cell-input.pill {
   appearance: none;
+  field-sizing: content;
   width: auto;
   min-width: 0;
   margin: 0;
