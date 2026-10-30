@@ -2712,8 +2712,24 @@ button.team-chip.link:hover {
   text-decoration: none;
 }
 
-.link-existing {
-  font-size: 13px;
+.link-existing > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.link-existing .multi-select-menu {
+  right: auto;
+  width: min(420px, 80vw);
+}
+
+.multi-select-menu li.multi-select-group {
+  padding: 8px 10px 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .review-card p {

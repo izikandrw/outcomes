@@ -13,6 +13,7 @@ import {
 import LinkedText from './LinkedText.jsx';
 import FilterBar from './FilterBar.jsx';
 import CollectionRuns, { formatTime } from './CollectionRuns.jsx';
+import { ChevronDownIcon } from './icons.jsx';
 
 // Insights waiting for a person: mostly the insight collector's suggestions
 // (product/agents/insight-collector/spec.md). Each card shows the excerpt it
@@ -182,19 +183,28 @@ function ReviewCard({
   const pending = insight.status === 'unvalidated';
   // Only suggestions still waiting for review edit in place.
   const locked = !pending || busy;
+  // Every outcome and project, ticked when this insight already links to it.
   const linkable = [
-    ...outcomes
-      .filter((outcome) => !insight.outcome_ids.map(String).includes(String(outcome.id)))
-      .map((outcome) => ({ value: `outcome:${outcome.id}`, name: outcome.name, group: 'Outcomes' })),
-    ...projects
-      .filter((project) => !insight.project_ids.map(String).includes(String(project.id)))
-      .map((project) => ({ value: `project:${project.id}`, name: project.name, group: 'Projects' })),
+    ...outcomes.map((outcome) => ({
+      kind: 'outcome',
+      id: Number(outcome.id),
+      name: outcome.name,
+      group: 'Outcomes',
+      linked: insight.outcome_ids.map(String).includes(String(outcome.id)),
+    })),
+    ...projects.map((project) => ({
+      kind: 'project',
+      id: Number(project.id),
+      name: project.name,
+      group: 'Projects',
+      linked: insight.project_ids.map(String).includes(String(project.id)),
+    })),
   ];
 
-  function link(value) {
-    const [kind, id] = value.split(':');
-    const field = kind === 'project' ? 'project_ids' : 'outcome_ids';
-    save({ [field]: [...insight[field].map(Number), Number(id)] });
+  function toggleLink(item) {
+    const field = item.kind === 'project' ? 'project_ids' : 'outcome_ids';
+    const ids = insight[field].map(Number);
+    save({ [field]: item.linked ? ids.filter((id) => id !== item.id) : [...ids, item.id] });
   }
 
   return (
@@ -393,27 +403,7 @@ function ReviewCard({
               </button>
             ))}
             {linkable.length > 0 && (
-              <select
-                className="link-existing"
-                aria-label="Link to an existing outcome or project"
-                value=""
-                disabled={busy}
-                onChange={(event) => link(event.target.value)}
-              >
-                <option value="">Link existing…</option>
-                {['Outcomes', 'Projects'].map((group) => {
-                  const items = linkable.filter((item) => item.group === group);
-                  return items.length === 0 ? null : (
-                    <optgroup key={group} label={group}>
-                      {items.map((item) => (
-                        <option key={item.value} value={item.value}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                  );
-                })}
-              </select>
+              <LinkExisting items={linkable} disabled={busy} onToggle={toggleLink} />
             )}
           </div>
         )}
@@ -498,6 +488,84 @@ const EVIDENCE = [
 // Where to go to check the observation: the link into the external tool when
 // there is one, otherwise whatever reference was recorded. Clicking the text
 // edits it; the arrow beside a link opens it.
+// "Link existing…" opens a filterable checklist of every outcome and project;
+// ticking one links the insight to it and unticking unlinks it, so several can
+// be picked without reopening the menu.
+function LinkExisting({ items, disabled, onToggle }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event) {
+      if (ref.current && !ref.current.contains(event.target)) setOpen(false);
+    }
+    function onKeyDown(event) {
+      if (event.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
+  const needle = query.trim().toLowerCase();
+  const matches = needle ? items.filter((item) => item.name.toLowerCase().includes(needle)) : items;
+
+  return (
+    <div className="link-existing multi-select-anchor" ref={ref}>
+      <button
+        type="button"
+        className="ghost small"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        disabled={disabled}
+        onClick={() => {
+          setQuery('');
+          setOpen((current) => !current);
+        }}
+      >
+        Link existing… <ChevronDownIcon />
+      </button>
+      {open && (
+        <div className="multi-select-menu">
+          <input
+            autoFocus
+            value={query}
+            placeholder="Search outcomes and projects…"
+            aria-label="Search outcomes and projects"
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          <ul role="listbox" aria-multiselectable="true" aria-label="Link to existing outcomes and projects">
+            {matches.length === 0 && <li className="hint">No matches.</li>}
+            {['Outcomes', 'Projects'].map((group) => {
+              const inGroup = matches.filter((item) => item.group === group);
+              return inGroup.length === 0
+                ? null
+                : [
+                    <li key={group} className="multi-select-group" role="presentation">
+                      {group}
+                    </li>,
+                    ...inGroup.map((item) => (
+                      <li key={`${item.kind}:${item.id}`} role="option" aria-selected={item.linked}>
+                        <label>
+                          <input type="checkbox" checked={item.linked} onChange={() => onToggle(item)} />
+                          {item.name}
+                        </label>
+                      </li>
+                    )),
+                  ];
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SourceLine({ insight, disabled, onSave }) {
   if (insight.source_url) {
     return (
