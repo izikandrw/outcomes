@@ -10,6 +10,7 @@ const TYPES = [
   'sales_call', 'feature_request', 'survey', 'review', 'other',
 ];
 const IMPACT_AREAS = ['acquisition', 'activation', 'retention', 'expansion', 'cost', 'other'];
+const SENTIMENTS = ['positive', 'neutral', 'negative'];
 const STATUSES = ['unvalidated', 'validated', 'rejected'];
 const REJECTION_REASONS = ['not_an_insight', 'inaccurate', 'wrong_link', 'duplicate', 'other'];
 const MAX_PROPOSED_LINKS = 3;
@@ -59,7 +60,7 @@ async function fetchInsight(executor, insightId, accountId) {
 // doesn't check out; otherwise returns the normalised values.
 async function readBody(req, res) {
   const {
-    name, type, description, source, observed_at, dollar_impact, impact_area, team_id,
+    name, type, description, source, observed_at, dollar_impact, impact_area, sentiment, team_id,
     outcome_ids, project_ids, link_rationales, proposed_links,
   } = req.body;
 
@@ -73,6 +74,10 @@ async function readBody(req, res) {
   }
   if (impact_area !== undefined && impact_area !== null && impact_area !== '' && !IMPACT_AREAS.includes(impact_area)) {
     res.status(400).json({ error: `impact_area must be one of: ${IMPACT_AREAS.join(', ')}` });
+    return null;
+  }
+  if (sentiment !== undefined && sentiment !== null && sentiment !== '' && !SENTIMENTS.includes(sentiment)) {
+    res.status(400).json({ error: `sentiment must be one of: ${SENTIMENTS.join(', ')}` });
     return null;
   }
   if (dollar_impact !== undefined && dollar_impact !== null && dollar_impact !== '') {
@@ -131,6 +136,7 @@ async function readBody(req, res) {
     observedAt: /^\d{4}-\d{2}-\d{2}$/.test(observed_at ?? '') ? `${observed_at}T00:00:00Z` : observed_at || null,
     dollarImpact: dollar_impact === undefined || dollar_impact === null || dollar_impact === '' ? null : Number(dollar_impact),
     impactArea: impact_area || null,
+    sentiment: sentiment || null,
     teamId: team_id || null,
     outcomeIds: links.outcome_ids,
     projectIds: links.project_ids,
@@ -268,8 +274,9 @@ router.post('/', async (req, res, next) => {
     await client.query('BEGIN');
     const { rows } = await client.query(
       `INSERT INTO insights (account_id, team_id, name, type, description, source, observed_at, dollar_impact, impact_area,
-         status, source_system, source_url, source_external_id, source_excerpt, firsthand, collection_run_id, proposed_links)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id`,
+         status, source_system, source_url, source_external_id, source_excerpt, firsthand, collection_run_id, proposed_links,
+         sentiment)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING id`,
       [
         req.accountId,
         input.teamId,
@@ -288,6 +295,7 @@ router.post('/', async (req, res, next) => {
         provenance.firsthand,
         provenance.collectionRunId,
         JSON.stringify(input.proposedLinks ?? []),
+        input.sentiment,
       ]
     );
     await replaceAllLinks(client, rows[0].id, req.accountId, {
@@ -321,7 +329,7 @@ router.put('/:insightId', forbidCollector, async (req, res, next) => {
       // reviewers have to fix the collector's output is a quality signal.
       `UPDATE insights SET name = $1, type = $2, description = $3, source = $4, observed_at = $5,
          dollar_impact = $6, impact_area = $7, team_id = $8, updated_at = now(),
-         proposed_links = COALESCE($11::jsonb, proposed_links),
+         proposed_links = COALESCE($11::jsonb, proposed_links), sentiment = $12,
          edited_in_review = edited_in_review OR status = 'unvalidated'
        WHERE id = $9 AND account_id = $10 RETURNING id`,
       [
@@ -336,6 +344,7 @@ router.put('/:insightId', forbidCollector, async (req, res, next) => {
         req.params.insightId,
         req.accountId,
         input.proposedLinks === undefined ? null : JSON.stringify(input.proposedLinks),
+        input.sentiment,
       ]
     );
     if (rows.length === 0) {

@@ -14,6 +14,10 @@ const db = {
     const result = await db.respond(flat, params);
     return { rows: [], rowCount: 0, ...result };
   },
+  // Transactions run on the same stand-in.
+  async connect() {
+    return { query: (sql, params) => db.query(sql, params), release() {} };
+  },
 };
 const dbPath = path.join(__dirname, '../src/db.js');
 require.cache[dbPath] = { id: dbPath, filename: dbPath, loaded: true, exports: db };
@@ -50,8 +54,11 @@ beforeEach(() => {
   role = 'member';
 });
 
-async function request(method, urlPath) {
-  const res = await fetch(`${baseUrl}${urlPath}`, { method });
+async function request(method, urlPath, body) {
+  const res = await fetch(`${baseUrl}${urlPath}`, {
+    method,
+    ...(body ? { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : {}),
+  });
   return { status: res.status, body: await res.json() };
 }
 
@@ -78,4 +85,40 @@ test('POST /:id/reopen is forbidden to the insight collector', async () => {
   const res = await request('POST', '/5/reopen');
   assert.equal(res.status, 403);
   assert.equal(db.calls.length, 0);
+});
+
+test('POST / stores the sentiment', async () => {
+  db.respond = (sql) => {
+    if (/^INSERT INTO insights/.test(sql)) return { rows: [{ id: 9 }] };
+    if (/^SELECT i\.\*/.test(sql)) return { rows: [{ id: 9, sentiment: 'negative' }] };
+    return { rows: [] };
+  };
+  const res = await request('POST', '/', { name: 'Admins abandon setup at SSO', sentiment: 'negative' });
+  assert.equal(res.status, 201);
+  const insert = db.calls.find((call) => /^INSERT INTO insights/.test(call.sql));
+  assert.match(insert.sql, /sentiment\)/);
+  assert.equal(insert.params.at(-1), 'negative');
+});
+
+test('POST / leaves sentiment empty when none is given', async () => {
+  db.respond = (sql) => (/^INSERT INTO insights/.test(sql) ? { rows: [{ id: 9 }] } : { rows: [] });
+  await request('POST', '/', { name: 'Admins abandon setup at SSO' });
+  const insert = db.calls.find((call) => /^INSERT INTO insights/.test(call.sql));
+  assert.equal(insert.params.at(-1), null);
+});
+
+test('POST / rejects an unknown sentiment', async () => {
+  const res = await request('POST', '/', { name: 'Admins abandon setup at SSO', sentiment: 'angry' });
+  assert.equal(res.status, 400);
+  assert.match(res.body.error, /sentiment must be one of: positive, neutral, negative/);
+  assert.equal(db.calls.length, 0);
+});
+
+test('PUT /:id replaces the sentiment', async () => {
+  db.respond = (sql) => (/^UPDATE insights/.test(sql) ? { rows: [{ id: 5 }], rowCount: 1 } : { rows: [{ id: 5, sentiment: 'positive' }] });
+  const res = await request('PUT', '/5', { name: 'Admins love the new setup', sentiment: 'positive' });
+  assert.equal(res.status, 200);
+  const update = db.calls.find((call) => /^UPDATE insights/.test(call.sql));
+  assert.match(update.sql, /sentiment = \$12/);
+  assert.equal(update.params[11], 'positive');
 });

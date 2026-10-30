@@ -365,6 +365,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
       observed_at: insight.observed_at,
       dollar_impact: insight.dollar_impact,
       impact_area: insight.impact_area,
+      sentiment: insight.sentiment,
       team_id: insight.team_id,
       outcome_ids: insight.outcome_ids.map(Number),
       project_ids: insight.project_ids.map(Number),

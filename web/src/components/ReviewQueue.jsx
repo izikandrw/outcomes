@@ -7,6 +7,7 @@ import {
   rejectionReasonLabel,
 } from '../lib/links.js';
 import LinkedText from './LinkedText.jsx';
+import SentimentBadge from './SentimentBadge.jsx';
 import CollectionRuns, { formatTime } from './CollectionRuns.jsx';
 
 // Insights waiting for a person: mostly the insight collector's suggestions
@@ -144,7 +145,9 @@ function ReviewCard({
 
   return (
     <li className="review-card">
-      <h3>{insight.name}</h3>
+      <h3>
+        <SentimentBadge sentiment={insight.sentiment} /> {insight.name}
+      </h3>
       <p className="meta">
         <span className="tag-field" title="What kind of evidence this is">
           <span className="tag-key">Type</span>

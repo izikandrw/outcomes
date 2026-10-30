@@ -16,6 +16,8 @@ Insights have a status: unvalidated, validated or rejected. Only a validated ins
 
 Insights can carry their provenance: the external system they came from (a spreadsheet, Attention, Jira…), a link or id that finds the original there, the verbatim excerpt the observation rests on, and whether it is firsthand (the customer said or did it) or relayed by someone else. The source material itself stays in the external tool; the insight points back to it.
 
+Each insight has a sentiment: positive (praise, something working), negative (a complaint, pain, a churn risk) or neutral. Insights recorded before sentiment existed may have none.
+
 An insight is firsthand when it rests on what a customer said or did: their own words, including words quoted verbatim by someone else, such as a sales rep's notes or a support summary. It is relayed when someone else's paraphrase or summary is all there is ("customer X asked for…").
 
 Insights can have an impact area: the part of the business the impact lands on — acquisition, activation, retention, expansion, cost, or other. It is a single value, since the dollar impact is a single number and splitting it across areas would be a guess. It is optional.

@@ -151,6 +151,8 @@ CREATE TABLE insights (
     dollar_impact NUMERIC(14, 2),
     impact_area TEXT
                 CHECK (impact_area IN ('acquisition', 'activation', 'retention', 'expansion', 'cost', 'other')),
+    sentiment   TEXT
+                CHECK (sentiment IN ('positive', 'neutral', 'negative')),
     status      TEXT NOT NULL DEFAULT 'validated'
                 CHECK (status IN ('unvalidated', 'validated', 'rejected')),
     source_system      TEXT,
