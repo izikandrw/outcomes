@@ -93,11 +93,16 @@ export default function FilterBar({ fields, filters, onChange, countFor }) {
         </Anchor>
       )}
 
-      {Object.keys(shown).length > 0 && (
-        <button type="button" className="filter-clear" onClick={() => onChange({})}>
-          Clear
-        </button>
-      )}
+      {/* Always holds its space, shown or not, so the first filter picked
+          doesn't re-centre the toolbar. */}
+      <button
+        type="button"
+        className="filter-clear"
+        style={Object.keys(shown).length ? undefined : { visibility: 'hidden' }}
+        onClick={() => onChange({})}
+      >
+        Clear
+      </button>
     </div>
   );
 }
