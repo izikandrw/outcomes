@@ -56,6 +56,22 @@ async function fetchInsight(executor, insightId, accountId) {
   return rows[0] ?? null;
 }
 
+// observed_at as Postgres should store it: null when empty, a bare date as
+// midnight UTC (like the web form sends; Postgres would otherwise read it in
+// the server's timezone), a full ISO 8601 timestamp as given. Anything else,
+// including a month alone or a day the month doesn't have, is undefined.
+function parseObservedAt(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const match = typeof value === 'string' && /^(\d{4})-(\d{2})-(\d{2})(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/.exec(value);
+  if (!match) return undefined;
+  const [, year, month, day, time] = match;
+  // Date rolls 2026-02-30 over to 2026-03-02; Postgres rejects it.
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCMonth() !== month - 1 || date.getUTCDate() !== Number(day)) return undefined;
+  if (time && Number.isNaN(Date.parse(value))) return undefined;
+  return time ? value : `${value}T00:00:00Z`;
+}
+
 // Validates the body. Writes the response and returns null when something
 // doesn't check out; otherwise returns the normalised values.
 async function readBody(req, res) {
@@ -78,6 +94,11 @@ async function readBody(req, res) {
   }
   if (sentiment !== undefined && sentiment !== null && sentiment !== '' && !SENTIMENTS.includes(sentiment)) {
     res.status(400).json({ error: `sentiment must be one of: ${SENTIMENTS.join(', ')}` });
+    return null;
+  }
+  const observedAt = parseObservedAt(observed_at);
+  if (observedAt === undefined) {
+    res.status(400).json({ error: 'observed_at must be a date (YYYY-MM-DD) or an ISO 8601 timestamp' });
     return null;
   }
   if (dollar_impact !== undefined && dollar_impact !== null && dollar_impact !== '') {
@@ -131,9 +152,7 @@ async function readBody(req, res) {
     type: type || 'other',
     description: description || null,
     source: source || null,
-    // A bare date means that day in UTC, like the web form sends; Postgres would
-    // otherwise read it as midnight in the server's timezone.
-    observedAt: /^\d{4}-\d{2}-\d{2}$/.test(observed_at ?? '') ? `${observed_at}T00:00:00Z` : observed_at || null,
+    observedAt,
     dollarImpact: dollar_impact === undefined || dollar_impact === null || dollar_impact === '' ? null : Number(dollar_impact),
     impactArea: impact_area || null,
     sentiment: sentiment || null,

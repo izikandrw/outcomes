@@ -114,6 +114,38 @@ test('POST / rejects an unknown sentiment', async () => {
   assert.equal(db.calls.length, 0);
 });
 
+test('POST / stores observed_at as a bare date at midnight UTC, or a timestamp as given', async () => {
+  db.respond = (sql) => (/^INSERT INTO insights/.test(sql) ? { rows: [{ id: 9 }] } : { rows: [] });
+  for (const [given, stored] of [
+    ['2026-10-05', '2026-10-05T00:00:00Z'],
+    ['2026-10-05T14:20:00.000Z', '2026-10-05T14:20:00.000Z'],
+    ['2026-10-05T14:20:00+02:00', '2026-10-05T14:20:00+02:00'],
+    ['', null],
+  ]) {
+    db.calls = [];
+    const res = await request('POST', '/', { name: 'Admins abandon setup at SSO', observed_at: given });
+    assert.equal(res.status, 201, given);
+    const insert = db.calls.find((call) => /^INSERT INTO insights/.test(call.sql));
+    assert.equal(insert.params[6], stored, given);
+  }
+});
+
+test('POST / rejects an observed_at that is not a whole date', async () => {
+  for (const given of ['2026-10', '2026', 'October 2026', '2026-02-30', '2026-13-01', 20261005]) {
+    db.calls = [];
+    const res = await request('POST', '/', { name: 'Admins abandon setup at SSO', observed_at: given });
+    assert.equal(res.status, 400, String(given));
+    assert.match(res.body.error, /observed_at must be a date \(YYYY-MM-DD\) or an ISO 8601 timestamp/);
+    assert.equal(db.calls.length, 0, String(given));
+  }
+});
+
+test('PUT /:id rejects a month-only observed_at', async () => {
+  const res = await request('PUT', '/5', { name: 'Admins abandon setup at SSO', observed_at: '2026-10' });
+  assert.equal(res.status, 400);
+  assert.equal(db.calls.length, 0);
+});
+
 test('PUT /:id replaces the sentiment', async () => {
   db.respond = (sql) => (/^UPDATE insights/.test(sql) ? { rows: [{ id: 5 }], rowCount: 1 } : { rows: [{ id: 5, sentiment: 'positive' }] });
   const res = await request('PUT', '/5', { name: 'Admins love the new setup', sentiment: 'positive' });

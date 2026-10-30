@@ -22,7 +22,10 @@ const fields = {
   type: type.optional().describe('Kind of evidence; defaults to other'),
   description: z.string().optional(),
   source: z.string().optional().describe('Where to check it: a link, ticket id, call timestamp, file and row'),
-  observed_at: z.string().optional().describe('ISO 8601 date the observation was made'),
+  observed_at: z
+    .string()
+    .optional()
+    .describe('Date the observation was made: YYYY-MM-DD, or a full ISO 8601 timestamp. A month or year alone is rejected'),
   dollar_impact: z.number().optional().describe('Money the observation represents, only when the source states it'),
   impact_area: impactArea.optional(),
   sentiment: sentiment.optional(),
@@ -162,7 +165,7 @@ export function registerInsightTools(server) {
         type: type.optional(),
         description: z.string().nullable().optional().describe('Pass null to clear'),
         source: z.string().nullable().optional().describe('Pass null to clear'),
-        observed_at: z.string().nullable().optional().describe('Pass null to clear'),
+        observed_at: z.string().nullable().optional().describe('YYYY-MM-DD or a full ISO 8601 timestamp. Pass null to clear'),
         dollar_impact: z.number().nullable().optional().describe('Pass null to clear'),
         impact_area: impactArea.nullable().optional().describe('Pass null to clear'),
         sentiment: sentiment.nullable().optional(),
