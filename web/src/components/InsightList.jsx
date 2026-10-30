@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatDollars, impactAreaLabel, insightTypeLabel } from '../lib/links.js';
 import { INSIGHT_SORTS, insightFilterFields, matchesFilters } from '../lib/insightFilters.js';
 import FilterBar from './FilterBar.jsx';
@@ -13,6 +13,21 @@ export default function InsightList({ insights, outcomes = [], projects = [], te
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState({});
   const [sort, setSort] = useState(INSIGHT_SORTS[0].id);
+  const toolbarRef = useRef(null);
+  const [stuck, setStuck] = useState(false);
+
+  // Whether the toolbar has scrolled up to where it sticks, under the pinned
+  // nav. Stuck, it grows a band up to the top of the window, so the nav and
+  // the toolbar read as one panel rather than two things floating apart.
+  useEffect(() => {
+    function check() {
+      const toolbar = toolbarRef.current;
+      if (toolbar) setStuck(toolbar.getBoundingClientRect().top <= parseFloat(getComputedStyle(toolbar).top) + 0.5);
+    }
+    check();
+    window.addEventListener('scroll', check, { passive: true });
+    return () => window.removeEventListener('scroll', check);
+  }, []);
 
   const fields = useMemo(
     () => insightFilterFields({ insights, outcomes, projects, teams }),
@@ -44,7 +59,7 @@ export default function InsightList({ insights, outcomes = [], projects = [], te
 
   return (
     <>
-      <div className="list-toolbar">
+      <div ref={toolbarRef} className={`list-toolbar${stuck ? ' stuck' : ''}`}>
         <div className="list-toolbar-row">
           <label className="search-box">
             <SearchIcon />
