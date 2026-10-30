@@ -357,21 +357,37 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
 
   // Inline edit of one field from a table; the PUT replaces the whole insight,
   // so send the rest of it back unchanged. Throws so the cell can show the error.
+  // The patch shows at once; if the save fails, the fields go back to what they
+  // were, unless a later edit has changed them since.
   async function patchInsight(insight, patch) {
-    const updated = await api.updateInsight(accountId, insight.id, {
-      name: insight.name,
-      type: insight.type,
-      description: insight.description,
-      source: insight.source,
-      observed_at: insight.observed_at,
-      dollar_impact: insight.dollar_impact,
-      impact_area: insight.impact_area,
-      sentiment: insight.sentiment,
-      team_id: insight.team_id,
-      outcome_ids: insight.outcome_ids.map(Number),
-      project_ids: insight.project_ids.map(Number),
-      ...patch,
-    });
+    const previous = Object.fromEntries(Object.keys(patch).map((key) => [key, insight[key]]));
+    setInsights((current) => current.map((item) => (item.id === insight.id ? { ...item, ...patch } : item)));
+    let updated;
+    try {
+      updated = await api.updateInsight(accountId, insight.id, {
+        name: insight.name,
+        type: insight.type,
+        description: insight.description,
+        source: insight.source,
+        observed_at: insight.observed_at,
+        dollar_impact: insight.dollar_impact,
+        impact_area: insight.impact_area,
+        sentiment: insight.sentiment,
+        team_id: insight.team_id,
+        outcome_ids: insight.outcome_ids.map(Number),
+        project_ids: insight.project_ids.map(Number),
+        ...patch,
+      });
+    } catch (err) {
+      setInsights((current) =>
+        current.map((item) =>
+          item.id === insight.id && Object.keys(patch).every((key) => sameValue(item[key], patch[key]))
+            ? { ...item, ...previous }
+            : item,
+        ),
+      );
+      throw err;
+    }
     setInsights((current) => current.map((item) => (item.id === updated.id ? updated : item)));
   }
 
@@ -1009,6 +1025,12 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
       )}
     </div>
   );
+}
+
+// Field values compared for equality; id lists match whether they hold numbers or strings.
+function sameValue(a, b) {
+  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((x, i) => String(x) === String(b[i]));
+  return a === b;
 }
 
 function modalTitle({ kind, rule, outcome, parent, target, project, team, insight, impact, entity }) {
