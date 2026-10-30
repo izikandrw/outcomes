@@ -1,0 +1,18 @@
+{
+  "name": "outcomes-agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The insight collector's headless pipeline and its eval runner (product/agents/insight-collector/)",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "eval": "node src/evals/cli.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
+    "zod": "^3.25.0"
+  }
+}

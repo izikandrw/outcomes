@@ -100,7 +100,11 @@ Split the cases ~70/30 into **dev** (look at these freely while tuning prompts) 
 
 ## The runner
 
-`npm --prefix agent run eval -- [--split dev|test] [--reps 3] [--model ...] [--effort ...]`
+`npm --prefix agent run eval -- [--split dev|test|all] [--set golden|review|all] [--reps 3] [--model ...] [--effort ...]` (built: `agent/src/evals/`; every option is listed at the top of `cli.js`)
+
+It scores the **ready** cases from Review → Eval set, read through the API as a person (`OUTCOMES_API_URL` plus `OUTCOMES_API_TOKEN` or `OUTCOMES_EMAIL`/`OUTCOMES_PASSWORD`, as for `mcp/`; the collector can't read them), or a file from **Download ready cases** with `--file` and `--catalog`. The model is called with `ANTHROPIC_API_KEY` or an `ant auth login` profile. Defaults: Claude Opus 5.5 at `high` effort, 3 reps, the dev split. Results land in `agent/evals/results/<time>-<prompt version>-<model>-<effort>/` (ignored by git: they quote customer content), and `summary.md` compares each metric with the last run of the same split, marking changes inside the spread over reps. Golden and review sets are reported apart, because recall on the review set is only an upper bound. Run `--self-check` first, and again after changing the grader.
+
+There is no refusal fallback to another model: in an eval, another model quietly answering would put its output under this one's name, so a refusal is filed as an error. The LLM judge for unmatched predictions (below) isn't built yet; `summary.md` lists them for you to read instead.
 
 What it does, and why each part is there:
 

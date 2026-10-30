@@ -195,6 +195,8 @@ agent/
 
 It runs from the CLI first, then on a schedule (a Render cron job, matching the rest of our infra), then from a "Collect from…" button in the app.
 
+**Built so far:** the per-document pipeline the eval runner calls, `agent/src/pipeline/` (extract, verify and link, with structured outputs; `runDocument` returns what it would suggest), the prompts with their version (`agent/src/prompts/`, `PROMPT_VERSION`), and the runner (`agent/src/evals/`). The connectors, dedupe, writing to the API and the collection CLI are still to come; until then the Claude Code skill (v0) does the collecting. Its rules and the pipeline's prompts say the same things, so keep them in step.
+
 ### Model choice
 
 - Start on **Claude Opus 5.5** (`claude-opus-5-5`) for both LLM steps, with `effort` set explicitly. Extraction and linking are judgment calls, and the first goal is quality.
