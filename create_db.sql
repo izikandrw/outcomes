@@ -3,7 +3,7 @@
 -- Outcomes and projects name their team once it's known (team_id is optional).
 -- Projects hang off a team, may nest under a parent project, and link to any
 -- number of outcomes through project_outcomes.
--- Insights optionally name a team and link to any number of outcomes and projects
+-- Insights belong to no team and link to any number of outcomes and projects
 -- through insight_outcomes and insight_projects.
 -- All rows are segmented by account_id for multi-tenant isolation.
 
@@ -133,14 +133,13 @@ CREATE TABLE collection_run_documents (
 CREATE INDEX idx_collection_run_documents_account_id ON collection_run_documents(account_id);
 CREATE INDEX idx_collection_run_documents_run_id ON collection_run_documents(run_id);
 
--- An insight is a single sourced observation. team_id is optional: the team
--- that recorded it, if any. Any outcome or project may link to it. Only a
+-- An insight is a single sourced observation. No team owns it; any outcome or
+-- project may link to it. Only a
 -- validated insight counts as evidence; the collector's suggestions start
 -- unvalidated and carry where they came from (source_*).
 CREATE TABLE insights (
     id          BIGSERIAL PRIMARY KEY,
     account_id  BIGINT NOT NULL REFERENCES accounts(id),
-    team_id     BIGINT REFERENCES teams(id),
     name        TEXT NOT NULL,
     type        TEXT NOT NULL DEFAULT 'other'
                 CHECK (type IN ('support_ticket', 'session_recording', 'interview', 'funnel', 'experiment',
@@ -174,7 +173,6 @@ CREATE TABLE insights (
 );
 
 CREATE INDEX idx_insights_account_id ON insights(account_id);
-CREATE INDEX idx_insights_team_id ON insights(team_id);
 CREATE INDEX idx_insights_account_status ON insights(account_id, status);
 
 -- The same quote from the same source document is collected once.
