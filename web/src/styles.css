@@ -2549,6 +2549,14 @@ button.team-chip.link:hover {
   gap: 8px;
 }
 
+.review-card.editable {
+  cursor: pointer;
+}
+
+.review-card.editable:hover {
+  border-color: var(--accent);
+}
+
 .review-card h3 {
   margin: 0;
   font-size: 15px;

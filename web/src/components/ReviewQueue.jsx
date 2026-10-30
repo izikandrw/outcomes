@@ -165,9 +165,22 @@ function ReviewCard({
   ];
   const proposals = insight.proposed_links ?? [];
   const pending = insight.status === 'unvalidated';
+  const editable = pending && !rejecting && !busy;
+
+  // Clicking anywhere on a pending card opens its edit form, except on the
+  // card's own controls and links, or when the click ends a text selection.
+  function editOnClick(event) {
+    if (!editable) return;
+    if (event.target.closest('button, a, input, select, textarea, label')) return;
+    if (window.getSelection()?.toString()) return;
+    onEdit(insight);
+  }
 
   return (
-    <li className="review-card">
+    <li
+      className={editable ? 'review-card editable' : 'review-card'}
+      onClick={editOnClick}
+    >
       <h3>
         <SentimentBadge sentiment={insight.sentiment} /> {insight.name}
       </h3>
