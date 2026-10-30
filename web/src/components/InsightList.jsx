@@ -66,7 +66,7 @@ export default function InsightList({ insights, outcomes = [], projects = [], on
             <input
               type="search"
               value={query}
-              placeholder="Search insights"
+              placeholder={`Search ${plural(insights.length, 'insight')}`}
               aria-label="Search insights"
               onChange={(event) => setQuery(event.target.value)}
             />
@@ -81,12 +81,9 @@ export default function InsightList({ insights, outcomes = [], projects = [], on
               ))}
             </select>
           </label>
-          <span className="id list-toolbar-count">
-            {filtered ? `${visible.length} of ${plural(insights.length, 'insight')}` : plural(insights.length, 'insight')}
-          </span>
-          <button type="button" className="with-icon" onClick={onCreate}>
+          {filtered && <span className="id list-toolbar-count">{`${visible.length} of ${insights.length}`}</span>}
+          <button type="button" className="with-icon" aria-label="New insight" title="New insight" onClick={onCreate}>
             <PlusIcon />
-            New insight
           </button>
         </div>
         <FilterBar fields={fields} filters={filters} onChange={setFilters} countFor={countFor} />

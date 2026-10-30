@@ -2920,8 +2920,10 @@ button.team-chip.link:hover {
    the card's padding so the rows don't show at its edges. */
 .list-toolbar {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 5px;
   position: sticky;
   top: 58px;
   z-index: 10;
@@ -2955,24 +2957,25 @@ body:has(.list-toolbar.stuck) .pinned-nav {
   box-shadow: none;
 }
 
-.list-toolbar-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  flex-wrap: wrap;
+/* One centred line under the nav, sized like its links so the two line up:
+   the search and sort, the filters, then the count and New insight. The
+   wrappers step aside so all of it lays out (and wraps) as one row. */
+.list-toolbar-row,
+.list-toolbar .filter-bar {
+  display: contents;
 }
 
-/* Centred under the nav and sized like its links, so the two line up. */
+.list-toolbar .list-toolbar-count,
+.list-toolbar-row > button {
+  order: 1;
+}
+
 .list-toolbar input,
 .list-toolbar select,
-.list-toolbar-row button {
+.list-toolbar-row > button,
+.list-toolbar .filter-button {
   font-size: 13px;
-  padding: 5px 10px;
-}
-
-.list-toolbar .filter-bar {
-  justify-content: center;
+  padding: 5px 8px;
 }
 
 .search-box,
@@ -2989,7 +2992,7 @@ body:has(.list-toolbar.stuck) .pinned-nav {
 }
 
 .list-toolbar .search-box {
-  flex: 0 1 260px;
+  flex: 0 1 180px;
 }
 
 .search-box svg,
