@@ -2705,3 +2705,227 @@ button.team-chip.link:hover {
   font-weight: normal;
   cursor: default;
 }
+
+/* Insights toolbar: search, sort and create on one row; the Filter button and
+   a chip per active filter on the row below, like Linear or Stripe. */
+.list-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.list-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.list-toolbar-count {
+  margin-left: auto;
+}
+
+.search-box,
+.sort-select {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted);
+}
+
+.search-box {
+  flex: 1 1 260px;
+  max-width: 420px;
+}
+
+.search-box svg,
+.sort-select svg {
+  position: absolute;
+  left: 10px;
+  pointer-events: none;
+}
+
+.search-box input {
+  padding-left: 32px;
+}
+
+.sort-select select {
+  width: auto;
+  padding-left: 32px;
+  font-size: 14px;
+}
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-anchor {
+  position: relative;
+}
+
+.filter-button {
+  font-size: 13px;
+  padding: 5px 10px;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  font-size: 13px;
+  overflow: hidden;
+}
+
+.filter-chip button {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.filter-chip-body {
+  display: inline-flex;
+  gap: 6px;
+  padding: 5px 8px 5px 10px;
+  max-width: 320px;
+}
+
+.filter-chip-key {
+  color: var(--muted);
+}
+
+.filter-chip-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 7px;
+  color: var(--muted) !important;
+  border-left: 1px solid var(--border) !important;
+}
+
+.filter-chip button:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.filter-chip-remove:hover {
+  color: var(--text) !important;
+}
+
+.filter-clear {
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 5px 6px;
+}
+
+.filter-clear:hover {
+  color: var(--text);
+}
+
+.filter-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.2);
+}
+
+.filter-menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.filter-menu-item,
+.filter-menu-back,
+.filter-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 400;
+  text-align: left;
+  cursor: pointer;
+}
+
+.filter-menu-back {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.filter-menu-item:hover,
+.filter-menu-back:hover,
+.filter-option:hover {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.filter-menu-item span:first-child,
+.filter-option-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-option input {
+  width: auto;
+  margin: 0;
+}
+
+.filter-option.none {
+  color: var(--muted);
+}
+
+.filter-menu-count {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.filter-menu-arrow {
+  color: var(--muted);
+}
+
+.filter-menu-empty {
+  padding: 7px 10px;
+}
+
+.search-box,
+.sort-select,
+.filter-option {
+  flex-direction: row;
+}
+
+.sort-select {
+  flex: 0 0 auto;
+}

@@ -95,3 +95,22 @@ export const ArrowUpIcon = () => (
     <path d="M8 13V3.5M4 7.5 8 3.5l4 4" />
   </Icon>
 );
+
+export const FilterIcon = () => (
+  <Icon>
+    <path d="M2.25 4h11.5M4.5 8h7M6.75 12h2.5" />
+  </Icon>
+);
+
+export const SortIcon = () => (
+  <Icon>
+    <path d="M5 2.75v10.5M2.75 11 5 13.25 7.25 11M11 13.25V2.75M8.75 5 11 2.75 13.25 5" />
+  </Icon>
+);
+
+export const SearchIcon = () => (
+  <Icon>
+    <circle cx="7" cy="7" r="4.25" />
+    <path d="M10.25 10.25 13.5 13.5" />
+  </Icon>
+);

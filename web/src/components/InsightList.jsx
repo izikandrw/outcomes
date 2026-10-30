@@ -1,69 +1,80 @@
-import { useState } from 'react';
-import { INSIGHT_TYPES, formatDollars, impactAreaLabel, insightTypeLabel, isEvidence } from '../lib/links.js';
+import { useMemo, useState } from 'react';
+import { formatDollars, impactAreaLabel, insightTypeLabel } from '../lib/links.js';
+import { INSIGHT_SORTS, insightFilterFields, matchesFilters } from '../lib/insightFilters.js';
+import FilterBar from './FilterBar.jsx';
 import SentimentBadge from './SentimentBadge.jsx';
-import { PencilIcon, PlusIcon, TrashIcon } from './icons.jsx';
+import { PencilIcon, PlusIcon, SearchIcon, SortIcon, TrashIcon } from './icons.jsx';
 import LinkedText from './LinkedText.jsx';
 
-// Whether an insight has been verified by a person or is a collector
-// suggestion still waiting for review.
-const STATUSES = [
-  { id: 'verified', label: 'Verified', matches: (insight) => isEvidence(insight) },
-  { id: 'suggested', label: 'Suggested', matches: (insight) => !isEvidence(insight) },
-];
-
-// Every insight in the account, filterable by text, type and status. Each row shows how
-// much work leans on it, since the point of an insight is to be reused.
-export default function InsightList({ insights, onCreate, onEdit, onDelete }) {
+// Every insight in the account, narrowed by text search and by any of the
+// fields in insightFilters.js, then sorted. Each row shows how much work leans
+// on it, since the point of an insight is to be reused.
+export default function InsightList({ insights, outcomes = [], projects = [], teams = [], onCreate, onEdit, onDelete }) {
   const [query, setQuery] = useState('');
-  const [type, setType] = useState('');
-  const [status, setStatus] = useState('');
+  const [filters, setFilters] = useState({});
+  const [sort, setSort] = useState(INSIGHT_SORTS[0].id);
+
+  const fields = useMemo(
+    () => insightFilterFields({ insights, outcomes, projects, teams }),
+    [insights, outcomes, projects, teams],
+  );
 
   const needle = query.trim().toLowerCase();
-  const visible = insights.filter((insight) => {
-    if (type && insight.type !== type) return false;
-    if (status && !STATUSES.find((entry) => entry.id === status).matches(insight)) return false;
-    if (!needle) return true;
-    return `${insight.name} ${insight.source ?? ''} ${insight.description ?? ''}`
-      .toLowerCase()
-      .includes(needle);
-  });
+  const searched = needle
+    ? insights.filter((insight) =>
+        `${insight.name} ${insight.source ?? ''} ${insight.description ?? ''} ${insight.source_excerpt ?? ''}`
+          .toLowerCase()
+          .includes(needle),
+      )
+    : insights;
+  const visible = searched
+    .filter((insight) => matchesFilters(insight, fields, filters))
+    .sort(INSIGHT_SORTS.find((entry) => entry.id === sort).compare);
+
+  // How many insights an option would show, given the search and the other fields' filters.
+  function countFor(fieldId, optionId) {
+    const field = fields.find((entry) => entry.id === fieldId);
+    return searched.filter(
+      (insight) => field.values(insight).includes(optionId) && matchesFilters(insight, fields, filters, fieldId),
+    ).length;
+  }
 
   const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
-  const filtered = needle || type || status;
+  const filtered = needle || Object.keys(filters).length > 0;
 
   return (
     <>
-      <div className="list-head">
-        <input
-          type="search"
-          value={query}
-          placeholder="Filter insights"
-          aria-label="Filter insights"
-          onChange={(event) => setQuery(event.target.value)}
-        />
-        <select value={type} aria-label="Filter by type" onChange={(event) => setType(event.target.value)}>
-          <option value="">All types</option>
-          {INSIGHT_TYPES.map((entry) => (
-            <option key={entry.id} value={entry.id}>
-              {entry.label}
-            </option>
-          ))}
-        </select>
-        <select value={status} aria-label="Filter by status" onChange={(event) => setStatus(event.target.value)}>
-          <option value="">Verified and suggested</option>
-          {STATUSES.map((entry) => (
-            <option key={entry.id} value={entry.id}>
-              {entry.label} · {insights.filter(entry.matches).length}
-            </option>
-          ))}
-        </select>
-        <span className="id">
-          {filtered ? `${visible.length} of ${plural(insights.length, 'insight')}` : plural(insights.length, 'insight')}
-        </span>
-        <button type="button" className="with-icon" onClick={onCreate}>
-          <PlusIcon />
-          New insight
-        </button>
+      <div className="list-toolbar">
+        <div className="list-toolbar-row">
+          <label className="search-box">
+            <SearchIcon />
+            <input
+              type="search"
+              value={query}
+              placeholder="Search insights"
+              aria-label="Search insights"
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+          <label className="sort-select" title="Sort">
+            <SortIcon />
+            <select value={sort} aria-label="Sort insights" onChange={(event) => setSort(event.target.value)}>
+              {INSIGHT_SORTS.map((entry) => (
+                <option key={entry.id} value={entry.id}>
+                  {entry.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <span className="id list-toolbar-count">
+            {filtered ? `${visible.length} of ${plural(insights.length, 'insight')}` : plural(insights.length, 'insight')}
+          </span>
+          <button type="button" className="with-icon" onClick={onCreate}>
+            <PlusIcon />
+            New insight
+          </button>
+        </div>
+        <FilterBar fields={fields} filters={filters} onChange={setFilters} countFor={countFor} />
       </div>
       {insights.length === 0 ? (
         <p className="empty">No insights yet. Record the evidence behind your outcomes and projects.</p>

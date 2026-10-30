@@ -716,6 +716,9 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
             ) : (
               <InsightList
                 insights={activeInsights}
+                outcomes={outcomes}
+                projects={projects}
+                teams={teams}
                 onCreate={() => setModal({ kind: 'insight', insight: null })}
                 onEdit={(insight) => setModal({ kind: 'insight', insight })}
                 onDelete={removeInsight}
