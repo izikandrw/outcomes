@@ -749,8 +749,7 @@ function NotInsightCard({ entry, found, onChange, onRemove, onMove }) {
 }
 
 // Every ready case in one file, each as { name, split, label_source,
-// document, expected, catalog }: the cases/<name>/ folders of agent-insight-collector/evals/,
-// flattened, each with the catalog it was labelled against.
+// document, expected, catalog }, for npm run eval -- --file.
 function downloadSet(cases) {
   const set = cases.map(({ name, split, label_source, document, expected, catalog }) => ({ name, split, label_source, document, expected, catalog }));
   const blob = new Blob([`${JSON.stringify(set, null, 2)}\n`], { type: 'application/json' });

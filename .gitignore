@@ -2,9 +2,10 @@ node_modules
 dist/
 .env
 
-# Eval cases hold real customer content; only the example is committed.
-agent-insight-collector/evals/cases/*
-!agent-insight-collector/evals/cases/_example-*/
+# Eval cases live in the app's eval_cases table; a downloaded eval set holds
+# real customer content, so keep any copy of it out of git.
+agent-insight-collector/evals/cases/
+eval-set.json
 # Eval results quote the same content.
 agent-insight-collector/evals/results/
 

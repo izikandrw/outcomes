@@ -33,7 +33,7 @@ Each milestone produces something usable and teaches one idea.
 
 | # | milestone | done when | what you learn |
 | --- | --- | --- | --- |
-| 1 | **Label the first eval set.** 30 real documents from your sheets, Attention and Jira, labeled by hand (`evals.md`). | 30 cases with `expected.json`; insight definition updated where you and a second labeler disagreed | What "good" means, precisely enough for a machine to check it |
+| 1 | **Label the first eval set.** 30 real documents from your sheets, Attention and Jira, labeled by hand (`evals.md`). | 30 ready cases on Review → Eval set; insight definition updated where you and a second labeler disagreed | What "good" means, precisely enough for a machine to check it |
 | 2 | ✅ **Data model + review queue.** `status`, provenance, link status, `collection_runs`; validate/reject endpoints; queue page; evidence counts filter to validated. | You can create an unvalidated insight by hand and approve or reject it in the UI | Human in the loop as product, not afterthought |
 | 3 | 🟡 **v0 in Claude Code.** (built; your review pending) Insight tools on the MCP server + a `collect-insights` skill; run it on a CSV and a few Jira issues. | Real suggestions are in your queue; you've reviewed them | What an agent loop looks like from the inside; how prompts change behavior |
 | 4 | 🟡 **v1 pipeline + eval runner.** (built: `npm run collect`, `npm run eval`; ship gates pending) `agent-insight-collector/` with the CSV connector, extract → verify → dedupe → link → write, and `npm run eval`. | Eval passes the ship gates on the test split | Workflows, structured outputs, verification in code, eval-driven iteration |

@@ -43,22 +43,10 @@ A judge is itself a model and can be wrong. Before trusting it, have it grade 30
 
 ### What a case looks like
 
-```
-agent-insight-collector/evals/
-  fixtures/
-    catalog.json                  # the outcomes + projects of a realistic test account
-  cases/
-    csv-churn-tracker-row-12/
-      document.json               # a SourceDocument (design.md §2.1)
-      expected.json               # the gold labels
-    attention-globex-renewal/
-    jira-PROJ-1234/
-    adv-injection-ticket/
-    ...
-```
+A case is a row in the app's `eval_cases` table (migrations `021` and `022`), edited on **Review → Eval set** and read through `GET /accounts/:id/eval-cases`. It isn't a file in the repo. Each one has a `name` (`csv-churn-tracker-row-12`, `attention-globex-renewal`, `adv-injection-ticket`…), a `split`, a `label_source` (`golden` or `review`), a `status` (`draft` or `ready`), and three JSON fields: `document`, a SourceDocument (design.md §2.1); `expected`, the gold labels; and `catalog`, the outcomes and projects it was labelled against. `agent-insight-collector/evals/LABELING.md` has the labelling rules.
 
 ```jsonc
-// expected.json
+// expected
 {
   "insights": [
     {
@@ -67,7 +55,7 @@ agent-insight-collector/evals/
       "type": "sales_call",
       "firsthand": true,
       "dollar_impact": null,
-      "links": [{ "kind": "outcome", "id": "o-sso-adoption" }]
+      "links": [{ "kind": "outcome", "id": "12" }]
     }
   ],
   "notes": "Rep's speculation at 14:20 about pricing is NOT an insight — opinion, not observation.",
@@ -89,10 +77,10 @@ About a third of the documents should have **zero** gold insights. That matches 
 
 ### Where the cases come from
 
-- **Real documents from your own tools**, not synthetic ones. Synthetic text is too clean and too easy. The material is sensitive, so cases live in the app's database (`eval_cases`), backed up and scoped by account like the customer data they come from, and `agent-insight-collector/evals/cases/` stays out of the repo.
+- **Real documents from your own tools**, not synthetic ones. Synthetic text is too clean and too easy. The material is sensitive, so cases live in the app's database (`eval_cases`), backed up and scoped by account like the customer data they come from, and never in the repo.
 - **Label by hand, before you see the agent's output.** If you label by editing what the agent produced, you anchor on its wording and the eval ends up rewarding "agrees with the model" instead of "correct." Never use the model's output as the gold answer.
 - **Get a second labeler on ~10 cases.** Wherever the two of you disagree, the definition is ambiguous. Fix `insight.md`, not just the label.
-- The catalog fixture should look like a real account: 15–30 outcomes and projects, including a couple that are *nearly* right for some insights, so linking is actually tested.
+- The catalog a case is labelled against should look like a real account: 15–30 outcomes and projects, including a couple that are *nearly* right for some insights, so linking is actually tested.
 
 ### Keep a held-out set
 
@@ -147,4 +135,4 @@ Once a week, look through new rejections and edits, and through the documents th
 - **Review set**: the expected answer is drafted from what reviewers did. Approved suggestions are expected as reviewers left them; ones rejected as not an insight or inaccurate go in `not_insights`; anything that needs a judgment call (waiting, a duplicate, a wrong link, a skipped document) leaves the case a draft with a note. Cheap and grows with every review, so it catches regressions, but it only knows what the agent suggested, so it can't measure recall.
 - **Golden set**: the expected answer starts blank. Write it from the document, without looking at what the agent said, or the eval ends up rewarding agreement with the agent. This is the set that measures recall.
 
-Each case also **freezes the catalog** it was labelled against (`eval_cases.catalog`, migration `022`): its expected links name catalog ids, and the runner gives the link step that same catalog, so deleting, merging or adding outcomes later can't move its score; only the model and the prompt can. To link a case to an outcome made since, choose **Use today's catalog** in its editor. Only **ready** cases are scored, and a case can't be marked ready while an expected excerpt isn't in its document or an expected link isn't in its catalog. New cases fill the held-out **test** split up to 30%. The collector can't read the eval set. **Download ready cases** gives one JSON file of `{ name, split, label_source, document, expected, catalog }`, the `agent-insight-collector/evals/cases/` folders flattened. Track approval rate in production next to the eval scores. If evals improve and approval rate doesn't, the eval doesn't reflect real usage and needs new cases.
+Each case also **freezes the catalog** it was labelled against (`eval_cases.catalog`, migration `022`): its expected links name catalog ids, and the runner gives the link step that same catalog, so deleting, merging or adding outcomes later can't move its score; only the model and the prompt can. To link a case to an outcome made since, choose **Use today's catalog** in its editor. Only **ready** cases are scored, and a case can't be marked ready while an expected excerpt isn't in its document or an expected link isn't in its catalog. New cases fill the held-out **test** split up to 30%. The collector can't read the eval set. **Download ready cases** gives one JSON file of `{ name, split, label_source, document, expected, catalog }` per ready case, for `npm run eval -- --file`; keep it out of git. Track approval rate in production next to the eval scores. If evals improve and approval rate doesn't, the eval doesn't reflect real usage and needs new cases.
