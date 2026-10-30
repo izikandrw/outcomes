@@ -1,18 +1,31 @@
 import { formatDollars } from '../lib/links.js';
 
-// Count of insights behind an entity; opens the list of them. Used in the HTML
-// views — the tree draws its own SVG version since it lives inside <svg>.
-export default function InsightBadge({ count, dollars, label, onClick }) {
+const plural = (count, word) => `${count} ${word} insight${count === 1 ? '' : 's'}`;
+
+// Counts of the insights behind an entity: verified ones, and the collector's
+// suggestions still waiting for a person. Each opens the list of them, showing
+// that kind first. Used in the HTML views — the tree draws its own SVG version
+// since it lives inside <svg>.
+export default function InsightBadge({ count, suggested, dollars, label, onClick }) {
   return (
     <>
       <button
         type="button"
         className={['tag', 'insight-badge', count === 0 && 'empty'].filter(Boolean).join(' ')}
-        title={`${count} insight${count === 1 ? '' : 's'} for ${label}`}
-        aria-label={`${count} insight${count === 1 ? '' : 's'} for ${label}`}
-        onClick={onClick}
+        title={`${plural(count, 'verified')} for ${label}`}
+        aria-label={`${plural(count, 'verified')} for ${label}`}
+        onClick={() => onClick('verified')}
       >
         💡 {count}
+      </button>
+      <button
+        type="button"
+        className={['tag', 'insight-badge', 'suggested', suggested === 0 && 'empty'].filter(Boolean).join(' ')}
+        title={`${plural(suggested, 'suggested')} for ${label}, waiting for review`}
+        aria-label={`${plural(suggested, 'suggested')} for ${label}`}
+        onClick={() => onClick('suggested')}
+      >
+        ✨ {suggested}
       </button>
       {dollars != null && (
         <button
@@ -20,7 +33,7 @@ export default function InsightBadge({ count, dollars, label, onClick }) {
           className="tag insight-badge"
           title={`${formatDollars(dollars)} total dollar impact for ${label}`}
           aria-label={`${formatDollars(dollars)} total dollar impact for ${label}`}
-          onClick={onClick}
+          onClick={() => onClick('verified')}
         >
           {formatDollars(dollars)}
         </button>

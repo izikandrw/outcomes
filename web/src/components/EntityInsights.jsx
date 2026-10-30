@@ -1,7 +1,15 @@
 import { useState } from 'react';
 import { ArrowLeftIcon, ExpandIcon, PencilIcon } from './icons.jsx';
 import LinkedText from './LinkedText.jsx';
-import { IMPACT_AREAS, INSIGHT_TYPES, REJECTION_REASONS, formatDollars, impactAreaLabel, insightTypeLabel } from '../lib/links.js';
+import {
+  IMPACT_AREAS,
+  INSIGHT_TYPES,
+  REJECTION_REASONS,
+  formatDollars,
+  impactAreaLabel,
+  insightTypeLabel,
+  isEvidence,
+} from '../lib/links.js';
 
 // Columns the table can be sorted by, and the value each sorts on. A missing
 // value (null) always sorts last, whichever way the column is ordered.
@@ -14,8 +22,19 @@ const SORT_KEYS = {
   observed: (insight) => (insight.observed_at ? new Date(insight.observed_at).getTime() : null),
 };
 
-function sortInsights(insights, sort) {
-  if (!sort) return insights;
+// Which insights the list shows. It opens on the kind whose badge was clicked;
+// All shows both, with that kind still first until a column is sorted.
+const FILTERS = [
+  { id: 'verified', label: 'Verified', matches: (insight) => isEvidence(insight) },
+  { id: 'suggested', label: 'Suggested', matches: (insight) => !isEvidence(insight) },
+  { id: 'all', label: 'All', matches: () => true },
+];
+
+function sortInsights(insights, sort, first) {
+  if (!sort) {
+    const matches = FILTERS.find((filter) => filter.id === first)?.matches;
+    return matches ? [...insights].sort((a, b) => matches(b) - matches(a)) : insights;
+  }
   const key = SORT_KEYS[sort.column];
   const direction = sort.descending ? -1 : 1;
   return [...insights].sort((a, b) => {
@@ -31,11 +50,23 @@ function sortInsights(insights, sort) {
 // The insights behind one outcome or project, shown in a modal. Fields edit in
 // place; the pencil goes to the full form, where links and details can be changed.
 // Clicking a column heading sorts by it; clicking again reverses the order.
-export default function EntityInsights({ entity, insights: unsorted, onOpen, onUpdate, onValidate, onReject, onReopen, onAdd }) {
+export default function EntityInsights({
+  entity,
+  insights: all,
+  initialFilter = 'verified',
+  onOpen,
+  onUpdate,
+  onValidate,
+  onReject,
+  onReopen,
+  onAdd,
+}) {
   const [error, setError] = useState(null);
   const [readingId, setReadingId] = useState(null);
   const [sort, setSort] = useState(null);
-  const insights = sortInsights(unsorted, sort);
+  const [filter, setFilter] = useState(initialFilter);
+  const shown = all.filter(FILTERS.find((entry) => entry.id === filter).matches);
+  const insights = sortInsights(shown, sort, initialFilter);
 
   function sortBy(column) {
     setSort((current) => ({
@@ -85,7 +116,19 @@ export default function EntityInsights({ entity, insights: unsorted, onOpen, onU
 
   return (
     <div className="entity-insights">
-      {insights.length === 0 && <p className="empty">Nothing yet backs up “{entity.name}”.</p>}
+      <div className="view-toggle" role="group" aria-label="Show insights">
+        {FILTERS.map(({ id, label, matches }) => (
+          <button key={id} type="button" aria-pressed={filter === id} onClick={() => setFilter(id)}>
+            {label} · {all.filter(matches).length}
+          </button>
+        ))}
+      </div>
+      {all.length === 0 && <p className="empty">Nothing yet backs up “{entity.name}”.</p>}
+      {all.length > 0 && insights.length === 0 && (
+        <p className="empty">
+          {filter === 'verified' ? 'No verified insights yet.' : 'No suggestions waiting for review.'}
+        </p>
+      )}
       {insights.length > 0 && (
         <table className="insight-table">
           <thead>

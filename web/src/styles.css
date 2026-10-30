@@ -1306,6 +1306,17 @@ button.tag.insight-badge.empty {
   font-weight: 500;
 }
 
+/* Suggestions are unconfirmed, so they read as an outline rather than a fill. */
+button.tag.insight-badge.suggested:not(.empty) {
+  background: transparent;
+  border: 1px dashed var(--target);
+  color: var(--target);
+}
+
+.entity-insights > .view-toggle {
+  align-self: flex-start;
+}
+
 .node-insights {
   cursor: pointer;
 }
@@ -1329,6 +1340,15 @@ button.tag.insight-badge.empty {
 
 .tree-node .node-insights.empty text {
   fill: var(--muted);
+}
+
+.tree-node .node-insights.suggested rect {
+  stroke: var(--target);
+  stroke-dasharray: 3 2;
+}
+
+.tree-node .node-insights.suggested text {
+  fill: var(--target);
 }
 
 .tree-node .node-insights:hover rect,

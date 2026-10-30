@@ -13,6 +13,7 @@ export default function TeamHome({
   outcomes,
   impacts,
   insights,
+  suggestions,
   onBack,
   onEdit,
   onOpenTeam,
@@ -95,6 +96,7 @@ export default function TeamHome({
           outcomes={outcomes}
           teams={teams}
           insights={insights}
+          suggestions={suggestions}
           onEditProject={onOpenProject}
           onShowInsights={onShowInsights}
           onOpenTeam={onOpenTeam}

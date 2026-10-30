@@ -52,6 +52,7 @@ export default function OutcomeTree({
   projects,
   targets,
   insights,
+  suggestions = [],
   onEdit,
   onEditImpact,
   onViewTarget,
@@ -75,9 +76,16 @@ export default function OutcomeTree({
       : totalDollarImpact(
           node.type === 'project' ? insightsForProject(insights, node.data) : insightsForOutcome(insights, node.data)
         );
+  const suggestedOf = (node) =>
+    node.type === 'impact'
+      ? 0
+      : (node.type === 'project' ? insightsForProject(suggestions, node.data) : insightsForOutcome(suggestions, node.data))
+          .length;
   const height = Math.max(
     treeHeight,
-    ...nodes.map((node) => node.y + fullNameLayout({ ...node, dollars: dollarsOf(node) }).height + PAD)
+    ...nodes.map(
+      (node) => node.y + fullNameLayout({ ...node, dollars: dollarsOf(node), suggested: suggestedOf(node) }).height + PAD
+    )
   );
   const validation = validateTree({ outcomes, projects, insights, impacts });
   // { entity, kind, left, top } — kind is 'outcome' or 'impact'. Anchored in
@@ -343,6 +351,7 @@ export default function OutcomeTree({
                 onOpenTeam={onOpenTeam}
                 onShowIssue={onShowIssue}
                 insightCount={insightsForProject(insights, node.data).length}
+                suggestedCount={suggestedOf(node)}
                 insightDollars={dollarsOf(node)}
                 issues={issuesFor(validation, 'project', node.data)}
                 onShowInsights={onShowInsights}
@@ -360,6 +369,7 @@ export default function OutcomeTree({
                 onOpenTeam={onOpenTeam}
                 onShowIssue={onShowIssue}
                 insightCount={insightsForOutcome(insights, node.data).length}
+                suggestedCount={suggestedOf(node)}
                 insightDollars={dollarsOf(node)}
                 issues={issuesFor(validation, 'outcome', node.data)}
                 onShowInsights={onShowInsights}
@@ -482,6 +492,7 @@ function OutcomeNode({
   onOpenTeam,
   onShowIssue,
   insightCount,
+  suggestedCount,
   insightDollars,
   issues,
   onShowInsights,
@@ -524,15 +535,16 @@ function OutcomeNode({
         onTargetClick={() => onViewTarget(quantified[0])}
       />
 
-      {revealed && <FullName node={{ type: 'outcome', data: outcome, x, y, dollars: insightDollars }} />}
+      {revealed && <FullName node={{ type: 'outcome', data: outcome, x, y, dollars: insightDollars, suggested: suggestedCount }} />}
       <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, outcome)} />
       <InsightPill
         x={x}
         y={y}
         count={insightCount}
+        suggested={suggestedCount}
         dollars={insightDollars}
         label={outcome.name}
-        onOpen={() => onShowInsights(outcome, 'outcome')}
+        onOpen={(filter) => onShowInsights(outcome, 'outcome', filter)}
       />
       {/* Revealed on hover or keyboard focus; opens the add menu. */}
       <g
@@ -649,22 +661,67 @@ function IssueBadges({ x, y, issues, onOpen }) {
   ));
 }
 
-// Always visible, bottom-left of the node: how many insights back it up.
-// How far an insight pill reaches in from its node's left edge, so a revealed
-// name can flow around it. Mirrors InsightPill's shapes below.
-function pillReach(dollars) {
-  return dollars == null ? 34 : 52 + formatDollars(dollars).length * 7;
+// Always visible, bottom-left of the node: how many verified insights back it
+// up, then how many suggestions wait for review (only when there are any, as
+// the node has little room), then the verified insights' dollar total.
+// The suggestion pill's width, plus the gap after the pill before it.
+const SUGGESTED_SPAN = 38;
+
+// How far the pills reach in from the node's left edge, so a revealed name can
+// flow around them. Mirrors InsightPill's shapes below.
+function pillReach(dollars, suggested) {
+  const reach = 34 + (suggested > 0 ? SUGGESTED_SPAN : 0);
+  return dollars == null ? reach : reach + 18 + formatDollars(dollars).length * 7;
 }
 
-function InsightPill({ x, y, count, dollars, label, onOpen }) {
+function InsightPill({ x, y, count, suggested, dollars, label, onOpen }) {
   const cx = x - NODE_W / 2 + 18;
   const cy = y + NODE_H;
+  const dollarsX = cx + 22 + (suggested > 0 ? SUGGESTED_SPAN : 0);
+  return (
+    <>
+      <PillButton
+        className={['node-insights', count === 0 && 'empty'].filter(Boolean).join(' ')}
+        label={`${count} verified insight${count === 1 ? '' : 's'} for ${label}`}
+        onOpen={() => onOpen('verified')}
+      >
+        <rect x={cx - 16} y={cy - 9} width="32" height="18" rx="9" />
+        <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
+          💡{count}
+        </text>
+        {dollars != null && (
+          <>
+            <rect x={dollarsX} y={cy - 9} width={formatDollars(dollars).length * 7 + 12} height="18" rx="9" />
+            <text x={dollarsX + 6 + (formatDollars(dollars).length * 7) / 2} y={cy} textAnchor="middle" dominantBaseline="central">
+              {formatDollars(dollars)}
+            </text>
+          </>
+        )}
+      </PillButton>
+      {suggested > 0 && (
+        <PillButton
+          className="node-insights suggested"
+          label={`${suggested} suggested insight${suggested === 1 ? '' : 's'} for ${label}`}
+          onOpen={() => onOpen('suggested')}
+        >
+          <rect x={cx + 22} y={cy - 9} width="32" height="18" rx="9" />
+          <text x={cx + 38} y={cy} textAnchor="middle" dominantBaseline="central">
+            ✨{suggested}
+          </text>
+        </PillButton>
+      )}
+    </>
+  );
+}
+
+// A clickable group inside a node that doesn't also open the node.
+function PillButton({ className, label, onOpen, children }) {
   return (
     <g
-      className={['node-insights', count === 0 && 'empty'].filter(Boolean).join(' ')}
+      className={className}
       role="button"
       tabIndex={0}
-      aria-label={`${count} insight${count === 1 ? '' : 's'} for ${label}`}
+      aria-label={label}
       onClick={(event) => {
         event.stopPropagation();
         onOpen();
@@ -677,18 +734,7 @@ function InsightPill({ x, y, count, dollars, label, onOpen }) {
         }
       }}
     >
-      <rect x={cx - 16} y={cy - 9} width="32" height="18" rx="9" />
-      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
-        💡{count}
-      </text>
-      {dollars != null && (
-        <>
-          <rect x={cx + 22} y={cy - 9} width={formatDollars(dollars).length * 7 + 12} height="18" rx="9" />
-          <text x={cx + 28 + (formatDollars(dollars).length * 7) / 2} y={cy} textAnchor="middle" dominantBaseline="central">
-            {formatDollars(dollars)}
-          </text>
-        </>
-      )}
+      {children}
     </g>
   );
 }
@@ -705,6 +751,7 @@ function ProjectNode({
   onOpenTeam,
   onShowIssue,
   insightCount,
+  suggestedCount,
   insightDollars,
   issues,
   onShowInsights,
@@ -751,15 +798,16 @@ function ProjectNode({
         </g>
       )}
 
-      {revealed && <FullName node={{ type: 'project', data: project, x, y, dollars: insightDollars }} />}
+      {revealed && <FullName node={{ type: 'project', data: project, x, y, dollars: insightDollars, suggested: suggestedCount }} />}
       <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, project)} />
       <InsightPill
         x={x}
         y={y}
         count={insightCount}
+        suggested={suggestedCount}
         dollars={insightDollars}
         label={project.name}
-        onOpen={() => onShowInsights(project, 'project')}
+        onOpen={(filter) => onShowInsights(project, 'project', filter)}
       />
       <g
         className="node-add"
@@ -1330,11 +1378,11 @@ function nodeLines(node, targets) {
 // draws them, and the overlay grows down to hold the rest. Lines level with
 // the insight pill flow around it: they are shorter and start past its right
 // end. Impacts have no pill.
-function fullNameLayout({ type, data, x, y, dollars }) {
+function fullNameLayout({ type, data, x, y, dollars, suggested }) {
   const hasPill = type !== 'impact';
   const slotY = (index) => y + NODE_H / 2 - (hasPill ? LABEL_LIFT : 0) - ((MAX_LINES - 1) * LINE_H) / 2 + index * LINE_H;
   const besidePill = (index) => hasPill && Math.abs(slotY(index) - (y + NODE_H)) < PILL_BAND;
-  const left = pillReach(dollars) + TEXT_INSET;
+  const left = pillReach(dollars, suggested) + TEXT_INSET;
   const narrowChars = Math.floor((NODE_W - TEXT_INSET - left) / CHAR_W);
   const lines = wrapToBudgets(data.name, (index) => (besidePill(index) ? narrowChars : MAX_CHARS));
   const placed = lines.map((line, index) => ({

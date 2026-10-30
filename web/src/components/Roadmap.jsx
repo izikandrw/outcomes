@@ -7,7 +7,7 @@ import TeamChips from './TeamChips.jsx';
 // neither date can't be placed in time; they sit at the end rather than
 // disappearing, since an unscheduled output is worth noticing.
 const anchor = (project) => project.start_at || project.end_at;
-export default function Roadmap({ projects, outcomes, teams, insights, onEditProject, onShowInsights, onOpenTeam, emptyMessage }) {
+export default function Roadmap({ projects, outcomes, teams, insights, suggestions, onEditProject, onShowInsights, onOpenTeam, emptyMessage }) {
   const scheduled = projects
     .filter(anchor)
     .sort((a, b) => new Date(anchor(a)) - new Date(anchor(b)) || a.id - b.id);
@@ -42,9 +42,10 @@ export default function Roadmap({ projects, outcomes, teams, insights, onEditPro
             <TeamChips entries={teamsOnProject(projects, project)} teams={teams} onOpen={onOpenTeam} />
             <InsightBadge
               count={insightsForProject(insights, project).length}
+              suggested={insightsForProject(suggestions, project).length}
               dollars={totalDollarImpact(insightsForProject(insights, project))}
               label={project.name}
-              onClick={() => onShowInsights(project, 'project')}
+              onClick={(filter) => onShowInsights(project, 'project', filter)}
             />
             {driven.length === 0 ? (
               <span className="tag warn">No outcome</span>

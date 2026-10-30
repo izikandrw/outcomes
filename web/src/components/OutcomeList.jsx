@@ -23,6 +23,7 @@ export default function OutcomeList({
   projects,
   targets,
   insights,
+  suggestions,
   onEdit,
   onDelete,
   onShowInsights,
@@ -49,9 +50,10 @@ export default function OutcomeList({
                   <TeamChips entries={teamsOnOutcome(outcomes, projects, outcome)} teams={teams} onOpen={onOpenTeam} />
                   <InsightBadge
                     count={insightsForOutcome(insights, outcome).length}
+                    suggested={insightsForOutcome(suggestions, outcome).length}
                     dollars={totalDollarImpact(insightsForOutcome(insights, outcome))}
                     label={outcome.name}
-                    onClick={() => onShowInsights(outcome, 'outcome')}
+                    onClick={(filter) => onShowInsights(outcome, 'outcome', filter)}
                   />
                   {linked.map((project) => (
                     <span className="tag project" key={project.id}>

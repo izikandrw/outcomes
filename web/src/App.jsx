@@ -145,7 +145,10 @@ export default function App({ user, account, onSignOut }) {
   // never rejected ones.
   const evidence = insights.filter(isEvidence);
   const activeInsights = insights.filter((insight) => insight.status !== 'rejected');
-  const pendingReview = insights.filter((insight) => insight.status === 'unvalidated').length;
+  // Shown beside the evidence count on each card, so waiting suggestions are
+  // visible without counting toward anything.
+  const suggestions = insights.filter((insight) => insight.status === 'unvalidated');
+  const pendingReview = suggestions.length;
 
   const openCreate = () => setModal({ kind: 'outcome', outcome: null, parentId: null });
   const openEdit = (outcome) =>
@@ -177,9 +180,11 @@ export default function App({ user, account, onSignOut }) {
         : outcomes.find((item) => String(item.id) === String(target.outcome_id));
     setModal({ kind: 'measurement', target, parent, parentKind, returnTo: target });
   };
-  // entity is the outcome or project whose insights to list; kind says which.
   const showIssue = (rule, entity) => setModal({ kind: 'issue', rule, entity });
-  const showInsights = (entity, kind) => setModal({ kind: 'entity-insights', entity, entityKind: kind });
+  // entity is the outcome or project whose insights to list; kind says which.
+  // filter is which badge was clicked: 'verified' or 'suggested'.
+  const showInsights = (entity, kind, filter = 'verified') =>
+    setModal({ kind: 'entity-insights', entity, entityKind: kind, filter });
   const openEditProject = (project) => setModal({ kind: 'project', project, parent: null });
   const openAddChildProject = (parentProject) =>
     setModal({ kind: 'project', project: null, parent: null, parentProject });
@@ -673,6 +678,7 @@ export default function App({ user, account, onSignOut }) {
                 outcomes={outcomes}
                 impacts={impacts}
                 insights={evidence}
+                suggestions={suggestions}
                 onBack={() => changePage('teams')}
                 onEdit={(team) => setModal({ kind: 'team', team })}
                 onOpenTeam={openTeam}
@@ -738,6 +744,7 @@ export default function App({ user, account, onSignOut }) {
                 outcomes={outcomes}
                 teams={teams}
                 insights={evidence}
+                suggestions={suggestions}
                 onEditProject={openEditProject}
                 onShowInsights={showInsights}
                 onOpenTeam={openTeam}
@@ -772,6 +779,7 @@ export default function App({ user, account, onSignOut }) {
               projects={projects}
               targets={targets}
               insights={evidence}
+              suggestions={suggestions}
               onShowInsights={showInsights}
               onEdit={openEdit}
               onEditImpact={openEditImpact}
@@ -791,6 +799,7 @@ export default function App({ user, account, onSignOut }) {
               projects={projects}
               targets={targets}
               insights={evidence}
+              suggestions={suggestions}
               onShowInsights={showInsights}
               onOpenTeam={openTeam}
               onEdit={openEdit}
@@ -839,7 +848,9 @@ export default function App({ user, account, onSignOut }) {
             <Members accountId={accountId} currentUserId={user.id} />
           ) : modal.kind === 'entity-insights' ? (
             <EntityInsights
+              key={`${modal.entityKind}-${modal.entity.id}-${modal.filter}`}
               entity={modal.entity}
+              initialFilter={modal.filter}
               insights={
                 modal.entityKind === 'project'
                   ? insightsForProject(activeInsights, modal.entity)
