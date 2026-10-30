@@ -30,7 +30,7 @@ import Roadmap from './components/Roadmap.jsx';
 import TopNav from './components/TopNav.jsx';
 import { PlusIcon } from './components/icons.jsx';
 import { insightsForOutcome, insightsForProject, isEvidence, targetLabel, targetsFor } from './lib/links.js';
-import { buildSearch, emptyListView, itemOfModal, readUrl } from './lib/urlState.js';
+import { buildSearch, emptyPageView, itemOfModal, readUrl } from './lib/urlState.js';
 import { flaggedBy, ruleById, validateTree } from './lib/validation.js';
 
 const STORED_PAGE = 'outcomes.page';
@@ -89,9 +89,10 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   // of the kind of thing it applies to shows only what breaks it, until the
   // filter is cleared or the person moves to another page.
   const [issueFilter, setIssueFilter] = useState(() => (ruleById(initialUrl.issue) ? initialUrl.issue : null));
-  // The Impacts, Outcomes or Insights list's search, filters and sort, held here so
-  // they can live in the URL. A new page starts with an empty one.
-  const [listView, setListView] = useState(initialUrl.listView);
+  // What the page shows within itself (a list's search, filters and sort; the
+  // review tab and open run; a team home's subteams toggle), held here so it
+  // can live in the URL. A new page starts with an empty one.
+  const [pageView, setPageView] = useState(initialUrl.pageView);
   // An item a link names ({ kind, id }), opened once the data it needs has
   // loaded. It stays in the URL until then.
   const [pendingItem, setPendingItem] = useState(initialUrl.item);
@@ -207,7 +208,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   function changePage(next) {
     setPage(next);
     setIssueFilter(null);
-    if (next !== page) setListView(emptyListView());
+    if (next !== page) setPageView(emptyPageView());
   }
 
   function openTeam(id) {
@@ -215,19 +216,24 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
     changePage('team');
   }
 
-  // Keep the address bar in step with the view. Moving to another page or
-  // team adds a history entry, so Back returns to it; opening an item or
+  // Keep the address bar in step with the view. Moving to another page, team,
+  // tab or run adds a history entry, so Back returns to it; opening an item or
   // changing a list's search or filters rewrites the current one.
   const shownItem = itemOfModal(modal) ?? pendingItem;
-  const search = buildSearch({ page, teamId, issue: issueFilter, item: shownItem, listView });
+  const search = buildSearch({ page, teamId, issue: issueFilter, item: shownItem, pageView });
   useEffect(() => {
     localStorage.setItem(STORED_PAGE, page);
     if (teamId) localStorage.setItem(STORED_TEAM, teamId);
     if (search === window.location.search) return;
     const current = readUrl();
-    const moved = current.page != null && (current.page !== page || (page === 'team' && current.teamId !== teamId));
+    const moved =
+      current.page != null &&
+      (current.page !== page ||
+        (page === 'team' && current.teamId !== teamId) ||
+        current.pageView.tab !== pageView.tab ||
+        current.pageView.run !== pageView.run);
     window.history[moved ? 'pushState' : 'replaceState'](null, '', `${window.location.pathname}${search}`);
-  }, [search, page, teamId]);
+  }, [search, page, teamId, pageView.tab, pageView.run]);
 
   // Back and Forward: show whatever view the URL now names.
   useEffect(() => {
@@ -236,7 +242,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
       setPage(next.page || 'outcomes');
       if (next.teamId) setTeamId(next.teamId);
       setIssueFilter(ruleById(next.issue) ? next.issue : null);
-      setListView(next.listView);
+      setPageView(next.pageView);
       setModal(null);
       setPendingItem(next.item);
     };
@@ -768,6 +774,8 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               <p className="empty">Loading…</p>
             ) : page === 'team' && currentTeam ? (
               <TeamHome
+                includeSubteams={pageView.subteams}
+                onIncludeSubteamsChange={(subteams) => setPageView((current) => ({ ...current, subteams }))}
                 team={currentTeam}
                 teams={teams}
                 projects={projects}
@@ -802,8 +810,8 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               <p className="empty">Loading…</p>
             ) : (
               <InsightList
-                view={listView}
-                onViewChange={setListView}
+                view={pageView}
+                onViewChange={setPageView}
                 insights={activeInsights}
                 outcomes={outcomes}
                 projects={projects}
@@ -819,6 +827,8 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               <p className="empty">Loading…</p>
             ) : (
               <ReviewQueue
+                view={pageView}
+                onViewChange={setPageView}
                 accountId={accountId}
                 insights={insights}
                 outcomes={outcomes}
@@ -854,8 +864,8 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               <p className="empty">No impacts yet.</p>
             ) : flagged?.length === 0 ? null : (
               <ImpactList
-                view={listView}
-                onViewChange={setListView}
+                view={pageView}
+                onViewChange={setPageView}
                 impacts={flagged ?? impacts}
                 allImpacts={impacts}
                 outcomes={outcomes}
@@ -944,8 +954,8 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
             />
           ) : (
             <OutcomeList
-              view={listView}
-              onViewChange={setListView}
+              view={pageView}
+              onViewChange={setPageView}
               outcomes={flagged ?? outcomes}
               teams={teams}
               projects={projects}

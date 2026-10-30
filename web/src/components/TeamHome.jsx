@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { rollupForProjects, teamIdsWithin } from '../lib/links.js';
 import Roadmap from './Roadmap.jsx';
 
@@ -21,8 +20,9 @@ export default function TeamHome({
   onOpenOutcome,
   onOpenImpact,
   onShowInsights,
+  includeSubteams,
+  onIncludeSubteamsChange: setIncludeSubteams,
 }) {
-  const [includeSubteams, setIncludeSubteams] = useState(true);
   const parent = teams.find((item) => String(item.id) === String(team.parent_team_id));
   const children = teams.filter((item) => String(item.parent_team_id) === String(team.id));
 

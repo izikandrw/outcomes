@@ -6,10 +6,10 @@ import { rejectionReasonLabel } from '../lib/links.js';
 // "Run traces"): every document it read, what it decided and why, and how its
 // suggestions then fared in review. Used to spot its mistakes and to pick eval
 // cases, which is why each document can be downloaded as an eval case's
-// document.json (agent/evals/LABELING.md).
-export default function CollectionRuns({ accountId }) {
+// document.json (agent/evals/LABELING.md). `openId` is the run whose trace
+// shows, null for the list; onOpen(id or null) changes it.
+export default function CollectionRuns({ accountId, openId, onOpen }) {
   const [runs, setRuns] = useState(null);
-  const [openId, setOpenId] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -20,7 +20,7 @@ export default function CollectionRuns({ accountId }) {
       .catch((err) => setError(err.message));
   }, [accountId, openId]);
 
-  if (openId) return <RunTrace accountId={accountId} runId={openId} onBack={() => setOpenId(null)} />;
+  if (openId) return <RunTrace accountId={accountId} runId={openId} onBack={() => onOpen(null)} />;
   if (error) return <p className="error">{error}</p>;
   if (!runs) return <p className="empty">Loading…</p>;
   if (runs.length === 0) return <p className="empty">No runs yet. Each run of the insight collector shows up here.</p>;
@@ -41,7 +41,7 @@ export default function CollectionRuns({ accountId }) {
         {runs.map((run) => (
           <tr key={run.id}>
             <td>
-              <button type="button" className="link-button" onClick={() => setOpenId(run.id)}>
+              <button type="button" className="link-button" onClick={() => onOpen(run.id)}>
                 {formatTime(run.started_at)}
               </button>
             </td>

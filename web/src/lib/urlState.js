@@ -9,6 +9,8 @@
 //                                        impact, project, target, insight
 //   ?page=outcomes&q=churn&f.team=3&f.team=5&sort=added
 //                                        a list's search, filters and sort
+//   ?page=review&tab=runs&run=8          a tab within a page, and the run open in it
+//   ?page=team&team=3&subteams=0         a team's home without its subteams' work
 //
 // Filters carry an `f.` prefix because some filter fields share a name with
 // an item param (an insight's outcome filter vs. outcome=42).
@@ -16,7 +18,9 @@ export const PAGES = ['map', 'impacts', 'outcomes', 'roadmap', 'insights', 'revi
 export const ITEM_KINDS = ['outcome', 'impact', 'project', 'target', 'insight'];
 const FILTER_PREFIX = 'f.';
 
-export const emptyListView = () => ({ q: '', filters: {}, sort: null });
+// What a page shows within itself; a new page starts from this. `tab` and
+// `run` null mean the page's first tab and no run open.
+export const emptyPageView = () => ({ q: '', filters: {}, sort: null, tab: null, run: null, subteams: true });
 
 // The view a query string describes. `page` is null when the URL names none,
 // so the caller can fall back to the last page used.
@@ -35,21 +39,31 @@ export function readUrl(search = window.location.search) {
     teamId: params.get('team'),
     issue: params.get('issue'),
     item: kind ? { kind, id: params.get(kind) } : null,
-    listView: { q: params.get('q') ?? '', filters, sort: params.get('sort') },
+    pageView: {
+      q: params.get('q') ?? '',
+      filters,
+      sort: params.get('sort'),
+      tab: params.get('tab'),
+      run: params.get('run'),
+      subteams: params.get('subteams') !== '0',
+    },
   };
 }
 
 // The query string (with its leading '?') for a view, the inverse of readUrl.
-export function buildSearch({ page, teamId, issue, item, listView }) {
+export function buildSearch({ page, teamId, issue, item, pageView }) {
   const params = new URLSearchParams({ page });
   if (page === 'team' && teamId) params.set('team', teamId);
   if (issue) params.set('issue', issue);
   if (item) params.set(item.kind, item.id);
-  if (listView.q) params.set('q', listView.q);
-  for (const [field, picked] of Object.entries(listView.filters)) {
+  if (pageView.tab) params.set('tab', pageView.tab);
+  if (pageView.run) params.set('run', pageView.run);
+  if (!pageView.subteams) params.set('subteams', '0');
+  if (pageView.q) params.set('q', pageView.q);
+  for (const [field, picked] of Object.entries(pageView.filters)) {
     for (const value of picked) params.append(`${FILTER_PREFIX}${field}`, value);
   }
-  if (listView.sort) params.set('sort', listView.sort);
+  if (pageView.sort) params.set('sort', pageView.sort);
   return `?${params}`;
 }
 

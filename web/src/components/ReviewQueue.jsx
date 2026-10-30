@@ -26,7 +26,13 @@ import { ChevronDownIcon } from './icons.jsx';
 // Whatever was proposed, the reviewer can also create an outcome or project of
 // their own and link the insight to it. Every field on a card edits in place:
 // click it, change it, and it saves. The Runs tab shows the collector's traces.
+// `view` holds the tab, the open run and the filters ({ tab, run, filters }, a
+// null tab meaning Needs review), which the app keeps in the URL.
+const REVIEW_TABS = ['pending', 'rejected', 'runs'];
+
 export default function ReviewQueue({
+  view,
+  onViewChange,
   accountId,
   insights,
   outcomes,
@@ -40,7 +46,8 @@ export default function ReviewQueue({
   onDismissProposed,
   onAcceptAll,
 }) {
-  const [tab, setTab] = useState('pending');
+  const tab = REVIEW_TABS.includes(view.tab) ? view.tab : 'pending';
+  const setTab = (next) => onViewChange({ ...view, tab: next === 'pending' ? null : next, run: null });
   const [lastRunAt, setLastRunAt] = useState(null);
   const pending = insights.filter((insight) => insight.status === 'unvalidated');
   const rejected = insights.filter((insight) => insight.status === 'rejected');
@@ -48,7 +55,8 @@ export default function ReviewQueue({
 
   // Suggestions narrow with the insights page's filters, all but status:
   // everything here is a suggestion or a rejected one, and the tabs split those.
-  const [filters, setFilters] = useState({});
+  const { filters } = view;
+  const setFilters = (next) => onViewChange({ ...view, filters: next });
   const fields = useMemo(
     () => insightFilterFields({ insights, outcomes, projects }).filter((field) => field.id !== 'status'),
     [insights, outcomes, projects],
@@ -89,7 +97,11 @@ export default function ReviewQueue({
         <FilterBar fields={fields} filters={filters} onChange={setFilters} countFor={countFor} />
       )}
       {tab === 'runs' ? (
-        <CollectionRuns accountId={accountId} />
+        <CollectionRuns
+          accountId={accountId}
+          openId={view.run}
+          onOpen={(run) => onViewChange({ ...view, run: run == null ? null : String(run) })}
+        />
       ) : inTab.length === 0 ? (
         <p className="empty">
           {tab === 'pending'
