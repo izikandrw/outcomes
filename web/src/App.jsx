@@ -89,7 +89,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   // of the kind of thing it applies to shows only what breaks it, until the
   // filter is cleared or the person moves to another page.
   const [issueFilter, setIssueFilter] = useState(() => (ruleById(initialUrl.issue) ? initialUrl.issue : null));
-  // The Outcomes or Insights list's search, filters and sort, held here so
+  // The Impacts, Outcomes or Insights list's search, filters and sort, held here so
   // they can live in the URL. A new page starts with an empty one.
   const [listView, setListView] = useState(initialUrl.listView);
   // An item a link names ({ kind, id }), opened once the data it needs has
@@ -836,14 +836,17 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
           </section>
         ) : page === 'impacts' ? (
           <section className="card" aria-label="Impacts">
-            <div className="list-head">
-              <div className="actions">
-                <button type="button" className="with-icon btn-impact" onClick={openCreateImpact}>
-                  <PlusIcon />
-                  New impact
-                </button>
+            {/* The impact list carries New impact in its own toolbar. */}
+            {(loading || impacts.length === 0 || flagged?.length === 0) && (
+              <div className="list-head">
+                <div className="actions">
+                  <button type="button" className="with-icon btn-impact" onClick={openCreateImpact}>
+                    <PlusIcon />
+                    New impact
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
             {!loading && issueBanner(impacts)}
             {loading ? (
               <p className="empty">Loading…</p>
@@ -851,9 +854,18 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               <p className="empty">No impacts yet.</p>
             ) : flagged?.length === 0 ? null : (
               <ImpactList
+                view={listView}
+                onViewChange={setListView}
                 impacts={flagged ?? impacts}
+                allImpacts={impacts}
                 outcomes={outcomes}
+                teams={teams}
+                projects={projects}
                 targets={targets}
+                insights={evidence}
+                suggestions={suggestions}
+                issues={validateTree({ outcomes, projects, insights: evidence, impacts }).impact}
+                onCreate={openCreateImpact}
                 onEdit={openEditImpact}
                 onDelete={removeImpact}
                 onAddTarget={(impact) => openAdd(impact, 'target', 'impact')}

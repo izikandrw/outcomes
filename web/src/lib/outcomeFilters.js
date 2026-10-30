@@ -9,7 +9,7 @@ const NONE = 'none';
 
 // What a target says about progress: reached, overdue, under way, or nothing
 // measured yet. Overdue wins over under way, since it's the one to chase.
-function targetStatus(target, now) {
+export function targetStatus(target, now) {
   const progress = progressOf(target);
   if (progress != null && progress >= 1) return 'reached';
   if (target.due_at && new Date(target.due_at).getTime() < now) return 'overdue';
