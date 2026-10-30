@@ -2755,10 +2755,19 @@ button.team-chip.link:hover {
 
 /* Insights toolbar: search, sort and create on one row; the Filter button and
    a chip per active filter on the row below, like Linear or Stripe. */
+/* Stays in view while the list scrolls, just under the pinned nav, spanning
+   the card's padding so the rows don't show at its edges. */
 .list-toolbar {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  position: sticky;
+  top: 58px;
+  z-index: 10;
+  margin: -8px -18px 0;
+  padding: 8px 18px 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
 }
 
 .list-toolbar-row {
