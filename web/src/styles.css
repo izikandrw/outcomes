@@ -60,6 +60,12 @@
   box-sizing: border-box;
 }
 
+/* Reserve the scrollbar's width even when the page is short or a modal locks
+   scrolling, so the layout doesn't shift sideways as the scrollbar comes and goes. */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   margin: 0;
   background: var(--bg);
