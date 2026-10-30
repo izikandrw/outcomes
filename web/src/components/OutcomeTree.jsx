@@ -1515,7 +1515,9 @@ function FullName({ node }) {
   const className = [
     'tree-node tree-node-full',
     type !== 'outcome' && type,
-    type === 'outcome' && data.parent_outcome_id == null && 'root',
+    // Styled like the node it covers: a suggested outcome is never drawn as a
+    // root, whose white text would vanish on the suggested node's white fill.
+    data.suggested ? 'suggested' : type === 'outcome' && data.parent_outcome_id == null && 'root',
   ]
     .filter(Boolean)
     .join(' ');
