@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as api from '../api.js';
 import { insightFilterFields, matchesFilters } from '../lib/insightFilters.js';
 import {
+  IMPACT_AREAS,
+  INSIGHT_TYPES,
   REJECTION_REASONS,
+  SENTIMENTS,
   formatDollars,
-  insightTypeLabel,
   rejectionReasonLabel,
+  sentimentOf,
 } from '../lib/links.js';
 import LinkedText from './LinkedText.jsx';
-import SentimentBadge from './SentimentBadge.jsx';
 import FilterBar from './FilterBar.jsx';
 import CollectionRuns, { formatTime } from './CollectionRuns.jsx';
 
@@ -21,16 +23,17 @@ import CollectionRuns, { formatTime } from './CollectionRuns.jsx';
 // creates one (which links the insight to it but leaves it in review) or
 // dismisses it, or approves the insight and creates all of them at once.
 // Whatever was proposed, the reviewer can also create an outcome or project of
-// their own and link the insight to it. The Runs tab shows the collector's
-// traces.
+// their own and link the insight to it. Every field on a card edits in place:
+// click it, change it, and it saves. The Runs tab shows the collector's traces.
 export default function ReviewQueue({
   accountId,
   insights,
   outcomes,
   projects,
+  teams,
   onApprove,
   onReject,
-  onEdit,
+  onUpdate,
   onUnlink,
   onCreateProposed,
   onCreateOwn,
@@ -103,9 +106,10 @@ export default function ReviewQueue({
               insight={insight}
               outcomes={outcomes}
               projects={projects}
+              teams={teams}
               onApprove={onApprove}
               onReject={onReject}
-              onEdit={onEdit}
+              onUpdate={onUpdate}
               onUnlink={onUnlink}
               onCreateProposed={onCreateProposed}
               onCreateOwn={onCreateOwn}
@@ -123,9 +127,10 @@ function ReviewCard({
   insight,
   outcomes,
   projects,
+  teams,
   onApprove,
   onReject,
-  onEdit,
+  onUpdate,
   onUnlink,
   onCreateProposed,
   onCreateOwn,
@@ -149,6 +154,16 @@ function ReviewCard({
     }
   }
 
+  // Saves one field edited in place. Unlike run, the card stays on screen after.
+  async function save(patch) {
+    setError(null);
+    try {
+      await onUpdate(insight, patch);
+    } catch (err) {
+      setError(`Could not save: ${err.message}`);
+    }
+  }
+
   const links = [
     ...insight.outcome_ids.map((id) => ({
       kind: 'outcome',
@@ -165,62 +180,132 @@ function ReviewCard({
   ];
   const proposals = insight.proposed_links ?? [];
   const pending = insight.status === 'unvalidated';
-  const editable = pending && !rejecting && !busy;
+  // Only suggestions still waiting for review edit in place.
+  const locked = !pending || busy;
+  const linkable = [
+    ...outcomes
+      .filter((outcome) => !insight.outcome_ids.map(String).includes(String(outcome.id)))
+      .map((outcome) => ({ value: `outcome:${outcome.id}`, name: outcome.name, group: 'Outcomes' })),
+    ...projects
+      .filter((project) => !insight.project_ids.map(String).includes(String(project.id)))
+      .map((project) => ({ value: `project:${project.id}`, name: project.name, group: 'Projects' })),
+  ];
 
-  // Clicking anywhere on a pending card opens its edit form, except on the
-  // card's own controls and links, or when the click ends a text selection.
-  function editOnClick(event) {
-    if (!editable) return;
-    if (event.target.closest('button, a, input, select, textarea, label')) return;
-    if (window.getSelection()?.toString()) return;
-    onEdit(insight);
+  function link(value) {
+    const [kind, id] = value.split(':');
+    const field = kind === 'project' ? 'project_ids' : 'outcome_ids';
+    save({ [field]: [...insight[field].map(Number), Number(id)] });
   }
 
   return (
-    <li
-      className={editable ? 'review-card editable' : 'review-card'}
-      onClick={editOnClick}
-    >
+    <li className="review-card">
       <h3>
-        <SentimentBadge sentiment={insight.sentiment} /> {insight.name}
+        <SentimentSelect value={insight.sentiment} disabled={locked} onChange={(sentiment) => save({ sentiment })} />
+        <InlineText
+          value={insight.name}
+          label="Insight"
+          required
+          multiline
+          disabled={locked}
+          onCommit={(name) => save({ name })}
+        />
       </h3>
       <p className="meta">
-        <span className="tag-field" title="What kind of evidence this is">
-          <span className="tag-key">Type</span>
-          <span className="tag project">{insightTypeLabel(insight.type)}</span>
-        </span>
-        {insight.source_system && (
-          <span className="tag-field" title="Where the collector found it; the link below opens the original">
-            <span className="tag-key">Source</span>
-            <span className="tag project">{insight.source_system}</span>
-          </span>
+        <PillField label="Type" title="What kind of evidence this is">
+          <PillSelect
+            label="Type"
+            value={insight.type}
+            options={INSIGHT_TYPES}
+            disabled={locked}
+            onChange={(type) => save({ type })}
+          />
+        </PillField>
+        <PillField label="Source" title="Where the collector found it; the link below opens the original">
+          <InlineText
+            value={insight.source_system ?? ''}
+            label="Source"
+            placeholder="—"
+            pill
+            disabled={locked}
+            onCommit={(value) => save({ source_system: value || null })}
+          />
+        </PillField>
+        <PillField
+          label="Evidence"
+          title="Firsthand: the customer's own words or actions, including their words quoted verbatim by someone else. Relayed: someone else's paraphrase or summary."
+        >
+          <PillSelect
+            label="Evidence"
+            value={insight.firsthand == null ? '' : String(insight.firsthand)}
+            options={EVIDENCE}
+            empty="—"
+            disabled={locked}
+            onChange={(value) => save({ firsthand: value === '' ? null : value === 'true' })}
+          />
+        </PillField>
+        <PillField label="Area" title="The part of the business it affects">
+          <PillSelect
+            label="Area"
+            value={insight.impact_area ?? ''}
+            options={IMPACT_AREAS}
+            empty="—"
+            disabled={locked}
+            onChange={(value) => save({ impact_area: value || null })}
+          />
+        </PillField>
+        <PillField label="Impact" title="Estimated dollars at stake">
+          <InlineText
+            value={insight.dollar_impact ?? ''}
+            label="Dollar impact"
+            type="number"
+            placeholder="—"
+            pill
+            display={insight.dollar_impact != null ? formatDollars(insight.dollar_impact) : null}
+            disabled={locked}
+            onCommit={(value) => save({ dollar_impact: value === '' ? null : Number(value) })}
+          />
+        </PillField>
+        <PillField label="Observed" title="When it was seen">
+          <input
+            className="cell-input pill-date"
+            type="date"
+            aria-label="Observed"
+            disabled={locked}
+            value={insight.observed_at ? new Date(insight.observed_at).toISOString().slice(0, 10) : ''}
+            onChange={(event) =>
+              save({ observed_at: event.target.value ? new Date(event.target.value).toISOString() : null })
+            }
+          />
+        </PillField>
+        {teams.length > 0 && (
+          <PillField label="Team" title="The team that recorded it">
+            <PillSelect
+              label="Team"
+              value={insight.team_id ? String(insight.team_id) : ''}
+              options={teams.map((team) => ({ id: String(team.id), label: team.name }))}
+              empty="—"
+              disabled={locked}
+              onChange={(value) => save({ team_id: value ? Number(value) : null })}
+            />
+          </PillField>
         )}
-        {insight.firsthand === true && (
-          <span className="tag-field" title="The customer's own words or actions, including their words quoted verbatim by someone else">
-            <span className="tag-key">Evidence</span>
-            <span className="tag project">Firsthand</span>
-          </span>
-        )}
-        {insight.firsthand === false && (
-          <span className="tag-field" title="Someone else's paraphrase or summary of what the customer said">
-            <span className="tag-key">Evidence</span>
-            <span className="tag project">Relayed</span>
-          </span>
-        )}
-        {insight.dollar_impact != null && <span className="tag">{formatDollars(insight.dollar_impact)}</span>}
         {insight.edited_in_review && <span className="tag parent">Edited</span>}
-        {insight.observed_at && (
-          <span className="id">{new Date(insight.observed_at).toISOString().slice(0, 10)}</span>
-        )}
         <span className="id">#{insight.id}</span>
       </p>
-      {insight.description && <p className="description">{insight.description}</p>}
+      <InlineText
+        value={insight.description ?? ''}
+        label="Details"
+        placeholder={locked ? '' : 'Add details'}
+        multiline
+        className="description"
+        disabled={locked}
+        onCommit={(value) => save({ description: value || null })}
+      />
 
       {insight.source_excerpt && <blockquote className="excerpt">“{insight.source_excerpt}”</blockquote>}
-      <SourceLine insight={insight} />
+      <SourceLine insight={insight} disabled={locked} onSave={save} />
 
-      <div className="review-links">
-        <span className="hint">Supports</span>
+      <div className="review-links">        <span className="hint">Supports</span>
         {links.length === 0 && proposals.length === 0 ? (
           <p className="hint">Nothing it fits yet. It may point to an outcome that's missing.</p>
         ) : links.length === 0 ? null : (
@@ -307,6 +392,29 @@ function ReviewCard({
                 New {noun} and link
               </button>
             ))}
+            {linkable.length > 0 && (
+              <select
+                className="link-existing"
+                aria-label="Link to an existing outcome or project"
+                value=""
+                disabled={busy}
+                onChange={(event) => link(event.target.value)}
+              >
+                <option value="">Link existing…</option>
+                {['Outcomes', 'Projects'].map((group) => {
+                  const items = linkable.filter((item) => item.group === group);
+                  return items.length === 0 ? null : (
+                    <optgroup key={group} label={group}>
+                      {items.map((item) => (
+                        <option key={item.value} value={item.value}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  );
+                })}
+              </select>
+            )}
           </div>
         )}
       </div>
@@ -352,14 +460,9 @@ function ReviewCard({
       ) : (
         <div className="actions form-actions">
           {pending && (
-            <>
-              <button type="button" className="ghost" disabled={busy} onClick={() => setRejecting(true)}>
-                Reject…
-              </button>
-              <button type="button" className="ghost" disabled={busy} onClick={() => onEdit(insight)}>
-                Edit
-              </button>
-            </>
+            <button type="button" className="ghost" disabled={busy} onClick={() => setRejecting(true)}>
+              Reject…
+            </button>
           )}
           <button
             type="button"
@@ -387,22 +490,208 @@ function ReviewCard({
   );
 }
 
+const EVIDENCE = [
+  { id: 'true', label: 'Firsthand' },
+  { id: 'false', label: 'Relayed' },
+];
+
 // Where to go to check the observation: the link into the external tool when
-// there is one, otherwise whatever reference was recorded.
-function SourceLine({ insight }) {
+// there is one, otherwise whatever reference was recorded. Clicking the text
+// edits it; the arrow beside a link opens it.
+function SourceLine({ insight, disabled, onSave }) {
   if (insight.source_url) {
     return (
-      <p className="hint">
-        <a href={insight.source_url} target="_blank" rel="noreferrer">
-          {insight.source_external_id || 'Open source'}
-        </a>
+      <p className="hint source-line">
+        {disabled ? (
+          <a href={insight.source_url} target="_blank" rel="noreferrer">
+            {insight.source_external_id || 'Open source'}
+          </a>
+        ) : (
+          <>
+            <InlineText
+              value={insight.source_url}
+              display={insight.source_external_id || insight.source_url}
+              label="Source link"
+              className="source-link"
+              // The old label named the old link, so a new link drops it.
+              onCommit={(url) => onSave({ source_url: url || null, source_external_id: null })}
+            />
+            <a href={insight.source_url} target="_blank" rel="noreferrer" title="Open source" aria-label="Open source">
+              ↗
+            </a>
+          </>
+        )}
       </p>
     );
   }
-  const reference = insight.source_external_id || insight.source;
-  return reference ? (
-    <p className="hint">
-      <LinkedText text={reference} />
+  const reference = insight.source || insight.source_external_id;
+  if (disabled) {
+    return reference ? (
+      <p className="hint">
+        <LinkedText text={reference} />
+      </p>
+    ) : null;
+  }
+  return (
+    <p className="hint source-line">
+      <InlineText
+        value={insight.source ?? ''}
+        display={reference || null}
+        label="Source"
+        placeholder="Add a source"
+        onCommit={(source) => onSave({ source: source || null })}
+      />
     </p>
-  ) : null;
+  );
+}
+
+// A field name beside its value, e.g. "Type [Interview]".
+function PillField({ label, title, children }) {
+  return (
+    <span className="tag-field" title={title}>
+      <span className="tag-key">{label}</span>
+      {children}
+    </span>
+  );
+}
+
+// A choice that reads as a tag; `empty`, when given, labels the no-value option.
+function PillSelect({ label, value, options, empty, disabled, onChange }) {
+  return (
+    <select
+      className={value ? 'cell-input pill' : 'cell-input pill empty'}
+      data-value={value}
+      aria-label={label}
+      value={value}
+      disabled={disabled}
+      onChange={(event) => onChange(event.target.value)}
+    >
+      {empty !== undefined && <option value="">{empty}</option>}
+      {options.map((option) => (
+        <option key={option.id} value={option.id}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function SentimentSelect({ value, disabled, onChange }) {
+  return (
+    <select
+      className="cell-input sentiment-select"
+      aria-label="Sentiment"
+      title={sentimentOf(value)?.label ?? 'No sentiment'}
+      value={value ?? ''}
+      disabled={disabled}
+      onChange={(event) => onChange(event.target.value || null)}
+    >
+      <option value="">—</option>
+      {SENTIMENTS.map((sentiment) => (
+        <option key={sentiment.id} value={sentiment.id}>
+          {sentiment.emoji} {sentiment.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+// Text that becomes an input when clicked and saves when you click away or
+// press Enter; Escape puts back what was there. `display`, when given, is what
+// shows while it isn't being edited. `multiline` edits in a textarea that grows
+// to fit (Shift+Enter for a new line); `pill` shows the value as a tag.
+function InlineText({ value, label, display, placeholder = '', type = 'text', required, multiline, pill, className = '', disabled, onCommit }) {
+  const [draft, setDraft] = useState(null);
+  // Set by Escape, so the blur that follows doesn't save.
+  const cancelled = useRef(false);
+  const current = String(value);
+  const shown = display ?? current;
+
+  if (disabled || draft === null) {
+    const empty = !shown;
+    if (disabled && empty) return pill ? <span className="tag project empty">—</span> : null;
+    const classes = [
+      pill ? 'tag project' : '',
+      empty ? 'empty' : '',
+      disabled ? '' : 'inline-edit',
+      className,
+    ].filter(Boolean).join(' ');
+    if (disabled) return <span className={classes}>{shown}</span>;
+    return (
+      <span
+        className={classes}
+        role="button"
+        tabIndex={0}
+        aria-label={`Edit ${label.toLowerCase()}`}
+        title="Click to edit"
+        onClick={() => setDraft(current)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            setDraft(current);
+          }
+        }}
+      >
+        {empty ? placeholder : shown}
+      </span>
+    );
+  }
+
+  function commit() {
+    const next = draft.trim();
+    setDraft(null);
+    if (cancelled.current) {
+      cancelled.current = false;
+      return;
+    }
+    if (next === current || (required && !next)) return;
+    onCommit(next);
+  }
+
+  function onKeyDown(event) {
+    if (event.key === 'Enter' && !(multiline && event.shiftKey)) {
+      event.preventDefault();
+      event.currentTarget.blur();
+    }
+    if (event.key === 'Escape') {
+      cancelled.current = true;
+      event.currentTarget.blur();
+    }
+  }
+
+  const classes = `cell-input inline-input${pill ? ' pill-input' : ''} ${className}`.trim();
+  return multiline ? (
+    <textarea
+      className={classes}
+      rows={1}
+      autoFocus
+      aria-label={label}
+      value={draft}
+      ref={fitHeight}
+      onChange={(event) => {
+        setDraft(event.target.value);
+        fitHeight(event.target);
+      }}
+      onBlur={commit}
+      onKeyDown={onKeyDown}
+    />
+  ) : (
+    <input
+      className={classes}
+      type={type}
+      step={type === 'number' ? '0.01' : undefined}
+      autoFocus
+      aria-label={label}
+      value={draft}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={commit}
+      onKeyDown={onKeyDown}
+    />
+  );
+}
+
+function fitHeight(textarea) {
+  if (!textarea) return;
+  textarea.style.height = 'auto';
+  textarea.style.height = `${textarea.scrollHeight + 2}px`;
 }

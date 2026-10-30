@@ -751,9 +751,10 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
                 insights={insights}
                 outcomes={outcomes}
                 projects={projects}
+                teams={teams}
                 onApprove={approveInsight}
                 onReject={rejectInsight}
-                onEdit={(insight) => setModal({ kind: 'insight', insight })}
+                onUpdate={patchInsight}
                 onUnlink={unlinkInsight}
                 onCreateProposed={createFromProposal}
                 onCreateOwn={createForInsight}

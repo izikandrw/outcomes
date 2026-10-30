@@ -122,3 +122,26 @@ test('PUT /:id replaces the sentiment', async () => {
   assert.match(update.sql, /sentiment = \$12/);
   assert.equal(update.params[11], 'positive');
 });
+
+test('PUT /:id updates the provenance fields it names and keeps the rest', async () => {
+  db.respond = (sql) => (/^UPDATE insights/.test(sql) ? { rows: [{ id: 5 }], rowCount: 1 } : { rows: [{ id: 5 }] });
+  const res = await request('PUT', '/5', { name: 'Admins love the new setup', source_system: ' Jira ', firsthand: false });
+  assert.equal(res.status, 200);
+  const updates = db.calls.filter((call) => /^UPDATE insights/.test(call.sql));
+  assert.equal(updates.length, 2);
+  assert.equal(updates[1].sql, 'UPDATE insights SET source_system = $3, firsthand = $4 WHERE id = $1 AND account_id = $2');
+  assert.deepEqual(updates[1].params, [5, ACCOUNT_ID, 'Jira', false]);
+});
+
+test('PUT /:id leaves provenance alone when none is named', async () => {
+  db.respond = (sql) => (/^UPDATE insights/.test(sql) ? { rows: [{ id: 5 }], rowCount: 1 } : { rows: [{ id: 5 }] });
+  await request('PUT', '/5', { name: 'Admins love the new setup' });
+  assert.equal(db.calls.filter((call) => /^UPDATE insights/.test(call.sql)).length, 1);
+});
+
+test('PUT /:id rejects a firsthand that is not true or false', async () => {
+  const res = await request('PUT', '/5', { name: 'Admins love the new setup', firsthand: 'yes' });
+  assert.equal(res.status, 400);
+  assert.match(res.body.error, /firsthand must be true or false/);
+  assert.equal(db.calls.length, 0);
+});

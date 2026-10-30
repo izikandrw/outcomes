@@ -170,8 +170,8 @@ function readProposedLinks(proposed, res) {
   return normalised;
 }
 
-// Where an insight came from. Set once, when it is created: an edit in the UI
-// replaces the rest of the record but never what the observation rests on.
+// Where an insight came from. Set when it is created; an edit changes only the
+// parts it names (see readProvenanceEdits), so a full edit never wipes it.
 async function readProvenance(req, res) {
   const { status, source_system, source_url, source_external_id, source_excerpt, firsthand, collection_run_id } = req.body;
 
@@ -202,6 +202,33 @@ async function readProvenance(req, res) {
     firsthand: firsthand ?? null,
     collectionRunId: collection_run_id || null,
   };
+}
+
+// The provenance fields a PUT names, by column. A reviewer can correct the
+// collector's source, source link or firsthand call in place; fields the
+// request leaves out are kept.
+const PROVENANCE_COLUMNS = ['source_system', 'source_url', 'source_external_id', 'source_excerpt', 'firsthand'];
+
+function readProvenanceEdits(req, res) {
+  const edits = {};
+  for (const column of PROVENANCE_COLUMNS) {
+    if (!(column in req.body)) continue;
+    const value = req.body[column];
+    if (column === 'firsthand') {
+      if (value !== null && typeof value !== 'boolean') {
+        res.status(400).json({ error: 'firsthand must be true or false' });
+        return null;
+      }
+      edits[column] = value;
+    } else {
+      if (value !== null && typeof value !== 'string') {
+        res.status(400).json({ error: `${column} must be text` });
+        return null;
+      }
+      edits[column] = value?.trim() || null;
+    }
+  }
+  return edits;
 }
 
 // Replaces an insight's links in `table` with `ids`. Left alone when the
@@ -321,6 +348,8 @@ router.put('/:insightId', forbidCollector, async (req, res, next) => {
   try {
     const input = await readBody(req, res);
     if (!input) return;
+    const provenance = readProvenanceEdits(req, res);
+    if (!provenance) return;
 
     client = await pool.connect();
     await client.query('BEGIN');
@@ -350,6 +379,14 @@ router.put('/:insightId', forbidCollector, async (req, res, next) => {
     if (rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'insight not found' });
+    }
+    const columns = Object.keys(provenance);
+    if (columns.length > 0) {
+      await client.query(
+        `UPDATE insights SET ${columns.map((column, i) => `${column} = $${i + 3}`).join(', ')}
+         WHERE id = $1 AND account_id = $2`,
+        [rows[0].id, req.accountId, ...Object.values(provenance)]
+      );
     }
     await replaceAllLinks(client, rows[0].id, req.accountId, input);
     await client.query('COMMIT');
