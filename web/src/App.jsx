@@ -20,7 +20,7 @@ import TeamForm from './components/TeamForm.jsx';
 import TeamHome from './components/TeamHome.jsx';
 import TeamTree from './components/TeamTree.jsx';
 import OutcomeList from './components/OutcomeList.jsx';
-import IssueCounts from './components/IssueCounts.jsx';
+import IssueCounts, { IssueFilter } from './components/IssueCounts.jsx';
 import IssueExplainer from './components/IssueExplainer.jsx';
 import JumpToTop from './components/JumpToTop.jsx';
 import OutcomeTree from './components/OutcomeTree.jsx';
@@ -31,10 +31,13 @@ import TopNav from './components/TopNav.jsx';
 import ViewToggle from './components/ViewToggle.jsx';
 import { PlusIcon } from './components/icons.jsx';
 import { insightsForOutcome, insightsForProject, isEvidence, targetLabel, targetsFor } from './lib/links.js';
+import { flaggedBy, ruleById } from './lib/validation.js';
 
 const STORED_VIEW = 'outcomes.view';
 const STORED_PAGE = 'outcomes.page';
 const STORED_TEAM = 'outcomes.team';
+// Where a header issue count takes you, by the kind of thing its rule applies to.
+const ISSUE_PAGES = { impact: 'map', outcome: 'outcomes', project: 'roadmap' };
 
 // The fields a project PUT replaces; parent_project_id is sent explicitly so a
 // partial update never clears it.
@@ -81,9 +84,10 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   // Once the header scrolls out of view a compact copy of the nav pins to the top.
   const headerRef = useRef(null);
   const [headerHidden, setHeaderHidden] = useState(false);
-  // The rule a header issue count was clicked for; Potential Issues scrolls to
-  // its section. A fresh object each click, so a repeat click scrolls again.
-  const [issueFocus, setIssueFocus] = useState(null);
+  // The id of the delivery rule a header issue count was clicked for. The list
+  // of the kind of thing it applies to shows only what breaks it, until the
+  // filter is cleared or the person moves to another page or view.
+  const [issueFilter, setIssueFilter] = useState(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => setHeaderHidden(!entry.isIntersecting));
@@ -196,6 +200,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   function changePage(next) {
     setPage(next);
     localStorage.setItem(STORED_PAGE, next);
+    setIssueFilter(null);
   }
 
   function openTeam(id) {
@@ -208,13 +213,23 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   function changeView(next) {
     setView(next);
     localStorage.setItem(STORED_VIEW, next);
+    setIssueFilter(null);
   }
 
+  // Impacts are only listed on the map; outcomes have their list, projects the roadmap.
   function openIssues(rule) {
-    changePage('outcomes');
-    changeView('issues');
-    setIssueFocus({ ruleId: rule.id });
+    changePage(ISSUE_PAGES[rule.appliesTo]);
+    if (rule.appliesTo === 'outcome') changeView('list');
+    setIssueFilter(rule.id);
+    window.scrollTo({ top: 0 });
   }
+
+  const issueRule = issueFilter ? ruleById(issueFilter) : null;
+  const flagged = issueRule ? flaggedBy(issueRule, { impacts, outcomes, projects, insights: evidence }) : null;
+  const issueBanner = (all) =>
+    issueRule && (
+      <IssueFilter rule={issueRule} shown={flagged.length} total={all.length} onClear={() => setIssueFilter(null)} />
+    );
 
   async function saveTeam(team) {
     const editing = modal?.team;
@@ -662,7 +677,14 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
           <h1>Outcomes</h1>
         </div>
         <TopNav page={page === 'team' ? 'teams' : page} onChange={changePage} counts={{ review: pendingReview }} />
-        <IssueCounts impacts={impacts} outcomes={outcomes} projects={projects} insights={evidence} onOpen={openIssues} />
+        <IssueCounts
+          impacts={impacts}
+          outcomes={outcomes}
+          projects={projects}
+          insights={evidence}
+          activeId={issueFilter}
+          onOpen={openIssues}
+        />
         <AccountMenu
           user={user}
           account={account}
@@ -683,7 +705,14 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
             }}
             counts={{ review: pendingReview }}
           />
-          <IssueCounts impacts={impacts} outcomes={outcomes} projects={projects} insights={evidence} onOpen={openIssues} />
+          <IssueCounts
+            impacts={impacts}
+            outcomes={outcomes}
+            projects={projects}
+            insights={evidence}
+            activeId={issueFilter}
+            onOpen={openIssues}
+          />
         </div>
       )}
 
@@ -762,11 +791,12 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
           </section>
         ) : page === 'roadmap' ? (
           <section className="card" aria-label="Roadmap">
+            {!loading && issueBanner(projects)}
             {loading ? (
               <p className="empty">Loading…</p>
-            ) : (
+            ) : flagged?.length === 0 ? null : (
               <Roadmap
-                projects={projects}
+                projects={flagged ?? projects}
                 outcomes={outcomes}
                 teams={teams}
                 insights={evidence}
@@ -794,18 +824,20 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               </button>
             </div>
           </div>
+          {!loading && issueBanner(page === 'map' ? impacts : outcomes)}
           {loading ? (
             <p className="empty">Loading…</p>
           ) : outcomes.length === 0 && !(page === 'map' && impacts.length > 0) ? (
             <EmptyOutcomes onCreate={openCreate} />
-          ) : page === 'map' ? (
+          ) : flagged?.length === 0 ? null : page === 'map' ? (
+            // Filtered to impacts with an issue, the map draws just those impacts.
             <OutcomeTree
-              impacts={impacts}
-              outcomes={outcomes}
-              projects={projects}
+              impacts={flagged ?? impacts}
+              outcomes={flagged ? [] : outcomes}
+              projects={flagged ? [] : projects}
               targets={targets}
               insights={evidence}
-              suggestions={suggestions}
+              suggestions={flagged ? [] : suggestions}
               onShowInsights={showInsights}
               onEdit={openEdit}
               onEditImpact={openEditImpact}
@@ -824,7 +856,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
             />
           ) : view === 'list' ? (
             <OutcomeList
-              outcomes={outcomes}
+              outcomes={flagged ?? outcomes}
               teams={teams}
               projects={projects}
               targets={targets}
@@ -849,7 +881,6 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               onEdit={openEdit}
               onEditImpact={openEditImpact}
               onEditProject={openEditProject}
-              focus={issueFocus}
             />
           )}
         </section>

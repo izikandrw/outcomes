@@ -130,3 +130,10 @@ export function groupByRule(validation, { impacts = [], outcomes, projects }) {
     return { rule, items };
   });
 }
+
+// The entities that break one rule, for a list filtered to that issue.
+export function flaggedBy(rule, { impacts = [], outcomes, projects, insights = [] }) {
+  const validation = validateTree({ outcomes, projects, insights, impacts });
+  const pool = { impact: impacts, outcome: outcomes, project: projects }[rule.appliesTo];
+  return pool.filter((entity) => issuesFor(validation, rule.appliesTo, entity).includes(rule));
+}

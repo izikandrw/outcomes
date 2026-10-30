@@ -2240,6 +2240,39 @@ button.team-chip.link:hover {
   border-color: var(--muted);
 }
 
+/* The count whose issue the list below is filtered to. */
+.issue-count.active {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--danger) 35%, transparent);
+}
+
+.issue-count.ok.active {
+  border-color: var(--muted);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--muted) 35%, transparent);
+}
+
+/* Above a list filtered to one issue: which issue, how many, and a way back. */
+.issue-filter {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 12px 0;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--danger) 6%, var(--surface));
+  font-size: 14px;
+}
+
+.issue-filter-rule {
+  font-weight: 700;
+}
+
+.issue-filter-detail {
+  flex: 1;
+  color: var(--muted);
+}
+
 .issue-rule {
   margin: 0 0 6px;
   color: var(--muted);
