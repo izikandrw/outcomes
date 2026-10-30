@@ -89,7 +89,7 @@ About a third of the documents should have **zero** gold insights. That matches 
 
 ### Where the cases come from
 
-- **Real documents from your own tools**, not synthetic ones. Synthetic text is too clean and too easy. If the material is sensitive, keep `agent/evals/cases/` out of git (gitignore it and store it privately), and keep only the runner and the fixture catalog in the repo.
+- **Real documents from your own tools**, not synthetic ones. Synthetic text is too clean and too easy. The material is sensitive, so cases live in the app's database (`eval_cases`), backed up and scoped by account like the customer data they come from, and `agent/evals/cases/` stays out of the repo.
 - **Label by hand, before you see the agent's output.** If you label by editing what the agent produced, you anchor on its wording and the eval ends up rewarding "agrees with the model" instead of "correct." Never use the model's output as the gold answer.
 - **Get a second labeler on ~10 cases.** Wherever the two of you disagree, the definition is ambiguous. Fix `insight.md`, not just the label.
 - The catalog fixture should look like a real account: 15–30 outcomes and projects, including a couple that are *nearly* right for some insights, so linking is actually tested.
@@ -138,4 +138,9 @@ Once real people are reviewing, every decision in the queue is labeled data. `in
 - **Links removed or added** by reviewers → link cases
 - **Insights people add by hand** from a source the agent already read → *recall* misses
 
-Once a week, look through new rejections and edits, and through the documents the agent passed over, on **Review → Runs** (`design.md` §6). The run trace shows every document the agent read, its decision and reason, and the review verdict on each suggestion. Use it to **choose** cases: rejections, heavy edits, rows it skipped that it shouldn't have, close calls it flagged. **Download document.json** gives you the case's input; write `expected.json` yourself, from the document, without looking at what the agent said, or the eval ends up rewarding agreement with the agent. Track approval rate in production next to the eval scores. If evals improve and approval rate doesn't, the eval doesn't reflect real usage and needs new cases.
+Once a week, look through new rejections and edits, and through the documents the agent passed over, on **Review → Runs** (`design.md` §6). The run trace shows every document the agent read, its decision and reason, and the review verdict on each suggestion. Use it to **choose** cases: rejections, heavy edits, rows it skipped that it shouldn't have, close calls it flagged. Each document there can be added to the **eval set** (Review → Eval set, the `eval_cases` table, migration `021`), in one of two sets:
+
+- **Review set**: the expected answer is drafted from what reviewers did. Approved suggestions are expected as reviewers left them; ones rejected as not an insight or inaccurate go in `not_insights`; anything that needs a judgment call (waiting, a duplicate, a wrong link, a skipped document) leaves the case a draft with a note. Cheap and grows with every review, so it catches regressions, but it only knows what the agent suggested, so it can't measure recall.
+- **Golden set**: the expected answer starts blank. Write it from the document, without looking at what the agent said, or the eval ends up rewarding agreement with the agent. This is the set that measures recall.
+
+Only **ready** cases are scored, and a case can't be marked ready while an expected excerpt isn't in its document. New cases fill the held-out **test** split up to 30%. The collector can't read the eval set. **Download ready cases** gives one JSON file of `{ name, split, label_source, document, expected }`, the `agent/evals/cases/` folders flattened. Track approval rate in production next to the eval scores. If evals improve and approval rate doesn't, the eval doesn't reflect real usage and needs new cases.

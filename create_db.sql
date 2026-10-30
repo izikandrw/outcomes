@@ -293,6 +293,30 @@ CREATE TABLE insight_events (
 CREATE INDEX idx_insight_events_account_id ON insight_events(account_id);
 CREATE INDEX idx_insight_events_insight_id ON insight_events(insight_id);
 
+-- The insight collector's eval set: each case is a document (document.json)
+-- and the answer the collector should give for it (expected.json), labelled
+-- by hand ('golden') or drafted from review ('review'). Only 'ready' cases are
+-- scored; 'test' is the held-out split (product/agents/insight-collector/evals.md).
+CREATE TABLE eval_cases (
+    id              BIGSERIAL PRIMARY KEY,
+    account_id      BIGINT NOT NULL REFERENCES accounts(id),
+    name            TEXT NOT NULL,
+    label_source    TEXT NOT NULL CHECK (label_source IN ('golden', 'review')),
+    status          TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'ready')),
+    split           TEXT NOT NULL DEFAULT 'dev' CHECK (split IN ('dev', 'test')),
+    document        JSONB NOT NULL,
+    expected        JSONB NOT NULL DEFAULT '{"insights": []}',
+    run_document_id BIGINT REFERENCES collection_run_documents(id) ON DELETE SET NULL,
+    created_by      BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (account_id, name)
+);
+
+CREATE INDEX idx_eval_cases_account_id ON eval_cases(account_id);
+CREATE UNIQUE INDEX idx_eval_cases_run_document
+    ON eval_cases (run_document_id, label_source) WHERE run_document_id IS NOT NULL;
+
 CREATE TABLE invites (
     id          BIGSERIAL PRIMARY KEY,
     account_id  BIGINT NOT NULL REFERENCES accounts(id),

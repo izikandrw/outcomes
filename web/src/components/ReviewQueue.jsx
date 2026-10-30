@@ -4,6 +4,7 @@ import { insightFilterFields, matchesFilters } from '../lib/insightFilters.js';
 import { IMPACT_AREAS, INSIGHT_TYPES, REJECTION_REASONS, formatDollars, rejectionReasonLabel } from '../lib/links.js';
 import FilterBar from './FilterBar.jsx';
 import CollectionRuns, { formatTime } from './CollectionRuns.jsx';
+import EvalCases from './EvalCases.jsx';
 import {
   EVIDENCE,
   InlineText,
@@ -26,10 +27,11 @@ import {
 // dismisses it, or approves the insight and creates all of them at once.
 // Whatever was proposed, the reviewer can also create an outcome or project of
 // their own and link the insight to it. Every field on a card edits in place:
-// click it, change it, and it saves. The Runs tab shows the collector's traces.
+// click it, change it, and it saves. The Runs tab shows the collector's traces,
+// and the Eval set tab the cases picked from them.
 // `view` holds the tab, the open run and the filters ({ tab, run, filters }, a
 // null tab meaning Needs review), which the app keeps in the URL.
-const REVIEW_TABS = ['pending', 'rejected', 'runs'];
+const REVIEW_TABS = ['pending', 'rejected', 'runs', 'evals'];
 
 export default function ReviewQueue({
   view,
@@ -92,18 +94,29 @@ export default function ReviewQueue({
           <button type="button" aria-pressed={tab === 'runs'} onClick={() => setTab('runs')}>
             Runs{lastRunAt && ` (${formatTime(lastRunAt)})`}
           </button>
+          <button
+            type="button"
+            aria-pressed={tab === 'evals'}
+            onClick={() => setTab('evals')}
+            title="Documents with the answer the collector should give, for scoring a model or prompt version"
+          >
+            Eval set
+          </button>
         </div>
       </div>
-      {tab !== 'runs' && inTab.length > 0 && (
+      {!['runs', 'evals'].includes(tab) && inTab.length > 0 && (
         <FilterBar fields={fields} filters={filters} onChange={setFilters} countFor={countFor} />
       )}
-      {tab === 'runs' ? (
+      {tab === 'evals' ? (
+        <EvalCases accountId={accountId} />
+      ) : tab === 'runs' ? (
         <CollectionRuns
           accountId={accountId}
           outcomes={outcomes}
           projects={projects}
           openId={view.run}
           onOpen={(run) => onViewChange({ ...view, run: run == null ? null : String(run) })}
+          onOpenEvalSet={() => setTab('evals')}
         />
       ) : inTab.length === 0 ? (
         <p className="empty">

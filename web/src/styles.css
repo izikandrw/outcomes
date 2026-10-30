@@ -2943,6 +2943,40 @@ button.team-chip.link:hover {
   color: var(--muted);
 }
 
+/* An eval case's editor (EvalCases.jsx). */
+.eval-case-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.eval-case-tips {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.eval-case-document {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.eval-case-document .run-text {
+  align-self: stretch;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.eval-case-label {
+  font-size: 14px;
+}
+
+.eval-case-json {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
 /* An insight's sentiment emoji ahead of its name. */
 .sentiment {
   font-weight: normal;

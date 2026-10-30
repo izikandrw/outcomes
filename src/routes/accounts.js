@@ -13,6 +13,7 @@ const targetsRouter = require('./targets');
 const insightsRouter = require('./insights');
 const measurementsRouter = require('./measurements');
 const collectionRunsRouter = require('./collectionRuns');
+const evalCasesRouter = require('./evalCases');
 
 const router = express.Router();
 
@@ -55,5 +56,6 @@ router.use('/:accountId/targets', accountScope, targetsRouter);
 router.use('/:accountId/insights', accountScope, insightsRouter);
 router.use('/:accountId/measurements', accountScope, measurementsRouter);
 router.use('/:accountId/collection-runs', accountScope, collectionRunsRouter);
+router.use('/:accountId/eval-cases', accountScope, evalCasesRouter);
 
 module.exports = router;

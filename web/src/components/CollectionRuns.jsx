@@ -8,9 +8,12 @@ import InsightHistory from './InsightHistory.jsx';
 // suggestions then fared in review. Used to spot its mistakes and to pick eval
 // cases, which is why each document can be downloaded as an eval case's
 // document.json (agent/evals/LABELING.md). Each suggestion opens its history:
-// what the collector said, and what reviewers changed. `openId` is the run
-// whose trace shows, null for the list; onOpen(id or null) changes it.
-export default function CollectionRuns({ accountId, outcomes, projects, openId, onOpen }) {
+// what the collector said, and what reviewers changed. Each document can be
+// added to the eval set (EvalCases.jsx): to the review set, with the expected
+// answer drafted from what reviewers did, or to the golden set, to label by
+// hand. `openId` is the run whose trace shows, null for the list; onOpen(id or
+// null) changes it; onOpenEvalSet() goes to the eval set.
+export default function CollectionRuns({ accountId, outcomes, projects, openId, onOpen, onOpenEvalSet }) {
   const [runs, setRuns] = useState(null);
   const [error, setError] = useState(null);
 
@@ -24,7 +27,14 @@ export default function CollectionRuns({ accountId, outcomes, projects, openId, 
 
   if (openId) {
     return (
-      <RunTrace accountId={accountId} runId={openId} outcomes={outcomes} projects={projects} onBack={() => onOpen(null)} />
+      <RunTrace
+        accountId={accountId}
+        runId={openId}
+        outcomes={outcomes}
+        projects={projects}
+        onBack={() => onOpen(null)}
+        onOpenEvalSet={onOpenEvalSet}
+      />
     );
   }
   if (error) return <p className="error">{error}</p>;
@@ -81,7 +91,7 @@ function ReviewCounts({ review }) {
   return <span className="hint">{parts.map(([n, label]) => `${n} ${label}`).join(' · ')}</span>;
 }
 
-function RunTrace({ accountId, runId, outcomes, projects, onBack }) {
+function RunTrace({ accountId, runId, outcomes, projects, onBack, onOpenEvalSet }) {
   const [run, setRun] = useState(null);
   const [error, setError] = useState(null);
 
@@ -162,6 +172,19 @@ function RunTrace({ accountId, runId, outcomes, projects, onBack }) {
               <pre className="run-text">{doc.text}</pre>
             </details>
             <div className="actions form-actions">
+              <AddToEvalSet
+                accountId={accountId}
+                doc={doc}
+                onAdded={(added) =>
+                  setRun((current) => ({
+                    ...current,
+                    documents: current.documents.map((entry) =>
+                      entry.id === doc.id ? { ...entry, eval_cases: [...(entry.eval_cases ?? []), added] } : entry,
+                    ),
+                  }))
+                }
+                onOpenEvalSet={onOpenEvalSet}
+              />
               <button type="button" className="ghost small" onClick={() => downloadDocument(run, doc)}>
                 Download document.json
               </button>
@@ -181,6 +204,67 @@ function RunTrace({ accountId, runId, outcomes, projects, onBack }) {
         </>
       )}
     </div>
+  );
+}
+
+const EVAL_SETS = [
+  {
+    id: 'review',
+    label: 'Add to review set',
+    hint: 'The expected answer is drafted from what reviewers did with these suggestions. Catches regressions.',
+  },
+  {
+    id: 'golden',
+    label: 'Add to golden set',
+    hint: 'The expected answer starts blank: label it from the document alone, without looking at what the collector said.',
+  },
+];
+
+// The document's eval set buttons: one per set it isn't in yet, and a link to
+// the eval set for each it is.
+function AddToEvalSet({ accountId, doc, onAdded, onOpenEvalSet }) {
+  const [busy, setBusy] = useState(null);
+  const [error, setError] = useState(null);
+
+  async function add(labelSource) {
+    setBusy(labelSource);
+    setError(null);
+    try {
+      const added = await api.createEvalCase(accountId, { run_document_id: doc.id, label_source: labelSource });
+      onAdded({ id: added.id, label_source: added.label_source, status: added.status });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <>
+      {EVAL_SETS.map((set) => {
+        const existing = (doc.eval_cases ?? []).find((entry) => entry.label_source === set.id);
+        if (existing) {
+          return (
+            <button key={set.id} type="button" className="ghost small" onClick={onOpenEvalSet} title="Open the eval set">
+              In {set.id} set ({existing.status}) →
+            </button>
+          );
+        }
+        return (
+          <button
+            key={set.id}
+            type="button"
+            className="ghost small"
+            title={set.hint}
+            disabled={busy !== null}
+            onClick={() => add(set.id)}
+          >
+            {busy === set.id ? 'Adding…' : set.label}
+          </button>
+        );
+      })}
+      {error && <span className="error">{error}</span>}
+    </>
   );
 }
 

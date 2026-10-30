@@ -58,6 +58,13 @@ router.get('/:runId', async (req, res, next) => {
         [run.id, req.accountId]
       ),
     ]);
+    // Which eval sets each document is already in, so it isn't added twice.
+    const { rows: cases } = await pool.query(
+      `SELECT id, run_document_id, label_source, status FROM eval_cases
+        WHERE account_id = $1 AND run_document_id = ANY($2::bigint[])`,
+      [req.accountId, documents.map((doc) => doc.id)]
+    );
+    for (const doc of documents) doc.eval_cases = cases.filter((entry) => String(entry.run_document_id) === String(doc.id));
     const events = await listEvents(pool, req.accountId, insights.map((insight) => insight.id));
     for (const insight of insights) insight.events = events.filter((event) => String(event.insight_id) === String(insight.id));
     res.json({ ...run, documents, insights });

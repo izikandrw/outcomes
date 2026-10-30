@@ -224,7 +224,7 @@ The collector writes it through `start_collection_run`, `record_document` and `f
 
 - **`insight_events`** (migration `020`): every change to an insight, with a snapshot of it before and after (`src/lib/insightEvents.js`): `created`, `edited`, `validated`, `rejected`, `reopened`, and `proposal_adopted` when a proposed outcome or project comes to exist. A review used to overwrite the collector's output in place; now the first snapshot keeps what it originally said, and the gap between that and the last one is what it got wrong: a renamed observation, a changed sentiment, a removed link (with the rationale it gave), a dismissed proposal. Each suggestion in the Runs view opens this as its **History**, and `GET /insights/:id/events` returns it. Suggestions from before `020` got a rebuilt `created` snapshot only if nobody had edited them, and their verdict.
 
-When a reviewer rejects something, the first question is *which step got it wrong?* The trace answers it. **Download document.json** on any document produces an eval case's input in the `agent/evals/cases/` shape; you then write its `expected.json` yourself (see `evals.md`, "Closing the loop with production").
+When a reviewer rejects something, the first question is *which step got it wrong?* The trace answers it. Any document can be added to the eval set from there: **Add to review set** drafts its expected answer from the review outcome, **Add to golden set** leaves it blank to label by hand (see `evals.md`, "Closing the loop with production"). **Download document.json** still gives the input alone.
 
 The v1 pipeline (milestone 4) writes the same tables, plus raw model output per step.
 

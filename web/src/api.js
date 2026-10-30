@@ -136,6 +136,15 @@ export const updateInsight = (accountId, insightId, insight) =>
 // The insight collector's run traces: every document it read and its decision.
 export const listCollectionRuns = (accountId) => request(`/accounts/${accountId}/collection-runs`);
 export const getCollectionRun = (accountId, runId) => request(`/accounts/${accountId}/collection-runs/${runId}`);
+// The collector's eval set: documents with the answer it should give.
+// createEvalCase takes { run_document_id, label_source: 'review' | 'golden' }.
+export const listEvalCases = (accountId) => request(`/accounts/${accountId}/eval-cases`);
+export const createEvalCase = (accountId, evalCase) =>
+  request(`/accounts/${accountId}/eval-cases`, { method: 'POST', body: JSON.stringify(evalCase) });
+export const updateEvalCase = (accountId, caseId, changes) =>
+  request(`/accounts/${accountId}/eval-cases/${caseId}`, { method: 'PUT', body: JSON.stringify(changes) });
+export const deleteEvalCase = (accountId, caseId) =>
+  request(`/accounts/${accountId}/eval-cases/${caseId}`, { method: 'DELETE' });
 export const validateInsight = (accountId, insightId) =>
   request(`/accounts/${accountId}/insights/${insightId}/validate`, { method: 'POST' });
 export const rejectInsight = (accountId, insightId, reason, note) =>

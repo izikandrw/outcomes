@@ -12,7 +12,7 @@ agent/evals/cases/<short-name>/
 
 Copy `cases/_example-attention-call/` and replace the contents. Folder names: `<source>-<what>`, e.g. `csv-churn-tracker-row-12`, `attention-globex-renewal`, `jira-PROD-2291`, `noinsight-password-reset`.
 
-**Real customer content stays out of git.** Everything in `cases/` is ignored except the example. Keep the folder somewhere private and backed up.
+**Real customer content stays out of git.** Everything in `cases/` is ignored except the example. The eval set itself lives in the app: on **Review → Runs**, open a run and click **Add to golden set** on a document, then label it on **Review → Eval set**, where you can select the excerpt in the document text. The same rules apply there.
 
 ## The mix to aim for (~30)
 
