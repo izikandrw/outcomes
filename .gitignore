@@ -11,3 +11,6 @@ agent-insight-collector/evals/results/
 
 # Claude Code worktrees are separate checkouts, not repo content.
 .claude/worktrees/
+
+# macOS Finder metadata.
+.DS_Store
