@@ -14,6 +14,7 @@ import Modal from './components/Modal.jsx';
 import OutcomeForm from './components/OutcomeForm.jsx';
 import ParentOutcomeTag from './components/ParentOutcomeTag.jsx';
 import ProjectForm from './components/ProjectForm.jsx';
+import ProjectList from './components/ProjectList.jsx';
 import TargetMeasurements from './components/TargetMeasurements.jsx';
 import TargetForm from './components/TargetForm.jsx';
 import TeamForm from './components/TeamForm.jsx';
@@ -207,6 +208,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   const showInsights = (entity, kind, filter = 'verified') =>
     setModal({ kind: 'entity-insights', entity, entityKind: kind, filter });
   const openEditProject = (project) => setModal({ kind: 'project', project, parent: null });
+  const openCreateProject = () => setModal({ kind: 'project', project: null, parent: null });
   const openAddChildProject = (parentProject) =>
     setModal({ kind: 'project', project: null, parent: null, parentProject });
   const setModalParentId = (parentId) => setModal((current) => (current ? { ...current, parentId } : current));
@@ -896,6 +898,44 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
                 onEditTarget={openEditTarget}
                 onDeleteTarget={removeTarget}
                 onViewTarget={viewTarget}
+              />
+            )}
+          </section>
+        ) : page === 'projects' ? (
+          <section className="card" aria-label="Projects">
+            {/* The project list carries New project in its own toolbar. */}
+            {(loading || projects.length === 0 || flagged?.length === 0) && (
+              <div className="list-head">
+                <div className="actions">
+                  <button type="button" className="with-icon btn-project" onClick={openCreateProject}>
+                    <PlusIcon />
+                    New project
+                  </button>
+                </div>
+              </div>
+            )}
+            {!loading && issueBanner(projects)}
+            {loading ? (
+              <p className="empty">Loading…</p>
+            ) : projects.length === 0 ? (
+              <p className="empty">No projects yet.</p>
+            ) : flagged?.length === 0 ? null : (
+              <ProjectList
+                view={pageView}
+                onViewChange={setPageView}
+                projects={flagged ?? projects}
+                allProjects={projects}
+                outcomes={outcomes}
+                teams={teams}
+                impacts={impacts}
+                insights={evidence}
+                suggestions={suggestions}
+                issues={validateTree({ outcomes, projects, insights: evidence, impacts }).project}
+                onCreate={openCreateProject}
+                onEdit={openEditProject}
+                onDelete={removeProject}
+                onShowInsights={showInsights}
+                onOpenTeam={openTeam}
               />
             )}
           </section>

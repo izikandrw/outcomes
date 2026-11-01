@@ -3,6 +3,7 @@ const PAGES = [
   { id: 'impacts', label: 'Impacts' },
   { id: 'outcomes', label: 'Outcomes' },
   { id: 'roadmap', label: 'Roadmap' },
+  { id: 'projects', label: 'Projects' },
   { id: 'insights', label: 'Insights' },
   {
     id: 'review',

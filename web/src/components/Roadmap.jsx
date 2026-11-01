@@ -92,7 +92,7 @@ function monthLabel(key) {
   });
 }
 
-function formatRange({ start_at, end_at }) {
+export function formatRange({ start_at, end_at }) {
   if (start_at && end_at) return `${formatDay(start_at)} – ${formatDay(end_at)}`;
   if (start_at) return `from ${formatDay(start_at)}`;
   return `by ${formatDay(end_at)}`;

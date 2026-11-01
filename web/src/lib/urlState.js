@@ -14,7 +14,7 @@
 //
 // Filters carry an `f.` prefix because some filter fields share a name with
 // an item param (an insight's outcome filter vs. outcome=42).
-export const PAGES = ['map', 'impacts', 'outcomes', 'roadmap', 'insights', 'review', 'teams', 'team'];
+export const PAGES = ['map', 'impacts', 'outcomes', 'roadmap', 'projects', 'insights', 'review', 'teams', 'team'];
 export const ITEM_KINDS = ['outcome', 'impact', 'project', 'target', 'insight'];
 const FILTER_PREFIX = 'f.';
 
