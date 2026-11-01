@@ -627,6 +627,27 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
     setModal(null);
   }
 
+  // A field edited in place on the project list; throws so the row can show why.
+  async function patchProject(project, patch) {
+    const updated = await api.updateProject(accountId, project.id, { ...projectPayload(project), ...patch });
+    setProjects((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+  }
+
+  // Ticks or unticks an outcome the project drives. Unticking also clears the
+  // older single-column link (outcome.project_id), which would otherwise keep it linked.
+  async function toggleProjectOutcome(project, outcome) {
+    const same = (a, b) => String(a) === String(b);
+    const ids = (project.outcome_ids ?? []).map(Number);
+    const linked = ids.some((id) => same(id, outcome.id)) || same(outcome.project_id, project.id);
+    await patchProject(project, {
+      outcome_ids: linked ? ids.filter((id) => !same(id, outcome.id)) : [...ids, Number(outcome.id)],
+    });
+    if (linked && same(outcome.project_id, project.id)) {
+      const cleared = await api.updateOutcome(accountId, outcome.id, { ...outcomePayload(outcome), project_id: null });
+      setOutcomes((current) => current.map((item) => (item.id === cleared.id ? cleared : item)));
+    }
+  }
+
   async function removeProject(project) {
     if (!(await askConfirm('Delete project?', `“${project.name}” will be permanently deleted.`))) return;
     try {
@@ -932,7 +953,8 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
                 suggestions={suggestions}
                 issues={validateTree({ outcomes, projects, insights: evidence, impacts }).project}
                 onCreate={openCreateProject}
-                onEdit={openEditProject}
+                onUpdate={patchProject}
+                onToggleOutcome={toggleProjectOutcome}
                 onDelete={removeProject}
                 onShowInsights={showInsights}
                 onOpenTeam={openTeam}

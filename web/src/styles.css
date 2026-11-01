@@ -1661,7 +1661,7 @@ button.tag.insight-badge.suggested {
 
 /* The sentiment emoji stands alone; the options name it. A drawn chevron
    replaces the native arrow, which left too little room for the emoji. */
-:is(.insight-table, .review-card, .insight-card) select.cell-input.sentiment-select {
+:is(.insight-table, .review-card, .insight-card, .project-row) select.cell-input.sentiment-select {
   appearance: none;
   width: 2.9rem;
   padding-left: 0.2rem;
@@ -1681,7 +1681,7 @@ button.tag.insight-badge.suggested {
 
 /* Type and area selects read as tags, as wide as the chosen value rather
    than the longest option; the chevron is drawn in currentColor. */
-:is(.insight-table, .review-card, .insight-card) select.cell-input.pill {
+:is(.insight-table, .review-card, .insight-card, .project-row) select.cell-input.pill {
   appearance: none;
   field-sizing: content;
   width: auto;
@@ -1722,18 +1722,18 @@ button.tag.insight-badge.suggested {
 .pill[data-value='review'] { --pill: var(--hue-lime); }
 .pill[data-value='other'] { --pill: var(--muted); }
 
-:is(.insight-table, .review-card, .insight-card) select.cell-input.pill.empty {
+:is(.insight-table, .review-card, .insight-card, .project-row) select.cell-input.pill.empty {
   color: var(--muted);
   font-weight: 500;
   background-color: transparent;
   border-color: var(--border);
 }
 
-:is(.insight-table, .review-card, .insight-card) select.cell-input.pill:hover {
+:is(.insight-table, .review-card, .insight-card, .project-row) select.cell-input.pill:hover {
   filter: brightness(0.95);
 }
 
-:is(.insight-table, .review-card, .insight-card) select.cell-input.pill:focus-visible {
+:is(.insight-table, .review-card, .insight-card, .project-row) select.cell-input.pill:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -2623,45 +2623,56 @@ button.team-chip.link:hover {
   flex: 1;
 }
 
+/* A project list row edits in place like an insight card; its fields take the
+   row's full width so a name or description being edited has room. */
+.project-row > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.project-row h3 {
+  margin: 0 0 4px;
+}
+
 /* Fields edit in place: they read as plain text or tags, and outline on hover
    to show a click edits them. */
-:is(.review-card, .insight-card) .inline-edit {
+:is(.review-card, .insight-card, .project-row) .inline-edit {
   cursor: text;
   border-radius: 6px;
   outline: 1px solid transparent;
   outline-offset: 2px;
 }
 
-:is(.review-card, .insight-card) .inline-edit:hover,
-:is(.review-card, .insight-card) .inline-edit:focus-visible {
+:is(.review-card, .insight-card, .project-row) .inline-edit:hover,
+:is(.review-card, .insight-card, .project-row) .inline-edit:focus-visible {
   outline-color: var(--border);
 }
 
-:is(.review-card, .insight-card) .inline-edit:focus-visible {
+:is(.review-card, .insight-card, .project-row) .inline-edit:focus-visible {
   outline-color: var(--accent);
 }
 
-:is(.review-card, .insight-card) .inline-edit.empty:not(.tag) {
+:is(.review-card, .insight-card, .project-row) .inline-edit.empty:not(.tag) {
   color: var(--muted);
   font-style: italic;
 }
 
-:is(.review-card, .insight-card) .tag.empty {
+:is(.review-card, .insight-card, .project-row) .tag.empty {
   background: transparent;
   border: 1px solid var(--border);
   font-weight: 500;
 }
 
-:is(.review-card, .insight-card) .source-row {
+:is(.review-card, .insight-card, .project-row) .source-row {
   overflow-wrap: anywhere;
 }
 
-:is(.review-card, .insight-card) .cell-input {
+:is(.review-card, .insight-card, .project-row) .cell-input {
   font: inherit;
   color: inherit;
 }
 
-:is(.review-card, .insight-card) .inline-input {
+:is(.review-card, .insight-card, .project-row) .inline-input {
   width: 100%;
   padding: 2px 6px;
   margin: -3px 0 -3px -7px;
@@ -2670,14 +2681,14 @@ button.team-chip.link:hover {
   background: var(--surface);
 }
 
-:is(.review-card, .insight-card) textarea.inline-input {
+:is(.review-card, .insight-card, .project-row) textarea.inline-input {
   display: block;
   resize: none;
   overflow: hidden;
   line-height: inherit;
 }
 
-:is(.review-card, .insight-card) .inline-input.pill-input {
+:is(.review-card, .insight-card, .project-row) .inline-input.pill-input {
   width: auto;
   field-sizing: content;
   min-width: 6rem;
@@ -2686,13 +2697,13 @@ button.team-chip.link:hover {
   border-radius: 999px;
 }
 
-:is(.review-card, .insight-card) .meta select.cell-input.pill,
-:is(.review-card, .insight-card) .meta select.cell-input.sentiment-select,
+:is(.review-card, .insight-card, .project-row) .meta select.cell-input.pill,
+:is(.review-card, .insight-card, .project-row) .meta select.cell-input.sentiment-select,
 :is(.review-card, .insight-card) h3 select.cell-input.sentiment-select {
   font-family: inherit;
 }
 
-:is(.review-card, .insight-card) .meta input[type='date'].cell-input {
+:is(.review-card, .insight-card, .project-row) .meta input[type='date'].cell-input {
   padding: 1px 6px;
   border: 1px solid transparent;
   border-radius: 999px;
@@ -2701,7 +2712,7 @@ button.team-chip.link:hover {
   cursor: pointer;
 }
 
-:is(.review-card, .insight-card) .meta input[type='date'].cell-input:hover {
+:is(.review-card, .insight-card, .project-row) .meta input[type='date'].cell-input:hover {
   border-color: var(--border);
 }
 
@@ -2711,13 +2722,13 @@ button.team-chip.link:hover {
   background-color: transparent;
 }
 
-:is(.review-card, .insight-card) select.cell-input:disabled,
-:is(.review-card, .insight-card) input.cell-input:disabled {
+:is(.review-card, .insight-card, .project-row) select.cell-input:disabled,
+:is(.review-card, .insight-card, .project-row) input.cell-input:disabled {
   cursor: default;
   filter: none;
 }
 
-:is(.review-card, .insight-card) .inline-edit.source-link {
+:is(.review-card, .insight-card, .project-row) .inline-edit.source-link {
   color: var(--accent);
   text-decoration: underline;
   overflow-wrap: anywhere;
