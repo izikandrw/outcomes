@@ -4,7 +4,9 @@ const EMPTY = { name: '', description: '', team_id: '', start_at: '', end_at: ''
 
 // Creates a project already linked to the outcome it is meant to drive (when
 // `outcome` is given) or nested under another project (when `parentProject` is
-// given), or edits an existing one in place (when `editing` is given). The team
+// given), or with neither (from the review queue, where it is linked to an
+// insight instead), or edits an existing one in place (when `editing` is
+// given). The team
 // defaults to the parent's on create, since that is nearly always the same team,
 // and may be left empty when it isn't known yet.
 // `draft` prefills name and description when creating one the insight
@@ -65,7 +67,7 @@ export default function ProjectForm({ editing, draft, outcome, parentProject, te
           ? {}
           : parentProject
             ? { parent_project_id: parentProject.id, outcome_ids: [] }
-            : { outcome_ids: [outcome.id] }),
+            : { outcome_ids: outcome ? [outcome.id] : [] }),
       });
     } catch (err) {
       setError(err.message);
@@ -82,10 +84,12 @@ export default function ProjectForm({ editing, draft, outcome, parentProject, te
             <>
               This project will be nested under <strong>{parentProject.name}</strong>.
             </>
-          ) : (
+          ) : outcome ? (
             <>
               This project will be linked to <strong>{outcome.name}</strong>.
             </>
+          ) : (
+            'This project will start without a parent outcome or project; you can link one later.'
           )}
         </p>
       )}
