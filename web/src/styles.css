@@ -2661,6 +2661,23 @@ button.team-chip.link:hover {
   margin: 0 0 4px;
 }
 
+/* Sits in the card's left padding, level with the project's name, so flagged
+   rows stand out without pushing their content out of line with the others. */
+.project-list-item {
+  position: relative;
+}
+
+.project-margin-issue {
+  position: absolute;
+  top: 10px;
+  left: -18px;
+  width: 18px;
+  font-size: 13px;
+  line-height: 24px;
+  text-align: center;
+  cursor: help;
+}
+
 /* Fields edit in place: they read as plain text or tags, and outline on hover
    to show a click edits them. */
 :is(.review-card, .insight-card, .project-row) .inline-edit {

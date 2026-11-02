@@ -3,6 +3,7 @@ import { matchesFilters } from '../lib/insightFilters.js';
 import { projectFilterFields } from '../lib/projectFilters.js';
 import useSlashFocus from '../lib/useSlashFocus.js';
 import useStuck from '../lib/useStuck.js';
+import { ruleById } from '../lib/validation.js';
 import FilterBar from './FilterBar.jsx';
 import ProjectRow from './ProjectRow.jsx';
 import { PlusIcon, SearchIcon } from './icons.jsx';
@@ -10,7 +11,11 @@ import { PlusIcon, SearchIcon } from './icons.jsx';
 // Flat list of every project, laid out like the outcome and impact lists. The
 // roadmap places projects in time; this is where to find one and narrow them
 // down by team, schedule, evidence and what they drive, using the fields in
-// projectFilters.js. Every field on a row edits in place; see ProjectRow.
+// projectFilters.js. Every field on a row edits in place; see ProjectRow. A
+// project that rolls up to no outcome carries the rule's emoji in the left margin,
+// so it stands out while scanning the list.
+const WHATS_THE_POINT = ruleById('whats-the-point');
+
 export default function ProjectList({
   view,
   onViewChange,
@@ -98,7 +103,17 @@ export default function ProjectList({
       ) : (
         <ul className="outcome-list">
           {visible.map((project) => (
-            <li key={project.id}>
+            <li key={project.id} className="project-list-item">
+              {issues?.get(project.id)?.includes(WHATS_THE_POINT) && (
+                <span
+                  className="project-margin-issue"
+                  role="img"
+                  aria-label={`${WHATS_THE_POINT.title}: ${WHATS_THE_POINT.description}`}
+                  title={`${WHATS_THE_POINT.title}\n${WHATS_THE_POINT.description}`}
+                >
+                  {WHATS_THE_POINT.emoji}
+                </span>
+              )}
               <ProjectRow
                 project={project}
                 allProjects={allProjects}
