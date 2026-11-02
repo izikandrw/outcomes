@@ -103,7 +103,7 @@ test('collect suggests verified insights, skips what was collected, and traces e
 
   const posts = calls.filter((call) => call.method === 'POST');
   assert.equal(posts[0].path, '/collection-runs');
-  assert.equal(posts[0].body.prompt_version, 'pipeline v2');
+  assert.equal(posts[0].body.prompt_version, 'pipeline v3');
 
   const suggestions = posts.filter((call) => call.path === '/insights');
   assert.equal(suggestions.length, 1);

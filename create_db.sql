@@ -143,7 +143,7 @@ CREATE TABLE insights (
     name        TEXT NOT NULL,
     type        TEXT NOT NULL DEFAULT 'other'
                 CHECK (type IN ('support_ticket', 'session_recording', 'interview', 'funnel', 'experiment',
-                                'sales_call', 'feature_request', 'survey', 'review', 'competitor', 'other')),
+                                'sales_call', 'feature_request', 'survey', 'review', 'competitor', 'published_report', 'other')),
     description TEXT,
     source      TEXT,
     observed_at TIMESTAMPTZ,

@@ -273,6 +273,7 @@ const INSIGHT_TYPES = [
   'survey',
   'review',
   'competitor',
+  'published_report',
   'other',
 ];
 

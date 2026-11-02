@@ -8,7 +8,7 @@ An insight is not a conclusion. "Users churn because onboarding is slow" is an i
 
 Insights are reusable. The same observation can justify several outcomes and several projects, and it stays on the record after the work it justified is finished. No team owns an insight: it is evidence for the whole account, and the teams it matters to are the ones that own the outcomes and projects it supports.
 
-Insights have a type: the kind of evidence they are. An insight has the type competitor when it is about something a competitor has done or shipped, whichever kind of source it came from, so a competitor launch mentioned on a sales call is competitor, not sales call.
+Insights have a type: the kind of evidence they are. An insight has the type competitor when it is about something a competitor has done or shipped, whichever kind of source it came from, so a competitor launch mentioned on a sales call is competitor, not sales call. An insight has the type published report when it comes from a piece an organization or author published on purpose, such as an engineering blog post, vendor data post, research paper or postmortem. A forum post or marketplace review is a review, not a published report, and competitor still wins when the insight is about something a competitor did or shipped.
 
 Insights can carry a dollar impact: the estimated amount of money the observation represents, such as revenue at risk or cost incurred. It is optional, since not every observation can be priced.
 

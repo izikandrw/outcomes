@@ -108,6 +108,14 @@ test('POST / accepts the competitor type', async () => {
   assert.ok(insert.params.includes('competitor'));
 });
 
+test('POST / accepts the published_report type', async () => {
+  db.respond = (sql) => (/^INSERT INTO insights/.test(sql) ? { rows: [{ id: 9 }] } : { rows: [] });
+  const res = await request('POST', '/', { name: 'GitHub reports 40% of PRs start with an agent', type: 'published_report' });
+  assert.equal(res.status, 201);
+  const insert = db.calls.find((call) => /^INSERT INTO insights/.test(call.sql));
+  assert.ok(insert.params.includes('published_report'));
+});
+
 test('POST / leaves sentiment empty when none is given', async () => {
   db.respond = (sql) => (/^INSERT INTO insights/.test(sql) ? { rows: [{ id: 9 }] } : { rows: [] });
   await request('POST', '/', { name: 'Admins abandon setup at SSO' });

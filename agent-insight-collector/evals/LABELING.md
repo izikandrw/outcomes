@@ -37,7 +37,7 @@ About a third should have an empty `insights` list. That's deliberate.
 1. **Read the document before you've seen any model output.** Label from scratch, or the eval ends up measuring "agrees with the model."
 2. For each insight, ask: *is this one specific, checkable observation, and could someone go back and verify it?* (`product/domain-model/insight.md`.) Conclusions ("users hate onboarding"), our own reps' opinions and vague asks are **not** insights. Write why in `notes` when it's a close call.
 3. `excerpt`: copy the exact words the insight rests on, character for character. The grader matches on it.
-4. `type`: `competitor` if the insight is about something a competitor has done or shipped, whichever kind of document it came from. Otherwise the closest kind of evidence.
+4. `type`: `competitor` if the insight is about something a competitor has done or shipped, whichever kind of document it came from. `published_report` if the document is a piece an organization or author published on purpose: an engineering blog post, vendor data post, research paper or postmortem (a forum post or marketplace review is `review`). Otherwise the closest kind of evidence.
 5. `firsthand`: true if the excerpt is the customer's own words or actions, including their words quoted verbatim in a rep's or support agent's notes. A paraphrase or summary ("customer X asked for…") is `false`.
 6. `dollar_impact`: only if the document states a number. Otherwise null.
 7. `links`: outcome/project ids from the case's `catalog` that this insight is evidence for. Empty is fine.

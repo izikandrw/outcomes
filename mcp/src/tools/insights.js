@@ -5,10 +5,10 @@ import { id, text, path, update, registerReadAndDelete } from './shared.js';
 // Mirrors TYPES, IMPACT_AREAS and SENTIMENTS in src/routes/insights.js.
 const type = z.enum([
   'support_ticket', 'session_recording', 'interview', 'funnel', 'experiment',
-  'sales_call', 'feature_request', 'survey', 'review', 'competitor', 'other',
+  'sales_call', 'feature_request', 'survey', 'review', 'competitor', 'published_report', 'other',
 ]);
 const TYPE_HELP =
-  'Kind of evidence. Use competitor when the insight is about something a competitor has done or shipped, whichever kind of source it came from';
+  'Kind of evidence. Use competitor when the insight is about something a competitor has done or shipped, whichever kind of source it came from. Use published_report for a piece an organization or author published on purpose, such as an engineering blog post, vendor data post, research paper or postmortem';
 const impactArea = z.enum(['acquisition', 'activation', 'retention', 'expansion', 'cost', 'other']);
 const sentiment = z
   .enum(['positive', 'neutral', 'negative'])

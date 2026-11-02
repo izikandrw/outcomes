@@ -8,6 +8,6 @@ import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-export const PROMPT_VERSION = 'pipeline v2';
+export const PROMPT_VERSION = 'pipeline v3';
 export const EXTRACT_PROMPT = readFileSync(path.join(here, 'extract.md'), 'utf8');
 export const LINK_PROMPT = readFileSync(path.join(here, 'link.md'), 'utf8');

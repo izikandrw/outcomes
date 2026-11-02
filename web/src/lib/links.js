@@ -420,6 +420,7 @@ export const INSIGHT_TYPES = [
   { id: 'survey', label: 'Survey' },
   { id: 'review', label: 'Review' },
   { id: 'competitor', label: 'Competitor' },
+  { id: 'published_report', label: 'Published report' },
   { id: 'other', label: 'Other' },
 ];
 
