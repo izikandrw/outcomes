@@ -47,3 +47,10 @@ export function roadmapMonths(projects, now = new Date()) {
       completed: completed.sort(byDate('end_at')),
     }));
 }
+
+// The roadmap narrowed to when things finish: only the months something completes
+// in, each listing just what completes then, so a project shows once, at its end.
+export const completionMonths = (months) =>
+  months
+    .filter(({ completed }) => completed.length > 0)
+    .map(({ key, completed }) => ({ key, inProgress: [], completed }));

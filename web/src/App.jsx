@@ -812,6 +812,8 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               <TeamHome
                 includeSubteams={pageView.subteams}
                 onIncludeSubteamsChange={(subteams) => setPageView((current) => ({ ...current, subteams }))}
+                view={pageView}
+                onViewChange={setPageView}
                 team={currentTeam}
                 teams={teams}
                 projects={projects}
@@ -982,6 +984,8 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
                 onDeleteProject={removeProject}
                 onShowInsights={showInsights}
                 onOpenTeam={openTeam}
+                view={pageView}
+                onViewChange={setPageView}
               />
             )}
           </section>

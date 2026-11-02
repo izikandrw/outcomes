@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef } from 'react';
-import { roadmapMonths } from '../lib/roadmapMonths.js';
+import { completionMonths, roadmapMonths } from '../lib/roadmapMonths.js';
 import ProjectRow from './ProjectRow.jsx';
 
 // Projects are the outputs, so the roadmap shows what each month holds: the work
@@ -9,7 +9,9 @@ import ProjectRow from './ProjectRow.jsx';
 // they sit at the end rather than disappearing, since an unscheduled output is
 // worth noticing. Every project edits in place, so setting a date here moves it to
 // where it now belongs. `projects` is what to show; `allProjects` is who else it
-// can nest under.
+// can nest under. The Completion dates view narrows it to when projects finish:
+// it shows in the address bar as tab=completions, when `view` is passed.
+const COMPLETIONS = 'completions';
 const isScheduled = (project) => project.start_at || project.end_at;
 export default function Roadmap({
   projects,
@@ -24,10 +26,15 @@ export default function Roadmap({
   onShowInsights,
   onOpenTeam,
   emptyMessage,
+  view,
+  onViewChange,
 }) {
   const followFocus = useFollowFocus(projects);
-  const months = roadmapMonths(projects);
+  const completionsOnly = view?.tab === COMPLETIONS;
+  const allMonths = roadmapMonths(projects);
+  const months = completionsOnly ? completionMonths(allMonths) : allMonths;
   const unscheduled = projects.filter((project) => !isScheduled(project));
+  const noEndDate = projects.filter((project) => !project.end_at).length;
 
   if (projects.length === 0) {
     return (
@@ -60,11 +67,28 @@ export default function Roadmap({
 
   return (
     <div className="roadmap" ref={followFocus}>
-      {months.length === 0 && (
-        <p className="empty">
-          No scheduled projects. Set a start or end date on a project below to place it on the roadmap.
-        </p>
+      {onViewChange && (
+        <div className="view-toggle" role="group" aria-label="Show on roadmap">
+          <button type="button" aria-pressed={!completionsOnly} onClick={() => onViewChange({ ...view, tab: null })}>
+            All
+          </button>
+          <button
+            type="button"
+            aria-pressed={completionsOnly}
+            onClick={() => onViewChange({ ...view, tab: COMPLETIONS })}
+          >
+            Completion dates
+          </button>
+        </div>
       )}
+      {months.length === 0 &&
+        (completionsOnly ? (
+          <p className="empty">No project has an end date yet. Set one under All to see it here.</p>
+        ) : (
+          <p className="empty">
+            No scheduled projects. Set a start or end date on a project below to place it on the roadmap.
+          </p>
+        ))}
       {months.map(({ key, inProgress, completed }) => (
         <section key={key} className="roadmap-group" aria-label={monthLabel(key)} data-month={key}>
           <h2>{monthLabel(key)}</h2>
@@ -76,13 +100,18 @@ export default function Roadmap({
           )}
           {completed.length > 0 && (
             <section className="roadmap-status" aria-label={`Completed, ${monthLabel(key)}`}>
-              <h3>Completed</h3>
+              {!completionsOnly && <h3>Completed</h3>}
               <ul>{completed.map(renderProject)}</ul>
             </section>
           )}
         </section>
       ))}
-      {unscheduled.length > 0 && (
+      {completionsOnly && months.length > 0 && noEndDate > 0 && (
+        <p className="hint">
+          {noEndDate === 1 ? "1 project has no end date, so it isn't shown." : `${noEndDate} projects have no end date, so they aren't shown.`}
+        </p>
+      )}
+      {!completionsOnly && unscheduled.length > 0 && (
         <section className="roadmap-group roadmap-unscheduled" aria-label="Unscheduled">
           <h2>Unscheduled</h2>
           <ul>{unscheduled.map(renderProject)}</ul>

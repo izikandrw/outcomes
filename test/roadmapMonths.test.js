@@ -2,8 +2,9 @@ const { test, before } = require('node:test');
 const assert = require('node:assert/strict');
 
 let roadmapMonths;
+let completionMonths;
 before(async () => {
-  ({ roadmapMonths } = await import('../web/src/lib/roadmapMonths.js'));
+  ({ roadmapMonths, completionMonths } = await import('../web/src/lib/roadmapMonths.js'));
 });
 
 const NOW = new Date('2026-11-15T12:00:00Z');
@@ -73,4 +74,29 @@ test('each subsection sorts by its own date, then id', () => {
 
 test('projects with no dates are left out', () => {
   assert.deepEqual(layout([project(1, null, null)]), {});
+});
+
+test('the completions view lists each project once, in the month it ends', () => {
+  const months = completionMonths(
+    roadmapMonths(
+      [
+        project(1, '2026-11-10T00:00:00Z', '2027-02-20T00:00:00Z'),
+        project(2, null, '2026-12-05T00:00:00Z'),
+      ],
+      NOW,
+    ),
+  );
+  assert.deepEqual(
+    months.map(({ key, inProgress, completed }) => [key, inProgress, completed.map((item) => item.id)]),
+    [
+      ['2026-12', [], [2]],
+      ['2027-02', [], [1]],
+    ],
+  );
+});
+
+test('the completions view leaves out projects with no end date', () => {
+  const months = roadmapMonths([project(1, '2026-10-05T00:00:00Z', null), project(2, null, null)], NOW);
+  assert.equal(months.length, 2);
+  assert.deepEqual(completionMonths(months), []);
 });

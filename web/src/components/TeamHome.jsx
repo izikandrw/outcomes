@@ -25,6 +25,8 @@ export default function TeamHome({
   onShowInsights,
   includeSubteams,
   onIncludeSubteamsChange: setIncludeSubteams,
+  view,
+  onViewChange,
 }) {
   const parent = teams.find((item) => String(item.id) === String(team.parent_team_id));
   const children = teams.filter((item) => String(item.parent_team_id) === String(team.id));
@@ -107,6 +109,8 @@ export default function TeamHome({
           onShowInsights={onShowInsights}
           onOpenTeam={onOpenTeam}
           emptyMessage="This team isn't running any projects yet."
+          view={view}
+          onViewChange={onViewChange}
         />
       </section>
 
