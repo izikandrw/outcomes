@@ -2690,7 +2690,7 @@ button.team-chip.link:hover {
   margin: 0;
   font-size: 15px;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 6px;
 }
 
