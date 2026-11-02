@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { aggregate, match, overlap, passesGate, scoreCase, scoreLinks } from '../src/evals/score.js';
+import { summaryMarkdown } from '../src/evals/report.js';
 import { verify } from '../src/pipeline/verify.js';
 
 const DOC = {
@@ -64,6 +65,91 @@ test('a case scores matches, misses, known non-insights, fields, invented dollar
   assert.equal(score.dollar.invented, 1);
   assert.deepEqual([score.links.tp, score.links.fp, score.links.fn], [1, 1, 0]);
   assert.equal(score.emptyDoc, null);
+});
+
+const goldInsight = evalCase.expected.insights[0];
+const withDollar = (dollar_impact) => ({
+  ...evalCase,
+  expected: { insights: [{ ...goldInsight, dollar_impact }] },
+});
+
+test('a matched insight is fully correct only when every labelled field is right, and precision ignores it', () => {
+  const right = scoreCase(evalCase, [goldInsight]);
+  assert.deepEqual(right.fullyCorrect, { right: 1, total: 1 });
+  assert.deepEqual(right.mismatches, []);
+
+  const wrong = scoreCase(evalCase, [{ ...goldInsight, type: 'interview', firsthand: false }]);
+  assert.deepEqual(wrong.fullyCorrect, { right: 0, total: 1 });
+  assert.deepEqual(wrong.mismatches.map((m) => [m.name, m.field, m.expected, m.predicted]), [
+    ['Globex abandoned SSO setup', 'firsthand', true, false],
+    ['Globex abandoned SSO setup', 'type', 'sales_call', 'interview'],
+  ]);
+  assert.deepEqual([wrong.tp, wrong.fp, wrong.fn], [1, 0, 0]);
+  assert.equal(aggregate([right, wrong]).fully_correct_rate, 0.5);
+  assert.equal(aggregate([right, wrong]).precision, 1);
+});
+
+test('a field labelled null is not held against the insight', () => {
+  const unlabelled = { ...evalCase, expected: { insights: [{ ...goldInsight, sentiment: null, firsthand: null }] } };
+  const score = scoreCase(unlabelled, [{ ...goldInsight, sentiment: 'positive', firsthand: false }]);
+  assert.deepEqual(score.fullyCorrect, { right: 1, total: 1 });
+  assert.deepEqual(score.mismatches, []);
+});
+
+test('a link that differs from the label is a mismatch, listed as sorted ids', () => {
+  const score = scoreCase(evalCase, [{ ...goldInsight, links: [{ kind: 'project', id: '3' }, { kind: 'outcome', id: '12' }] }]);
+  assert.deepEqual(score.fullyCorrect, { right: 0, total: 1 });
+  assert.deepEqual(score.mismatches.map((m) => [m.field, m.expected, m.predicted]), [
+    ['links', ['outcome:12'], ['outcome:12', 'project:3']],
+  ]);
+});
+
+test('dollar figures count as invented, wrong or missed, and each is a mismatch', () => {
+  const grade = (expected, predicted) => {
+    const { dollar, fullyCorrect, mismatches } = scoreCase(withDollar(expected), [{ ...goldInsight, dollar_impact: predicted }]);
+    return { dollar, right: fullyCorrect.right, fields: mismatches.map((m) => [m.expected, m.predicted]) };
+  };
+  assert.deepEqual(grade(48000, null), { dollar: { invented: 0, wrong: 0, missed: 1 }, right: 0, fields: [[48000, null]] });
+  assert.deepEqual(grade(null, 48000), { dollar: { invented: 1, wrong: 0, missed: 0 }, right: 0, fields: [[null, 48000]] });
+  assert.deepEqual(grade(48000, 90000), { dollar: { invented: 0, wrong: 1, missed: 0 }, right: 0, fields: [[48000, 90000]] });
+  assert.deepEqual(grade(48000, 48000), { dollar: { invented: 0, wrong: 0, missed: 0 }, right: 1, fields: [] });
+  assert.deepEqual(grade('48000', 48000), { dollar: { invented: 0, wrong: 0, missed: 0 }, right: 1, fields: [] });
+  assert.deepEqual(grade(null, null), { dollar: { invented: 0, wrong: 0, missed: 0 }, right: 1, fields: [] });
+  // Zero is a figure, not the absence of one.
+  assert.deepEqual(grade(null, 0), { dollar: { invented: 1, wrong: 0, missed: 0 }, right: 0, fields: [[null, 0]] });
+  assert.deepEqual(grade(0, null), { dollar: { invented: 0, wrong: 0, missed: 1 }, right: 0, fields: [[0, null]] });
+  assert.equal(aggregate([scoreCase(withDollar(48000), [{ ...goldInsight, dollar_impact: null }])]).dollar_missed, 1);
+});
+
+const reportMeta = { promptVersion: 'v1', split: 'dev', sets: 'all', catalog: 'frozen', caseCount: 1, startedAt: 'now', previousName: null };
+const reportSummary = {
+  model: 'm',
+  effort: 'high',
+  reps: 2,
+  runs: 2,
+  errors: 0,
+  usage: { input: 0, output: 0, cache_read: 0, cache_write: 0 },
+  cost: null,
+  cost_per_document: null,
+  ms_per_document: null,
+  groups: {},
+};
+const repResults = () => [
+  { case: 'globex', score: scoreCase(evalCase, [{ ...goldInsight, type: 'interview' }]) },
+  { case: 'globex', score: scoreCase(evalCase, [{ ...goldInsight, type: 'interview', firsthand: false }]) },
+];
+
+test('the summary lists wrong fields, grouped across reps', () => {
+  const markdown = summaryMarkdown(reportSummary, null, { ...reportMeta, showFailures: true }, repResults(), []);
+  assert.ok(markdown.includes('### Right insight, wrong fields'));
+  assert.ok(markdown.includes('Globex abandoned SSO setup · `type`: expected sales_call, got interview (2 of 2 runs)'));
+  assert.ok(markdown.includes('Globex abandoned SSO setup · `firsthand`: expected true, got false (1 of 2 runs)'));
+});
+
+test('the held-out split keeps wrong fields out of the summary', () => {
+  const markdown = summaryMarkdown(reportSummary, null, { ...reportMeta, showFailures: false }, repResults(), []);
+  assert.ok(!markdown.includes('wrong fields'));
+  assert.ok(!markdown.includes('Globex abandoned'));
 });
 
 test('an empty document is right only when nothing is predicted', () => {

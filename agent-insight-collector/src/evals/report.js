@@ -7,11 +7,13 @@ const METRICS = [
   ['recall', 'Recall'],
   ['empty_doc_accuracy', 'Empty-doc accuracy'],
   ['known_non_insights_suggested', 'Known non-insights suggested'],
+  ['fully_correct_rate', 'Fully correct (of matched insights)'],
   ['firsthand_accuracy', 'Firsthand correct'],
   ['sentiment_accuracy', 'Sentiment correct'],
   ['type_accuracy', 'Type correct'],
   ['dollar_invented', 'Dollar impacts invented'],
   ['dollar_wrong', 'Dollar impacts wrong'],
+  ['dollar_missed', 'Dollar impacts missed'],
   ['fabricated_excerpts', 'Fabricated excerpts in output'],
   ['verify_drop_rate', 'Verify drop rate'],
   ['link_precision', 'Link precision'],
@@ -22,7 +24,7 @@ const METRICS = [
   ['gold_no_match_accuracy', 'No-match accuracy (gold insights)'],
 ];
 
-const COUNTS = new Set(['known_non_insights_suggested', 'dollar_invented', 'dollar_wrong', 'fabricated_excerpts']);
+const COUNTS = new Set(['known_non_insights_suggested', 'dollar_invented', 'dollar_wrong', 'dollar_missed', 'fabricated_excerpts']);
 
 const GROUP_TITLES = {
   all: 'All cases',
@@ -50,6 +52,30 @@ function row(key, label, metric, previous) {
   const gate = passesGate(key, metric.mean);
   const gateText = gate === null ? '' : `${gate ? 'pass' : '**fail**'} (${GATES[key][0]} ${GATES[key][1]})`;
   return `| ${label} | ${show(key, metric.mean)} | ${range} | ${previous ? show(key, previous.mean) : '—'} | ${change} | ${gateText} |`;
+}
+
+const fieldValue = (value) => {
+  if (Array.isArray(value)) return value.length > 0 ? value.join(', ') : 'none';
+  return value === null || value === undefined ? 'none' : String(value);
+};
+
+// One line per way a matched insight's field was wrong, with how many runs
+// gave that same wrong answer: a miss on every rep isn't a miss on one.
+function mismatchLines(results) {
+  const grouped = new Map();
+  for (const result of results) {
+    for (const m of result.score.mismatches) {
+      const insight = m.name || `“${m.excerpt}”`;
+      const key = JSON.stringify([result.case, insight, m.field, m.expected, m.predicted]);
+      const entry = grouped.get(key) ?? { caseName: result.case, insight, ...m, runs: 0 };
+      entry.runs += 1;
+      grouped.set(key, entry);
+    }
+  }
+  const runsOf = (name) => results.filter((result) => result.case === name).length;
+  return [...grouped.values()].map(
+    (m) => `- **${m.caseName}**: ${m.insight} · \`${m.field}\`: expected ${fieldValue(m.expected)}, got ${fieldValue(m.predicted)} (${m.runs} of ${runsOf(m.caseName)} runs)`,
+  );
 }
 
 const money = (value) => (value === null || value === undefined ? 'unknown' : `$${value.toFixed(value < 1 ? 4 : 2)}`);
@@ -103,7 +129,14 @@ export function summaryMarkdown(summary, previous, meta, results, errors) {
         }
       }
     }
+    const mismatches = mismatchLines(results);
     lines.push(
+      '### Right insight, wrong fields',
+      '',
+      'Matched on the excerpt, so these count as found in precision and recall.',
+      '',
+      ...(mismatches.length ? mismatches.slice(0, 50) : ['None.']),
+      '',
       '### Suggested but not expected',
       '',
       'False positives, or insights the labeler missed. When it’s the second, add it to the case’s expected answer.',

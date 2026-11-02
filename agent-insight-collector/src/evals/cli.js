@@ -129,6 +129,8 @@ async function selfCheck(cases) {
     ['gold: empty-doc accuracy', mean(gold, 'empty_doc_accuracy'), (v) => v === null || v === 1],
     ['gold: link precision', mean(gold, 'link_precision'), (v) => v === null || v === 1],
     ['gold: firsthand', mean(gold, 'firsthand_accuracy'), (v) => v === null || v === 1],
+    ['gold: fully correct', mean(gold, 'fully_correct_rate'), (v) => v === null || v === 1],
+    ['gold: dollar impacts missed', mean(gold, 'dollar_missed'), (v) => v === 0],
     ['gold: known non-insights suggested', mean(gold, 'known_non_insights_suggested'), (v) => v === 0],
     ['empty: recall', mean(empty, 'recall'), (v) => v === null || v === 0],
     ['empty: empty-doc accuracy', mean(empty, 'empty_doc_accuracy'), (v) => v === null || v === 1],

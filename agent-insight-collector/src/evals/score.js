@@ -84,16 +84,30 @@ export function scoreCase(evalCase, prediction) {
   const { pairs, unmatchedPredicted, unmatchedExpected } = match(prediction, expected);
 
   const fields = { firsthand: tally(), sentiment: tally(), type: tally() };
-  const dollar = { invented: 0, wrong: 0 };
+  const dollar = { invented: 0, wrong: 0, missed: 0 };
   const links = { tp: 0, fp: 0, fn: 0, noMatch: tally() };
+  // Matched insights with every labelled field right, and what the others got
+  // wrong: a match only says the excerpt was right.
+  const fullyCorrect = tally();
+  const mismatches = [];
   for (const [p, e] of pairs) {
+    const wrong = [];
     for (const field of Object.keys(fields)) {
-      if (e[field] !== null && e[field] !== undefined) count(fields[field], p[field] === e[field]);
+      if (e[field] === null || e[field] === undefined) continue;
+      const right = p[field] === e[field];
+      count(fields[field], right);
+      if (!right) wrong.push({ field, expected: e[field], predicted: p[field] ?? null });
     }
     const expectedDollar = e.dollar_impact ?? null;
     const predictedDollar = p.dollar_impact ?? null;
-    if (expectedDollar === null && predictedDollar !== null) dollar.invented += 1;
-    else if (expectedDollar !== null && predictedDollar !== null && Number(expectedDollar) !== Number(predictedDollar)) dollar.wrong += 1;
+    let dollarError = null;
+    if (expectedDollar === null && predictedDollar !== null) dollarError = 'invented';
+    else if (expectedDollar !== null && predictedDollar === null) dollarError = 'missed';
+    else if (expectedDollar !== null && Number(expectedDollar) !== Number(predictedDollar)) dollarError = 'wrong';
+    if (dollarError) {
+      dollar[dollarError] += 1;
+      wrong.push({ field: 'dollar_impact', expected: expectedDollar, predicted: predictedDollar });
+    }
     // A gold insight without a links field wasn't labelled for links.
     if (Array.isArray(e.links)) {
       const scored = scoreLinks(p.links, e.links);
@@ -102,7 +116,12 @@ export function scoreCase(evalCase, prediction) {
       links.fn += scored.fn;
       links.noMatch.right += scored.noMatch.right;
       links.noMatch.total += scored.noMatch.total;
+      if (scored.fp + scored.fn > 0) {
+        wrong.push({ field: 'links', expected: [...linkKeys(e.links)].sort(), predicted: [...linkKeys(p.links)].sort() });
+      }
     }
+    count(fullyCorrect, wrong.length === 0);
+    mismatches.push(...wrong.map((entry) => ({ name: e.name, excerpt: e.excerpt, ...entry })));
   }
   // A false positive that is one of the case's known non-insights is the
   // mistake a reviewer already turned down once.
@@ -122,6 +141,8 @@ export function scoreCase(evalCase, prediction) {
     fields,
     dollar,
     links,
+    fullyCorrect,
+    mismatches,
     unmatchedPredicted: unmatchedPredicted.map(({ name, excerpt }) => ({ name, excerpt })),
     missed: unmatchedExpected.map(({ name, excerpt }) => ({ name, excerpt })),
   };
@@ -145,11 +166,13 @@ export function aggregate(scores) {
     recall: ratio(tp, tp + fn),
     empty_doc_accuracy: ratio(empty.filter((s) => s.emptyDoc).length, empty.length),
     known_non_insights_suggested: sum((s) => s.knownNonInsights),
+    fully_correct_rate: ratio(sum((s) => s.fullyCorrect.right), sum((s) => s.fullyCorrect.total)),
     firsthand_accuracy: field('firsthand'),
     sentiment_accuracy: field('sentiment'),
     type_accuracy: field('type'),
     dollar_invented: sum((s) => s.dollar.invented),
     dollar_wrong: sum((s) => s.dollar.wrong),
+    dollar_missed: sum((s) => s.dollar.missed),
     link_precision: ratio(linkTp, linkTp + sum((s) => s.links.fp)),
     link_recall: ratio(linkTp, linkTp + sum((s) => s.links.fn)),
     no_match_accuracy: ratio(sum((s) => s.links.noMatch.right), sum((s) => s.links.noMatch.total)),

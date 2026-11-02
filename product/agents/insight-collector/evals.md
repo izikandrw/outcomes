@@ -19,7 +19,8 @@ Each pipeline step is measured on its own (see `design.md` §2). When a score dr
 | Extract | **Empty-doc accuracy**: on documents with no insights, did it return none? | code: `candidates.length === 0` | ≥ 0.90 |
 | Extract | **Insight quality**: is `name` an observation (not a conclusion), specific, and checkable? | LLM judge with a rubric, calibrated against your own labels | ≥ 0.85 |
 | Extract | **Firsthand flag correct** | code: compare to the label | ≥ 0.90 |
-| Extract | **Dollar impact**: set only when stated, and the right number | code | no invented values (exactly 0) |
+| Extract | **Dollar impact**: set only when stated, and the right number | code: counts invented, wrong and missed | no invented values (exactly 0); wrong and missed tracked |
+| Extract | **Fully correct**: of the matched insights, how many have every labelled field right (`firsthand`, `sentiment`, `type`, `dollar_impact`, `links`)? | code: fields labelled null are skipped; `name` and `description` aren't checked | tracked |
 | Verify | **Fabricated excerpts that reach output** | code (should be impossible by design; this tests the verify step) | **exactly 0** |
 | Verify | **Drop rate**: share of candidates the verify step threw out | code | tracked. A high rate means the extractor paraphrases instead of quoting, so fix the prompt. |
 | Link | **Link precision / recall** vs gold links | code: compare id sets | ≥ 0.75 / ≥ 0.60 |
@@ -27,6 +28,8 @@ Each pipeline step is measured on its own (see `design.md` §2). When a score dr
 | Whole run | **Cost and latency per document**, tokens from the API's `usage` | code | tracked |
 
 **Why precision gets the higher bar:** the spec's biggest failure mode is a noisy queue that reviewers give up on. A missed insight costs little, and the next run or a human can catch it. A junk suggestion costs a reviewer's time and trust.
+
+**Field errors don't affect precision or recall.** Those only ask whether the excerpt matched. Each wrong field lowers its own metric and the fully correct rate, and `summary.md` lists it under "Right insight, wrong fields" (per run in `results.jsonl`, as `score.mismatches`).
 
 ### How predicted insights are matched to gold ones
 
