@@ -2706,7 +2706,7 @@ button.team-chip.link:hover {
 
 /* Every row is indented to leave a gutter, flagged or not, so names stay in line
    with each other. The marker is centred in the gutter and the card's padding,
-   level with the project's name, with room on both sides. */
+   with room on both sides, and halfway down the project's row. */
 .project-list {
   padding-left: 14px;
 }
@@ -2717,7 +2717,9 @@ button.team-chip.link:hover {
 
 .project-margin-issue {
   position: absolute;
-  top: 10px;
+  /* The list item ends in 12px of padding below the row; 6px is half of that. */
+  top: calc(50% - 6px);
+  transform: translateY(-50%);
   left: -32px;
   width: 32px;
   font-size: 13px;
