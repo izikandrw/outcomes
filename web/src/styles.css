@@ -2584,7 +2584,8 @@ button.team-chip.link:hover {
 
 /* Native <details>, collapsed by default so the chart leads. */
 .measurement-accordion > summary,
-.roadmap-unscheduled-toggle > summary {
+.roadmap-unscheduled-toggle > summary,
+.run-summary-toggle > summary {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2597,18 +2598,21 @@ button.team-chip.link:hover {
 }
 
 .measurement-accordion > summary::-webkit-details-marker,
-.roadmap-unscheduled-toggle > summary::-webkit-details-marker {
+.roadmap-unscheduled-toggle > summary::-webkit-details-marker,
+.run-summary-toggle > summary::-webkit-details-marker {
   display: none;
 }
 
 .measurement-accordion > summary::before,
-.roadmap-unscheduled-toggle > summary::before {
+.roadmap-unscheduled-toggle > summary::before,
+.run-summary-toggle > summary::before {
   content: '▸';
   transition: transform 120ms ease;
 }
 
 .measurement-accordion[open] > summary::before,
-.roadmap-unscheduled-toggle[open] > summary::before {
+.roadmap-unscheduled-toggle[open] > summary::before,
+.run-summary-toggle[open] > summary::before {
   transform: rotate(90deg);
 }
 
@@ -3014,6 +3018,26 @@ button.team-chip.link:hover {
 .run-heading {
   margin: 8px 0 0;
   font-size: 15px;
+}
+
+/* Reads as a heading, level with Documents below it. */
+.run-summary-toggle > summary {
+  padding: 4px 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: inherit;
+}
+
+.run-documents-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.run-documents-head .run-heading {
+  margin: 0;
 }
 
 .run-suggestions {

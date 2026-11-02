@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as api from '../api.js';
 import { rejectionReasonLabel } from '../lib/links.js';
+import useSlashFocus from '../lib/useSlashFocus.js';
 import InsightHistory from './InsightHistory.jsx';
+import { SearchIcon } from './icons.jsx';
 
 // The insight collector's run traces (product/agents/insight-collector/design.md,
 // "Run traces"): every document it read, what it decided and why, and how its
@@ -94,6 +96,9 @@ function ReviewCounts({ review }) {
 function RunTrace({ accountId, runId, outcomes, projects, onBack, onOpenEvalSet }) {
   const [run, setRun] = useState(null);
   const [error, setError] = useState(null);
+  const [query, setQuery] = useState('');
+  const searchRef = useRef(null);
+  useSlashFocus(searchRef);
 
   useEffect(() => {
     api
@@ -108,6 +113,24 @@ function RunTrace({ accountId, runId, outcomes, projects, onBack, onOpenEvalSet 
   const insightById = new Map(run.insights.map((insight) => [String(insight.id), insight]));
   const recorded = new Set(run.documents.flatMap((doc) => doc.insight_ids.map(String)));
   const unrecorded = run.insights.filter((insight) => !recorded.has(String(insight.id)));
+
+  // Matches what a document's card shows, not its full text, so a search for a
+  // source doesn't also bring back every page that happens to mention it.
+  const needle = query.trim().toLowerCase();
+  const documents = needle
+    ? run.documents.filter((doc) =>
+        [
+          doc.external_id,
+          doc.title,
+          doc.reason,
+          DECISION_LABELS[doc.decision],
+          ...doc.insight_ids.map((id) => insightById.get(String(id))?.name),
+        ]
+          .join(' ')
+          .toLowerCase()
+          .includes(needle),
+      )
+    : run.documents;
 
   return (
     <div className="run-trace">
@@ -142,12 +165,34 @@ function RunTrace({ accountId, runId, outcomes, projects, onBack, onOpenEvalSet 
         </dd>
       </dl>
       {run.error && <p className="error">{run.error}</p>}
-      {run.summary && <p className="run-summary">{run.summary}</p>}
+      {run.summary && (
+        <details className="run-summary-toggle">
+          <summary>Summary</summary>
+          <p className="run-summary">{run.summary}</p>
+        </details>
+      )}
 
-      <h3 className="run-heading">Documents ({run.documents.length})</h3>
+      <div className="run-documents-head">
+        <h3 className="run-heading">
+          Documents ({needle ? `${documents.length} of ${run.documents.length}` : run.documents.length})
+        </h3>
+        {run.documents.length > 0 && (
+          <label className="search-box">
+            <SearchIcon />
+            <input
+              ref={searchRef}
+              type="search"
+              value={query}
+              aria-label="Search documents"
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+        )}
+      </div>
       {run.documents.length === 0 && <p className="empty">The collector recorded no documents for this run.</p>}
+      {run.documents.length > 0 && documents.length === 0 && <p className="empty">No documents match.</p>}
       <ol className="review-list">
-        {run.documents.map((doc) => (
+        {documents.map((doc) => (
           <li key={doc.id} className="review-card">
             <p className="meta">
               <span className="review-link-name">{doc.external_id}</span>
