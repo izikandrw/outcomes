@@ -429,6 +429,7 @@ function ReviewCard({
             ))}
           </select>
           <input
+            autoFocus
             value={note}
             placeholder="Note (optional): what was wrong?"
             aria-label="Note"
