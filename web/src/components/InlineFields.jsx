@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { SENTIMENTS, sentimentOf } from '../lib/links.js';
-import LinkedText from './LinkedText.jsx';
+import LinkedText, { firstUrl } from './LinkedText.jsx';
 import { ChevronDownIcon } from './icons.jsx';
 
 // The pieces an insight edits in place with, shared by the review queue, the
@@ -122,9 +122,18 @@ export function toggleLinkPatch(insight, item) {
   return { [field]: item.linked ? ids.filter((id) => id !== item.id) : [...ids, item.id] };
 }
 
+function OpenSourceLink({ href }) {
+  return (
+    <a href={href} target="_blank" rel="noreferrer" title="Open source in a new tab" aria-label="Open source">
+      ↗
+    </a>
+  );
+}
+
 // Where to go to check the observation: the link into the external tool when
 // there is one, otherwise whatever reference was recorded. Clicking the text
-// edits it; the arrow beside a link opens it.
+// edits it; the arrow beside a link opens it, including a URL typed as the
+// reference.
 export function SourceLine({ insight, disabled, onSave }) {
   if (insight.source_url) {
     return (
@@ -143,9 +152,7 @@ export function SourceLine({ insight, disabled, onSave }) {
               // The old label named the old link, so a new link drops it.
               onCommit={(url) => onSave({ source_url: url || null, source_external_id: null })}
             />
-            <a href={insight.source_url} target="_blank" rel="noreferrer" title="Open source" aria-label="Open source">
-              ↗
-            </a>
+            <OpenSourceLink href={insight.source_url} />
           </>
         )}
       </span>
@@ -159,6 +166,7 @@ export function SourceLine({ insight, disabled, onSave }) {
       </span>
     ) : null;
   }
+  const referenceUrl = firstUrl(reference);
   return (
     <span className="hint source-line">
       <InlineText
@@ -168,6 +176,7 @@ export function SourceLine({ insight, disabled, onSave }) {
         placeholder="Add a source"
         onCommit={(source) => onSave({ source: source || null })}
       />
+      {referenceUrl && <OpenSourceLink href={referenceUrl} />}
     </span>
   );
 }
