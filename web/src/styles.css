@@ -1868,9 +1868,12 @@ button.tag.insight-badge.suggested {
   max-height: calc(100vh - 66px);
 }
 
+/* The scrollbar's width stays reserved: it comes and goes with the row count and
+   with the overlay of a long name, and the columns shouldn't move when it does. */
 .insight-table-scroll {
   min-height: 0;
   overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 /* Above the hover overlay of a long name. A collapsed border doesn't travel
