@@ -177,6 +177,28 @@ test('gates compare against the v1 bars', () => {
   assert.equal(passesGate('type_accuracy', 0.1), null);
 });
 
+test('verify clears a dollar figure with no basis, or one its basis does not state', () => {
+  const document = { text: 'We gave up on SSO. It puts $40k ARR at risk, about $1.2M over three years, or forty thousand dollars. Budget: $90,000.' };
+  const check = (dollar_impact, dollar_impact_basis) => {
+    const { kept, drops } = verify(document, [{ excerpt: 'we gave up on SSO', dollar_impact, dollar_impact_basis }]);
+    return { figure: kept[0].dollar_impact, reasons: drops.map((d) => d.reason) };
+  };
+  const stated = (figure) => ({ figure, reasons: [] });
+  const cleared = (reason) => ({ figure: null, reasons: [reason] });
+
+  assert.deepEqual(check(40000, '$40k ARR at risk'), stated(40000));
+  assert.deepEqual(check(1200000, 'about $1.2M'), stated(1200000));
+  assert.deepEqual(check(90000, 'Budget: $90,000'), stated(90000));
+
+  assert.deepEqual(check(99000, null), cleared('dollar_basis_not_in_document'));
+  assert.deepEqual(check(99000, '   '), cleared('dollar_basis_not_in_document'));
+  assert.deepEqual(check(99000, '$99k'), cleared('dollar_basis_not_in_document'));
+  assert.deepEqual(check(400000, '$40k ARR at risk'), cleared('dollar_figure_not_in_basis'));
+  assert.deepEqual(check(40, '$40k ARR at risk'), cleared('dollar_figure_not_in_basis'));
+  assert.deepEqual(check(40000, 'forty thousand dollars'), cleared('dollar_figure_not_in_basis'));
+  assert.deepEqual(check(3, 'three years'), cleared('dollar_figure_not_in_basis'));
+});
+
 test('verify drops made-up and repeated excerpts and clears an unsupported dollar figure', () => {
   const { kept, drops } = verify(DOC, [
     { excerpt: 'we gave up on SSO', dollar_impact: null },

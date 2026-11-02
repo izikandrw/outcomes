@@ -1,11 +1,12 @@
 // Runs eval cases through the pipeline and grades them
 // (product/agents/insight-collector/evals.md, "The runner"): each case `reps`
 // times, since output varies run to run; infrastructure failures kept out of
-// the scores; the linker also run on the gold insights, so link scores don't
-// swing with extraction. `predict` stands in for the pipeline in --self-check.
+// the scores, while a model that refused or returned unusable output counts as
+// having found nothing; the linker also run on the gold insights, so link scores
+// don't swing with extraction. `predict` stands in for the pipeline in --self-check.
 import { runDocument, link } from '../pipeline/index.js';
 import { normalise } from '../pipeline/verify.js';
-import { addUsage, costOf, NO_USAGE } from '../pipeline/model.js';
+import { addUsage, costOf, ModelOutputError, NO_USAGE } from '../pipeline/model.js';
 import { aggregate, aggregateGoldLinks, scoreCase, scoreLinks } from './score.js';
 
 const GROUPS = ['all', 'golden', 'review'];
@@ -17,6 +18,31 @@ async function pool(items, concurrency, work) {
       while (queue.length > 0) await work(queue.shift());
     }),
   );
+}
+
+// A run the model failed: refused, cut off or unparsable. In production this
+// document yields no insights, so it's scored that way: its expected insights
+// are missed, and on an empty document it earns no credit for returning none.
+// Failing on a gold insight in the link step counts too, since a real run would
+// fail the same way on that insight.
+function failedRun(evalCase, rep, err, ms) {
+  const score = scoreCase(evalCase, []);
+  return {
+    case: evalCase.name,
+    label_source: evalCase.label_source,
+    split: evalCase.split,
+    rep,
+    failure: { kind: err.kind, message: err.message },
+    insights: [],
+    drops: [],
+    candidate_count: 0,
+    fabricated_excerpts: 0,
+    score: { ...score, emptyDoc: score.emptyDoc === null ? null : false },
+    gold_links: [],
+    usage: NO_USAGE,
+    cost: null,
+    ms,
+  };
 }
 
 // options: { client, catalog, liveCatalog, model, effort, reps, concurrency,
@@ -68,7 +94,8 @@ export async function runEval(cases, options) {
       });
       usage = addUsage(usage, runUsage);
     } catch (err) {
-      errors.push({ case: evalCase.name, rep, kind: err.kind ?? err.constructor?.name ?? 'Error', status: err.status ?? null, message: err.message });
+      if (err instanceof ModelOutputError) results.push(failedRun(evalCase, rep, err, Date.now() - started));
+      else errors.push({ case: evalCase.name, rep, kind: err.kind ?? err.constructor?.name ?? 'Error', status: err.status ?? null, message: err.message });
     }
     done += 1;
     onProgress?.(done, jobs.length);
@@ -94,22 +121,26 @@ export function summarise(results, errors, { model, effort, reps, usage }) {
         ...aggregate(runs.map((r) => r.score)),
         ...aggregateGoldLinks(runs.flatMap((r) => r.gold_links)),
         fabricated_excerpts: runs.reduce((total, r) => total + r.fabricated_excerpts, 0),
+        failed_runs: runs.filter((r) => r.failure).length,
         verify_drop_rate: totalCandidates === 0 ? null : excerptDrops / totalCandidates,
       });
     }
     groups[group] = spread(perRep);
   }
-  const costs = results.map((r) => r.cost).filter((cost) => cost !== null);
+  // A failed run's tokens aren't known, so cost and time cover completed runs.
+  const completed = results.filter((r) => !r.failure);
+  const costs = completed.map((r) => r.cost).filter((cost) => cost !== null);
   return {
     model,
     effort,
     reps,
     runs: results.length,
+    failed_runs: results.length - completed.length,
     errors: errors.length,
     usage,
-    cost: costs.length === results.length ? costs.reduce((a, b) => a + b, 0) : null,
-    cost_per_document: costs.length > 0 && costs.length === results.length ? costs.reduce((a, b) => a + b, 0) / results.length : null,
-    ms_per_document: results.length > 0 ? results.reduce((total, r) => total + r.ms, 0) / results.length : null,
+    cost: costs.length === completed.length ? costs.reduce((a, b) => a + b, 0) : null,
+    cost_per_document: costs.length > 0 && costs.length === completed.length ? costs.reduce((a, b) => a + b, 0) / completed.length : null,
+    ms_per_document: completed.length > 0 ? completed.reduce((total, r) => total + r.ms, 0) / completed.length : null,
     groups,
   };
 }

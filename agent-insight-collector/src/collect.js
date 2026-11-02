@@ -58,6 +58,7 @@ const DROP_REASONS = {
   excerpt_not_in_document: (n) => `dropped ${n} whose excerpt isn't in the document`,
   duplicate_excerpt: (n) => `dropped ${n} repeating an excerpt`,
   dollar_basis_not_in_document: (n) => `cleared ${n} dollar figure${n === 1 ? '' : 's'} the document doesn't state`,
+  dollar_figure_not_in_basis: (n) => `cleared ${n} dollar figure${n === 1 ? '' : 's'} that didn't match the text cited for ${n === 1 ? 'it' : 'them'}`,
   unknown_catalog_id: (n) => `dropped ${n} link${n === 1 ? '' : 's'} to ids not in the catalog`,
 };
 

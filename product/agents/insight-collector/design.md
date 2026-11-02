@@ -82,7 +82,7 @@ Output schema (per candidate):
 
 ### 2.3 Verify (code): the guard against made-up quotes
 
-For each candidate, check that `excerpt` actually appears in `document.text`, after normalizing whitespace, curly quotes and case. If it doesn't, **drop the candidate and log it**. Then check `dollar_impact_basis` the same way.
+For each candidate, check that `excerpt` actually appears in `document.text`, after normalizing whitespace, curly quotes and case. If it doesn't, **drop the candidate and log it**. Then check `dollar_impact_basis` the same way, and that it states the figure in digits (`$1.2M` states 1200000). A figure with no basis, a basis not in the document, or a basis that states a different number is **cleared and logged**; the insight stays. A figure written only in words ("forty thousand") is cleared too, because a missed figure costs less than an invented one.
 
 This is the single most important design idea in the whole agent: **don't ask the model not to hallucinate; check its output in code.** A prompt lowers the rate of made-up quotes; this check makes it zero. Whenever a model's output can be checked mechanically, check it.
 

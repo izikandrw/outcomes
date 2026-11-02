@@ -26,6 +26,7 @@ Each pipeline step is measured on its own (see `design.md` §2). When a score dr
 | Link | **Link precision / recall** vs gold links | code: compare id sets | ≥ 0.75 / ≥ 0.60 |
 | Link | **No-match accuracy**: insights with no fitting outcome come back unlinked | code | ≥ 0.80 |
 | Whole run | **Cost and latency per document**, tokens from the API's `usage` | code | tracked |
+| Whole run | **Runs the model failed**: refused, cut off at `max_tokens`, or output that doesn't parse | code | **exactly 0** |
 
 **Why precision gets the higher bar:** the spec's biggest failure mode is a noisy queue that reviewers give up on. A missed insight costs little, and the next run or a human can catch it. A junk suggestion costs a reviewer's time and trust.
 
@@ -95,15 +96,15 @@ Split the cases ~70/30 into **dev** (look at these freely while tuning prompts) 
 
 It scores the **ready** cases from Review → Eval set, read through the API as a person (`OUTCOMES_API_URL` plus `OUTCOMES_API_TOKEN` or `OUTCOMES_EMAIL`/`OUTCOMES_PASSWORD`, as for `mcp/`; the collector can't read them), or a file from **Download ready cases** with `--file`. Each case is linked against the catalog frozen with it (below), so the cases are all it needs; `--live-catalog` tests them against today's outcomes and projects instead. The model is called with `ANTHROPIC_API_KEY` or an `ant auth login` profile. Defaults: Claude Opus 5.5 at `high` effort, 3 reps, the dev split. Results land in `agent-insight-collector/evals/results/<time>-<prompt version>-<model>-<effort>/` (ignored by git: they quote customer content), and `summary.md` compares each metric with the last run of the same split, marking changes inside the spread over reps. Golden and review sets are reported apart, because recall on the review set is only an upper bound. Run `--self-check` first, and again after changing the grader.
 
-There is no refusal fallback to another model: in an eval, another model quietly answering would put its output under this one's name, so a refusal is filed as an error. The LLM judge for unmatched predictions (below) isn't built yet; `summary.md` lists them for you to read instead.
+There is no refusal fallback to another model: in an eval, another model quietly answering would put its output under this one's name, so a refusal counts as a failed run (step 4). The LLM judge for unmatched predictions (below) isn't built yet; `summary.md` lists them for you to read instead.
 
 What it does, and why each part is there:
 
 1. **Calls the real pipeline functions** (`extract`, `verify`, `link`), not a copy. An eval that re-implements the call measures something other than what ships.
 2. **Runs each case 3 times** (`--reps`). Output varies run to run, so one run is a guess. Report the average and the spread. A change smaller than the spread isn't a real change.
 3. **Feeds gold candidates into the linker** (as well as running end to end), so link scores don't swing with extraction mistakes.
-4. **Keeps infrastructure failures out of the score.** API errors, timeouts and truncated output (`stop_reason: max_tokens`) go to `errors.jsonl`, not into the scores as a "wrong answer." Otherwise a rate-limit spike looks like a worse prompt.
-5. **Saves everything**: `results/<timestamp>-<prompt_version>/` with `results.jsonl` (per case and run: inputs, raw output, scores, tokens, cost), `errors.jsonl`, and `summary.md` (the metric table, compared to the previous run). When a score surprises you, read the transcript before drawing conclusions.
+4. **Keeps infrastructure failures out of the score, but not model failures.** API errors and timeouts go to `errors.jsonl`, not into the scores as a "wrong answer." Otherwise a rate-limit spike looks like a worse prompt. A refusal, truncated output (`stop_reason: max_tokens`) or output that doesn't parse is different: it's what this prompt and model did, and in production that document yields no insights. So it's scored as finding nothing: its expected insights count as missed, an empty document earns no credit, and it counts towards **Runs the model failed**. Otherwise a document that always truncates, or an injection attempt that gets refused, disappears from the score. Precision can't see these runs, which is why they have their own gate. Their tokens aren't known, so cost and latency cover completed runs only.
+5. **Saves everything**: `results/<timestamp>-<prompt_version>/` with `results.jsonl` (per case and run: inputs, raw output, scores, tokens, cost, and `failure` on a failed run), `errors.jsonl`, and `summary.md` (the metric table, compared to the previous run). When a score surprises you, read the transcript before drawing conclusions.
 6. **Sanity-checks itself** before you trust it: feeding the gold labels in as the "prediction" should score ~100%, and an empty prediction should score 0 on precision and recall and ~100% on empty-doc accuracy. If either doesn't, the grader has a bug.
 
 ## The improvement loop

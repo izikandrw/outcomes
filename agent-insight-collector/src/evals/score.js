@@ -195,6 +195,7 @@ export function aggregateGoldLinks(results) {
 }
 
 // The v1 ship gates (evals.md, "What we measure"): metric → [comparison, bar].
+// failed_runs comes from the runner, as fabricated_excerpts does.
 export const GATES = {
   precision: ['>=', 0.8],
   recall: ['>=', 0.6],
@@ -202,6 +203,7 @@ export const GATES = {
   firsthand_accuracy: ['>=', 0.9],
   dollar_invented: ['==', 0],
   fabricated_excerpts: ['==', 0],
+  failed_runs: ['==', 0],
   link_precision: ['>=', 0.75],
   link_recall: ['>=', 0.6],
   no_match_accuracy: ['>=', 0.8],

@@ -16,6 +16,7 @@ const METRICS = [
   ['dollar_missed', 'Dollar impacts missed'],
   ['fabricated_excerpts', 'Fabricated excerpts in output'],
   ['verify_drop_rate', 'Verify drop rate'],
+  ['failed_runs', 'Runs the model failed'],
   ['link_precision', 'Link precision'],
   ['link_recall', 'Link recall'],
   ['no_match_accuracy', 'No-match accuracy'],
@@ -24,7 +25,7 @@ const METRICS = [
   ['gold_no_match_accuracy', 'No-match accuracy (gold insights)'],
 ];
 
-const COUNTS = new Set(['known_non_insights_suggested', 'dollar_invented', 'dollar_wrong', 'dollar_missed', 'fabricated_excerpts']);
+const COUNTS = new Set(['known_non_insights_suggested', 'dollar_invented', 'dollar_wrong', 'dollar_missed', 'fabricated_excerpts', 'failed_runs']);
 
 const GROUP_TITLES = {
   all: 'All cases',
@@ -86,7 +87,7 @@ export function summaryMarkdown(summary, previous, meta, results, errors) {
   const lines = [
     `# Eval: ${meta.promptVersion} · ${summary.model} · effort ${summary.effort}`,
     '',
-    `${meta.startedAt} · split **${meta.split}** · sets ${meta.sets} · ${meta.caseCount} cases × ${summary.reps} reps = ${summary.runs} runs, ${summary.errors} errors · catalog: ${meta.catalog}`,
+    `${meta.startedAt} · split **${meta.split}** · sets ${meta.sets} · ${meta.caseCount} cases × ${summary.reps} reps = ${summary.runs} runs, ${summary.failed_runs} failed by the model, ${summary.errors} errors · catalog: ${meta.catalog}`,
     `Cost ${money(summary.cost)} (${money(summary.cost_per_document)} per document) · ${summary.ms_per_document === null ? '—' : `${(summary.ms_per_document / 1000).toFixed(1)} s`} per document · tokens: ${summary.usage.input} in, ${summary.usage.output} out, ${summary.usage.cache_read} cache read, ${summary.usage.cache_write} cache write`,
     previous ? `Compared with **${meta.previousName}** (${previous.prompt_version} · ${previous.model} · effort ${previous.effort}).` : 'No earlier run to compare with.',
     '',
@@ -113,7 +114,7 @@ export function summaryMarkdown(summary, previous, meta, results, errors) {
     const seen = new Set();
     const extra = [];
     const missed = [];
-    for (const result of results) {
+    for (const result of results.filter((r) => !r.failure)) {
       for (const p of result.score.unmatchedPredicted) {
         const key = `${result.case}|${p.name}`;
         if (!seen.has(key)) {
@@ -148,6 +149,10 @@ export function summaryMarkdown(summary, previous, meta, results, errors) {
       ...(missed.length ? missed.slice(0, 50) : ['None.']),
       '',
     );
+  }
+  const failed = results.filter((r) => r.failure);
+  if (failed.length > 0) {
+    lines.push('## Runs the model failed (scored as finding nothing)', '', ...failed.slice(0, 50).map((r) => `- ${r.case} rep ${r.rep}: ${r.failure.kind}: ${r.failure.message}`), '');
   }
   if (errors.length > 0) {
     lines.push('## Errors (kept out of the scores)', '', ...errors.slice(0, 50).map((e) => `- ${e.case} rep ${e.rep}: ${e.kind}${e.status ? ` ${e.status}` : ''}: ${e.message}`), '');
