@@ -6,6 +6,7 @@ import { formatTime } from './CollectionRuns.jsx';
 import { LinkPicker } from './InlineFields.jsx';
 import { TrashIcon } from './icons.jsx';
 import { caseForUrl, cleanWebUrl, webCase } from '../lib/webDocument.js';
+import { isNumber, numberDraft } from '../lib/numberInput.js';
 
 // The insight collector's eval set (product/agents/insight-collector/evals.md):
 // documents with the answer it should give, added from a run trace or pasted in
@@ -683,6 +684,27 @@ function EasyAnswer({ answer, onChange, documentText, catalog }) {
   );
 }
 
+// Keeps what's being typed as text, so "1." or "-" can stay on the way to a
+// number, and hands up only what is a number already.
+function DollarImpactInput({ value, onChange }) {
+  const [draft, setDraft] = useState(null);
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={draft ?? value ?? ''}
+      placeholder="only if stated"
+      onChange={(event) => {
+        const next = numberDraft(event.target.value);
+        setDraft(next);
+        if (next === '') onChange(null);
+        else if (isNumber(next)) onChange(Number(next));
+      }}
+      onBlur={() => setDraft(null)}
+    />
+  );
+}
+
 function ExcerptField({ value, found, onChange }) {
   return (
     <label>
@@ -761,12 +783,7 @@ function InsightCard({ insight, found, catalog, onChange, onRemove, onMove }) {
         </label>
         <label>
           Dollar impact
-          <input
-            type="number"
-            value={insight.dollar_impact ?? ''}
-            placeholder="only if stated"
-            onChange={(event) => set('dollar_impact', event.target.value === '' ? null : Number(event.target.value))}
-          />
+          <DollarImpactInput value={insight.dollar_impact} onChange={(value) => set('dollar_impact', value)} />
         </label>
       </div>
       <div className="eval-easy-links">

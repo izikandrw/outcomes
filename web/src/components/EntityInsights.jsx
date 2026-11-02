@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ArrowLeftIcon, ExpandIcon, TrashIcon } from './icons.jsx';
 import InsightCard, { NewInsight } from './InsightCard.jsx';
+import { isNumber, numberDraft } from '../lib/numberInput.js';
 import {
   IMPACT_AREAS,
   INSIGHT_TYPES,
@@ -247,7 +248,6 @@ export default function EntityInsights({
                       value={insight.dollar_impact ?? ''}
                       label="Dollar impact"
                       type="number"
-                      step="0.01"
                       num
                       display={insight.dollar_impact != null ? formatDollars(insight.dollar_impact) : '—'}
                       onCommit={(value) => save(insight, { dollar_impact: value === '' ? null : Number(value) })}
@@ -431,7 +431,7 @@ function keepInScroller(overlay) {
 // `multiline` wraps the text to two lines (then truncates) until focused, when
 // it becomes a textarea that grows to fit the whole value. Hovering truncated
 // text shows all of it over the cell, so reading it doesn't mean editing it.
-function TextCell({ value, label, type = 'text', step, required, bold, num, multiline, display, onCommit }) {
+function TextCell({ value, label, type = 'text', required, bold, num, multiline, display, onCommit }) {
   const [draft, setDraft] = useState(null);
   const [focused, setFocused] = useState(false);
   const [revealed, setRevealed] = useState(false);
@@ -442,6 +442,7 @@ function TextCell({ value, label, type = 'text', step, required, bold, num, mult
     const next = draft.trim();
     setDraft(null);
     if (next === String(value) || (required && !next)) return;
+    if (type === 'number' && next && !isNumber(next)) return;
     onCommit(next);
   }
 
@@ -506,11 +507,11 @@ function TextCell({ value, label, type = 'text', step, required, bold, num, mult
   return (
     <input
       className={className}
-      type={display && !focused ? 'text' : type}
-      step={step}
+      type={type === 'number' ? 'text' : type}
+      inputMode={type === 'number' ? 'decimal' : undefined}
       aria-label={label}
       value={display && !focused && draft === null ? display : shown}
-      onChange={(event) => setDraft(event.target.value)}
+      onChange={(event) => setDraft(type === 'number' ? numberDraft(event.target.value) : event.target.value)}
       onFocus={() => setFocused(true)}
       onBlur={() => {
         setFocused(false);

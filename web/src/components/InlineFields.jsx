@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { SENTIMENTS, sentimentOf } from '../lib/links.js';
 import { selectedFirst } from '../lib/selectedFirst.js';
+import { isNumber, numberDraft } from '../lib/numberInput.js';
 import LinkedText, { firstUrl } from './LinkedText.jsx';
 import { ChevronDownIcon } from './icons.jsx';
 
@@ -347,6 +348,7 @@ export function InlineText({ value, label, display, placeholder = '', type = 'te
       return;
     }
     if (next === current || (required && !next)) return;
+    if (type === 'number' && next && !isNumber(next)) return;
     onCommit(next);
   }
 
@@ -380,12 +382,12 @@ export function InlineText({ value, label, display, placeholder = '', type = 'te
   ) : (
     <input
       className={classes}
-      type={type}
-      step={type === 'number' ? '0.01' : undefined}
+      type={type === 'number' ? 'text' : type}
+      inputMode={type === 'number' ? 'decimal' : undefined}
       autoFocus
       aria-label={label}
       value={draft}
-      onChange={(event) => setDraft(event.target.value)}
+      onChange={(event) => setDraft(type === 'number' ? numberDraft(event.target.value) : event.target.value)}
       onBlur={commit}
       onKeyDown={onKeyDown}
     />
