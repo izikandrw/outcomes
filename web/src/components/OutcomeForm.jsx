@@ -54,13 +54,16 @@ export default function OutcomeForm({
       // Adding a child from the tree: inherit the parent's team. Otherwise
       // default to the only team so the common single-team case needs no
       // picking; either can be cleared, since the team may not be known yet.
+      // One the collector proposed starts with no team: the reviewer chooses.
       setForm((current) => ({
         ...EMPTY,
         name: draft?.name ?? '',
         description: draft?.description ?? '',
         team_id: parent?.team_id
           ? String(parent.team_id)
-          : current.team_id || (teams.length === 1 ? String(teams[0].id) : ''),
+          : draft
+            ? ''
+            : current.team_id || (teams.length === 1 ? String(teams[0].id) : ''),
         impact_id: impactId ? String(impactId) : '',
       }));
       setProjectIds(new Set());
