@@ -100,6 +100,14 @@ test('POST / stores the sentiment', async () => {
   assert.equal(insert.params.at(-1), 'negative');
 });
 
+test('POST / accepts the competitor type', async () => {
+  db.respond = (sql) => (/^INSERT INTO insights/.test(sql) ? { rows: [{ id: 9 }] } : { rows: [] });
+  const res = await request('POST', '/', { name: 'Hooli shipped audit-log export', type: 'competitor' });
+  assert.equal(res.status, 201);
+  const insert = db.calls.find((call) => /^INSERT INTO insights/.test(call.sql));
+  assert.ok(insert.params.includes('competitor'));
+});
+
 test('POST / leaves sentiment empty when none is given', async () => {
   db.respond = (sql) => (/^INSERT INTO insights/.test(sql) ? { rows: [{ id: 9 }] } : { rows: [] });
   await request('POST', '/', { name: 'Admins abandon setup at SSO' });

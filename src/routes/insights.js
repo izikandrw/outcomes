@@ -8,7 +8,7 @@ const router = express.Router({ mergeParams: true });
 
 const TYPES = [
   'support_ticket', 'session_recording', 'interview', 'funnel', 'experiment',
-  'sales_call', 'feature_request', 'survey', 'review', 'other',
+  'sales_call', 'feature_request', 'survey', 'review', 'competitor', 'other',
 ];
 const IMPACT_AREAS = ['acquisition', 'activation', 'retention', 'expansion', 'cost', 'other'];
 const SENTIMENTS = ['positive', 'neutral', 'negative'];

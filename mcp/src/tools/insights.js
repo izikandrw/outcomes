@@ -5,8 +5,10 @@ import { id, text, path, update, registerReadAndDelete } from './shared.js';
 // Mirrors TYPES, IMPACT_AREAS and SENTIMENTS in src/routes/insights.js.
 const type = z.enum([
   'support_ticket', 'session_recording', 'interview', 'funnel', 'experiment',
-  'sales_call', 'feature_request', 'survey', 'review', 'other',
+  'sales_call', 'feature_request', 'survey', 'review', 'competitor', 'other',
 ]);
+const TYPE_HELP =
+  'Kind of evidence. Use competitor when the insight is about something a competitor has done or shipped, whichever kind of source it came from';
 const impactArea = z.enum(['acquisition', 'activation', 'retention', 'expansion', 'cost', 'other']);
 const sentiment = z
   .enum(['positive', 'neutral', 'negative'])
@@ -19,7 +21,7 @@ const fields = {
     .describe(
       'The observation, specific enough to check, e.g. "11 of 14 interviewed admins abandoned setup at the SSO step". Not a conclusion.'
     ),
-  type: type.optional().describe('Kind of evidence; defaults to other'),
+  type: type.optional().describe(`${TYPE_HELP}. Defaults to other`),
   description: z.string().optional(),
   source: z.string().optional().describe('Where to check it: a link, ticket id, call timestamp, file and row'),
   observed_at: z
@@ -74,7 +76,7 @@ export function registerInsightTools(server) {
       inputSchema: {
         name: fields.name,
         description: z.string().optional().describe('Context: who, how many, what happened'),
-        type,
+        type: type.describe(TYPE_HELP),
         observed_at: fields.observed_at,
         dollar_impact: fields.dollar_impact,
         impact_area: impactArea.optional(),
@@ -161,7 +163,7 @@ export function registerInsightTools(server) {
       inputSchema: {
         insight_id: id,
         name: fields.name.optional(),
-        type: type.optional(),
+        type: type.optional().describe(TYPE_HELP),
         description: z.string().nullable().optional().describe('Pass null to clear'),
         source: z.string().nullable().optional().describe('Pass null to clear'),
         observed_at: z.string().nullable().optional().describe('YYYY-MM-DD or a full ISO 8601 timestamp. Pass null to clear'),

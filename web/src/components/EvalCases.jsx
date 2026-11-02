@@ -271,6 +271,7 @@ const INSIGHT_TYPES = [
   'feature_request',
   'survey',
   'review',
+  'competitor',
   'other',
 ];
 

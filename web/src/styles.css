@@ -1783,6 +1783,7 @@ button.tag.insight-badge.suggested {
 .pill[data-value='feature_request'] { --pill: var(--hue-fuchsia); }
 .pill[data-value='survey'] { --pill: var(--hue-yellow); }
 .pill[data-value='review'] { --pill: var(--hue-lime); }
+.pill[data-value='competitor'] { --pill: var(--hue-purple); }
 .pill[data-value='other'] { --pill: var(--muted); }
 
 :is(.insight-table, .review-card, .insight-card, .project-row) select.cell-input.pill.empty {

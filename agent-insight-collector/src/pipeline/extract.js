@@ -5,7 +5,7 @@ import { callModel } from './model.js';
 
 export const INSIGHT_TYPES = [
   'support_ticket', 'session_recording', 'interview', 'funnel', 'experiment',
-  'sales_call', 'feature_request', 'survey', 'review', 'other',
+  'sales_call', 'feature_request', 'survey', 'review', 'competitor', 'other',
 ];
 
 const Candidate = z.object({

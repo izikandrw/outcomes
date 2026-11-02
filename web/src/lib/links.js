@@ -419,6 +419,7 @@ export const INSIGHT_TYPES = [
   { id: 'feature_request', label: 'Feature request' },
   { id: 'survey', label: 'Survey' },
   { id: 'review', label: 'Review' },
+  { id: 'competitor', label: 'Competitor' },
   { id: 'other', label: 'Other' },
 ];
 
