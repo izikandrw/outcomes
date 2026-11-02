@@ -1,13 +1,16 @@
 import { useLayoutEffect, useRef } from 'react';
+import { roadmapMonths } from '../lib/roadmapMonths.js';
 import ProjectRow from './ProjectRow.jsx';
 
-// Projects are the outputs, so the roadmap sequences them by end date (start
-// date when there is no end), grouped by the month they finish: work running
-// November to February sits under February. Projects with neither date can't be placed in time; they sit at the end rather than
-// disappearing, since an unscheduled output is worth noticing. Every project
-// edits in place, so setting a date here moves it to where it now belongs.
-// `projects` is what to show; `allProjects` is who else it can nest under.
-const anchor = (project) => project.end_at || project.start_at;
+// Projects are the outputs, so the roadmap shows what each month holds: the work
+// in progress and the work completing in it (see roadmapMonths). A project running
+// November to February is in progress under November, December and January, and
+// completed under February. Projects with neither date can't be placed in time;
+// they sit at the end rather than disappearing, since an unscheduled output is
+// worth noticing. Every project edits in place, so setting a date here moves it to
+// where it now belongs. `projects` is what to show; `allProjects` is who else it
+// can nest under.
+const isScheduled = (project) => project.start_at || project.end_at;
 export default function Roadmap({
   projects,
   allProjects = projects,
@@ -23,18 +26,8 @@ export default function Roadmap({
   emptyMessage,
 }) {
   const followFocus = useFollowFocus(projects);
-  const scheduled = projects
-    .filter(anchor)
-    .sort((a, b) => new Date(anchor(a)) - new Date(anchor(b)) || a.id - b.id);
-  const unscheduled = projects.filter((project) => !anchor(project));
-
-  const months = [];
-  for (const project of scheduled) {
-    const key = monthKey(anchor(project));
-    const last = months[months.length - 1];
-    if (last?.key === key) last.projects.push(project);
-    else months.push({ key, projects: [project] });
-  }
+  const months = roadmapMonths(projects);
+  const unscheduled = projects.filter((project) => !isScheduled(project));
 
   if (projects.length === 0) {
     return (
@@ -46,7 +39,7 @@ export default function Roadmap({
 
   const renderProject = (project) => (
     <li key={project.id} className="roadmap-item" data-project-id={project.id}>
-      {anchor(project) && <span className="roadmap-date">{formatRange(project)}</span>}
+      {isScheduled(project) && <span className="roadmap-date">{formatRange(project)}</span>}
       <div className="roadmap-body">
         <ProjectRow
           project={project}
@@ -67,15 +60,26 @@ export default function Roadmap({
 
   return (
     <div className="roadmap" ref={followFocus}>
-      {scheduled.length === 0 && (
+      {months.length === 0 && (
         <p className="empty">
           No scheduled projects. Set a start or end date on a project below to place it on the roadmap.
         </p>
       )}
-      {months.map(({ key, projects: inMonth }) => (
-        <section key={key} className="roadmap-group" aria-label={monthLabel(key)}>
+      {months.map(({ key, inProgress, completed }) => (
+        <section key={key} className="roadmap-group" aria-label={monthLabel(key)} data-month={key}>
           <h2>{monthLabel(key)}</h2>
-          <ul>{inMonth.map(renderProject)}</ul>
+          {inProgress.length > 0 && (
+            <section className="roadmap-status" aria-label={`In progress, ${monthLabel(key)}`}>
+              <h3>In progress</h3>
+              <ul>{inProgress.map(renderProject)}</ul>
+            </section>
+          )}
+          {completed.length > 0 && (
+            <section className="roadmap-status" aria-label={`Completed, ${monthLabel(key)}`}>
+              <h3>Completed</h3>
+              <ul>{completed.map(renderProject)}</ul>
+            </section>
+          )}
         </section>
       ))}
       {unscheduled.length > 0 && (
@@ -88,10 +92,12 @@ export default function Roadmap({
   );
 }
 
-// A date change can move a row to another month, which remounts it and drops the
-// focus. This puts the focus back on the same field of the same project and brings
-// it into view, so the next field is still a Tab away. Focus is read during render
-// because by the time an effect runs the old element is already gone.
+// A date change can move a row to another month or subsection, which remounts it
+// and drops the focus. This puts the focus back on the same field of the same
+// project and brings it into view, so the next field is still a Tab away. A project
+// can be listed in several months, so it prefers the row in the month being edited.
+// Focus is read during render because by the time an effect runs the old element is
+// already gone.
 function useFollowFocus(projects) {
   const root = useRef(null);
   const before = useRef(null);
@@ -99,14 +105,18 @@ function useFollowFocus(projects) {
   const active = document.activeElement;
   const row = active?.closest('[data-project-id]');
   const label = active?.getAttribute('aria-label');
-  before.current = row && label && root.current?.contains(row) ? { id: row.dataset.projectId, label } : null;
+  before.current =
+    row && label && root.current?.contains(row)
+      ? { id: row.dataset.projectId, label, month: row.closest('[data-month]')?.dataset.month }
+      : null;
 
   useLayoutEffect(() => {
     if (!before.current || (document.activeElement && document.activeElement !== document.body)) return;
-    const { id, label: field } = before.current;
-    const target = root.current?.querySelector(
-      `[data-project-id="${CSS.escape(id)}"] [aria-label="${CSS.escape(field)}"]`,
-    );
+    const { id, label: field, month } = before.current;
+    const selector = `[data-project-id="${CSS.escape(id)}"] [aria-label="${CSS.escape(field)}"]`;
+    const target =
+      (month && root.current?.querySelector(`[data-month="${CSS.escape(month)}"] ${selector}`)) ||
+      root.current?.querySelector(selector);
     target?.focus();
     target?.scrollIntoView({ block: 'center' });
   }, [projects]);
@@ -116,8 +126,6 @@ function useFollowFocus(projects) {
 
 // Due dates come from a date input as UTC midnight, so month and day are read
 // in UTC to avoid sliding a day back for anyone west of it.
-const monthKey = (value) => new Date(value).toISOString().slice(0, 7);
-
 function monthLabel(key) {
   return new Date(`${key}-01T00:00:00Z`).toLocaleDateString(undefined, {
     month: 'long',

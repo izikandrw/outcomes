@@ -121,10 +121,10 @@ export default function ProjectRow({
             />
           </PillField>
           <TeamChips entries={nestedTeams} teams={teams} onOpen={onOpenTeam} />
-          <PillField label="Start" title="When work starts">
+          <PillField label="Start" title="When work starts; shows it as in progress on the roadmap">
             <DateField label="Start date" value={dateInput(project.start_at)} onCommit={(value) => saveDate('start_at', value)} />
           </PillField>
-          <PillField label="End" title="When it is due to ship; places it on the roadmap">
+          <PillField label="End" title="When it is due to ship; shows it as completed on the roadmap">
             <DateField label="End date" value={dateInput(project.end_at)} onCommit={(value) => saveDate('end_at', value)} />
           </PillField>
           <PillField label="Parent" title="The project this is nested under">
