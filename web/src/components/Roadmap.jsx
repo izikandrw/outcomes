@@ -1,13 +1,13 @@
 import { useLayoutEffect, useRef } from 'react';
 import ProjectRow from './ProjectRow.jsx';
 
-// Projects are the outputs, so the roadmap sequences them by start date (end
-// date when there is no start), grouped by the month they begin. Projects with
-// neither date can't be placed in time; they sit at the end rather than
+// Projects are the outputs, so the roadmap sequences them by end date (start
+// date when there is no end), grouped by the month they finish: work running
+// November to February sits under February. Projects with neither date can't be placed in time; they sit at the end rather than
 // disappearing, since an unscheduled output is worth noticing. Every project
 // edits in place, so setting a date here moves it to where it now belongs.
 // `projects` is what to show; `allProjects` is who else it can nest under.
-const anchor = (project) => project.start_at || project.end_at;
+const anchor = (project) => project.end_at || project.start_at;
 export default function Roadmap({
   projects,
   allProjects = projects,
