@@ -1085,8 +1085,15 @@ button.small {
   font-variant-numeric: tabular-nums;
 }
 
-.roadmap-body .meta {
-  margin: 2px 0 0;
+.roadmap-body {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The roadmap item already spaces its rows, and the rail separates them. */
+.roadmap-body .project-row {
+  padding: 0;
+  border-bottom: none;
 }
 
 .link-button {

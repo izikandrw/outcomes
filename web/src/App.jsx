@@ -627,7 +627,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
     setModal(null);
   }
 
-  // A field edited in place on the project list; throws so the row can show why.
+  // A field edited in place on a project row; throws so the row can show why.
   async function patchProject(project, patch) {
     const updated = await api.updateProject(accountId, project.id, { ...projectPayload(project), ...patch });
     setProjects((current) => current.map((item) => (item.id === updated.id ? updated : item)));
@@ -823,6 +823,9 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
                 onEdit={(team) => setModal({ kind: 'team', team })}
                 onOpenTeam={openTeam}
                 onOpenProject={openEditProject}
+                onUpdateProject={patchProject}
+                onToggleProjectOutcome={toggleProjectOutcome}
+                onDeleteProject={removeProject}
                 onOpenOutcome={openEdit}
                 onOpenImpact={openEditImpact}
                 onShowInsights={showInsights}
@@ -969,11 +972,14 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
             ) : flagged?.length === 0 ? null : (
               <Roadmap
                 projects={flagged ?? projects}
+                allProjects={projects}
                 outcomes={outcomes}
                 teams={teams}
                 insights={evidence}
                 suggestions={suggestions}
-                onEditProject={openEditProject}
+                onUpdateProject={patchProject}
+                onToggleProjectOutcome={toggleProjectOutcome}
+                onDeleteProject={removeProject}
                 onShowInsights={showInsights}
                 onOpenTeam={openTeam}
               />

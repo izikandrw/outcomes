@@ -1,13 +1,28 @@
-import { insightsForProject, outcomesForProject, teamsOnProject, totalDollarImpact } from '../lib/links.js';
-import InsightBadge from './InsightBadge.jsx';
-import TeamChips from './TeamChips.jsx';
+import { useLayoutEffect, useRef } from 'react';
+import ProjectRow from './ProjectRow.jsx';
 
 // Projects are the outputs, so the roadmap sequences them by start date (end
 // date when there is no start), grouped by the month they begin. Projects with
 // neither date can't be placed in time; they sit at the end rather than
-// disappearing, since an unscheduled output is worth noticing.
+// disappearing, since an unscheduled output is worth noticing. Every project
+// edits in place, so setting a date here moves it to where it now belongs.
+// `projects` is what to show; `allProjects` is who else it can nest under.
 const anchor = (project) => project.start_at || project.end_at;
-export default function Roadmap({ projects, outcomes, teams, insights, suggestions, onEditProject, onShowInsights, onOpenTeam, emptyMessage }) {
+export default function Roadmap({
+  projects,
+  allProjects = projects,
+  outcomes,
+  teams,
+  insights,
+  suggestions,
+  onUpdateProject,
+  onToggleProjectOutcome,
+  onDeleteProject,
+  onShowInsights,
+  onOpenTeam,
+  emptyMessage,
+}) {
+  const followFocus = useFollowFocus(projects);
   const scheduled = projects
     .filter(anchor)
     .sort((a, b) => new Date(anchor(a)) - new Date(anchor(b)) || a.id - b.id);
@@ -29,44 +44,32 @@ export default function Roadmap({ projects, outcomes, teams, insights, suggestio
     );
   }
 
-  const renderProject = (project) => {
-    const driven = outcomesForProject(outcomes, project);
-    return (
-      <li key={project.id} className="roadmap-item">
-        {anchor(project) && <span className="roadmap-date">{formatRange(project)}</span>}
-        <div className="roadmap-body">
-          <button type="button" className="link-button" onClick={() => onEditProject(project)}>
-            {project.name}
-          </button>
-          <p className="meta">
-            <TeamChips entries={teamsOnProject(projects, project)} teams={teams} onOpen={onOpenTeam} />
-            <InsightBadge
-              count={insightsForProject(insights, project).length}
-              suggested={insightsForProject(suggestions, project).length}
-              dollars={totalDollarImpact(insightsForProject(insights, project))}
-              label={project.name}
-              onClick={(filter) => onShowInsights(project, 'project', filter)}
-            />
-            {driven.length === 0 ? (
-              <span className="tag warn">No outcome</span>
-            ) : (
-              driven.map((outcome) => (
-                <span className="tag parent" key={outcome.id}>
-                  {outcome.name}
-                </span>
-              ))
-            )}
-          </p>
-        </div>
-      </li>
-    );
-  };
+  const renderProject = (project) => (
+    <li key={project.id} className="roadmap-item" data-project-id={project.id}>
+      {anchor(project) && <span className="roadmap-date">{formatRange(project)}</span>}
+      <div className="roadmap-body">
+        <ProjectRow
+          project={project}
+          allProjects={allProjects}
+          outcomes={outcomes}
+          teams={teams}
+          insights={insights}
+          suggestions={suggestions}
+          onUpdate={onUpdateProject}
+          onToggleOutcome={onToggleProjectOutcome}
+          onDelete={onDeleteProject}
+          onShowInsights={onShowInsights}
+          onOpenTeam={onOpenTeam}
+        />
+      </div>
+    </li>
+  );
 
   return (
-    <div className="roadmap">
+    <div className="roadmap" ref={followFocus}>
       {scheduled.length === 0 && (
         <p className="empty">
-          No scheduled projects. Open a project below and set a start or end date to place it on the roadmap.
+          No scheduled projects. Set a start or end date on a project below to place it on the roadmap.
         </p>
       )}
       {months.map(({ key, projects: inMonth }) => (
@@ -83,6 +86,32 @@ export default function Roadmap({ projects, outcomes, teams, insights, suggestio
       )}
     </div>
   );
+}
+
+// A date change can move a row to another month, which remounts it and drops the
+// focus. This puts the focus back on the same field of the same project and brings
+// it into view, so the next field is still a Tab away. Focus is read during render
+// because by the time an effect runs the old element is already gone.
+function useFollowFocus(projects) {
+  const root = useRef(null);
+  const before = useRef(null);
+
+  const active = document.activeElement;
+  const row = active?.closest('[data-project-id]');
+  const label = active?.getAttribute('aria-label');
+  before.current = row && label && root.current?.contains(row) ? { id: row.dataset.projectId, label } : null;
+
+  useLayoutEffect(() => {
+    if (!before.current || (document.activeElement && document.activeElement !== document.body)) return;
+    const { id, label: field } = before.current;
+    const target = root.current?.querySelector(
+      `[data-project-id="${CSS.escape(id)}"] [aria-label="${CSS.escape(field)}"]`,
+    );
+    target?.focus();
+    target?.scrollIntoView({ block: 'center' });
+  }, [projects]);
+
+  return root;
 }
 
 // Due dates come from a date input as UTC midnight, so month and day are read

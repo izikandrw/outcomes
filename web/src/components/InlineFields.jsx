@@ -203,6 +203,50 @@ export function PillSelect({ label, value, options, empty, disabled, onChange })
   );
 }
 
+// A date that saves as soon as the picker sets it. A typed date saves on Enter or
+// on leaving the field instead: each keystroke changes the value, so saving them
+// would store year 0002 on the way to 2026 and, on the roadmap, move the row while
+// it is being typed in. Escape puts back what was there.
+export function DateField({ label, value, onCommit }) {
+  const [draft, setDraft] = useState(null);
+  const typing = useRef(false);
+
+  function commit(next) {
+    typing.current = false;
+    setDraft(null);
+    const incompleteYear = next && Number(next.slice(0, 4)) < 1000;
+    if (next !== value && !incompleteYear) onCommit(next);
+  }
+
+  return (
+    <input
+      className="cell-input pill-date"
+      type="date"
+      aria-label={label}
+      value={draft ?? value}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          commit(draft ?? value);
+        } else if (event.key === 'Escape') {
+          typing.current = false;
+          setDraft(null);
+        } else {
+          typing.current = true;
+        }
+      }}
+      onChange={(event) => {
+        if (typing.current) setDraft(event.target.value);
+        else commit(event.target.value);
+      }}
+      onBlur={() => {
+        typing.current = false;
+        if (draft !== null) commit(draft);
+      }}
+    />
+  );
+}
+
 export function SentimentSelect({ value, disabled, onChange }) {
   return (
     <select

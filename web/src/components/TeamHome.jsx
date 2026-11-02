@@ -17,6 +17,9 @@ export default function TeamHome({
   onEdit,
   onOpenTeam,
   onOpenProject,
+  onUpdateProject,
+  onToggleProjectOutcome,
+  onDeleteProject,
   onOpenOutcome,
   onOpenImpact,
   onShowInsights,
@@ -93,11 +96,14 @@ export default function TeamHome({
         <h3>Roadmap</h3>
         <Roadmap
           projects={teamProjects}
+          allProjects={projects}
           outcomes={outcomes}
           teams={teams}
           insights={insights}
           suggestions={suggestions}
-          onEditProject={onOpenProject}
+          onUpdateProject={onUpdateProject}
+          onToggleProjectOutcome={onToggleProjectOutcome}
+          onDeleteProject={onDeleteProject}
           onShowInsights={onShowInsights}
           onOpenTeam={onOpenTeam}
           emptyMessage="This team isn't running any projects yet."
