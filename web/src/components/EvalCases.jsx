@@ -3,6 +3,7 @@ import * as api from '../api.js';
 import Modal from './Modal.jsx';
 import ConfirmDialog from './ConfirmDialog.jsx';
 import { formatTime } from './CollectionRuns.jsx';
+import { LinkPicker } from './InlineFields.jsx';
 import { TrashIcon } from './icons.jsx';
 import { caseForUrl, cleanWebUrl, webCase } from '../lib/webDocument.js';
 
@@ -701,10 +702,18 @@ function InsightCard({ insight, found, catalog, onChange, onRemove, onMove }) {
   const proposed = Array.isArray(insight.proposed) ? insight.proposed : [];
   const linked = new Set(links.map((link) => `${link.kind}:${link.id}`));
 
-  function addLink(value) {
-    const [kind, id] = value.split(':');
-    const item = catalog[kind === 'outcome' ? 'outcomes' : 'projects'].find((entry) => String(entry.id) === id);
-    if (item) set('links', [...links, { kind, id: String(item.id), name: item.name }]);
+  const linkable = [
+    ...catalog.outcomes.map((outcome) => ({ kind: 'outcome', group: 'Outcomes', ...outcome })),
+    ...catalog.projects.map((project) => ({ kind: 'project', group: 'Projects', ...project })),
+  ].map((item) => ({ ...item, linked: linked.has(`${item.kind}:${item.id}`) }));
+
+  function toggleLink(item) {
+    set(
+      'links',
+      item.linked
+        ? links.filter((link) => `${link.kind}:${link.id}` !== `${item.kind}:${item.id}`)
+        : [...links, { kind: item.kind, id: String(item.id), name: item.name }],
+    );
   }
 
   return (
@@ -787,27 +796,11 @@ function InsightCard({ insight, found, catalog, onChange, onRemove, onMove }) {
             </button>
           </span>
         ))}
-        <select value="" onChange={(event) => addLink(event.target.value)}>
-          <option value="">Link an outcome or project…</option>
-          <optgroup label="Outcomes">
-            {catalog.outcomes
-              .filter((outcome) => !linked.has(`outcome:${outcome.id}`))
-              .map((outcome) => (
-                <option key={outcome.id} value={`outcome:${outcome.id}`}>
-                  {outcome.name}
-                </option>
-              ))}
-          </optgroup>
-          <optgroup label="Projects">
-            {catalog.projects
-              .filter((project) => !linked.has(`project:${project.id}`))
-              .map((project) => (
-                <option key={project.id} value={`project:${project.id}`}>
-                  {project.name}
-                </option>
-              ))}
-          </optgroup>
-        </select>
+        {linkable.length > 0 && (
+          <LinkPicker items={linkable} label="Link outcomes and projects" onToggle={toggleLink}>
+            Link an outcome or project…
+          </LinkPicker>
+        )}
       </div>
       <div className="actions">
         <button type="button" className="ghost small" onClick={onMove}>

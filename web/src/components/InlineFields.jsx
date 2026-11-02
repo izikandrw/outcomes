@@ -27,7 +27,10 @@ export function LinkPicker({ items, disabled, onToggle, buttonClassName = 'ghost
       if (ref.current && !ref.current.contains(event.target)) setOpen(false);
     }
     function onKeyDown(event) {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key !== 'Escape') return;
+      // Inside a modal, Esc would otherwise close the dialog as well as the menu.
+      event.preventDefault();
+      setOpen(false);
     }
     document.addEventListener('mousedown', onPointerDown);
     document.addEventListener('keydown', onKeyDown);
@@ -65,6 +68,10 @@ export function LinkPicker({ items, disabled, onToggle, buttonClassName = 'ghost
             placeholder={`${searchLabel}…`}
             aria-label={searchLabel}
             onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              // Inside a form, Enter would otherwise submit it.
+              if (event.key === 'Enter') event.preventDefault();
+            }}
           />
           <ul role="listbox" aria-multiselectable="true" aria-label={label}>
             {matches.length === 0 && <li className="hint">No matches.</li>}
