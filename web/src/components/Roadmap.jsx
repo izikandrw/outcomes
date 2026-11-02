@@ -64,6 +64,11 @@ export default function Roadmap({ projects, outcomes, teams, insights, suggestio
 
   return (
     <div className="roadmap">
+      {scheduled.length === 0 && (
+        <p className="empty">
+          No scheduled projects. Open a project below and set a start or end date to place it on the roadmap.
+        </p>
+      )}
       {months.map(({ key, projects: inMonth }) => (
         <section key={key} className="roadmap-group" aria-label={monthLabel(key)}>
           <h2>{monthLabel(key)}</h2>
