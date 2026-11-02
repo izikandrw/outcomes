@@ -355,18 +355,18 @@ button.with-icon {
   width: min(1400px, calc(100vw - 32px));
 }
 
-/* A card opened from the map: docked to the left of the window, with the page
+/* A card opened from the map: docked to the right of the window, with the page
    still usable beside it. Where there's room the page moves over to make way;
    on a narrow window it would have too little left, so the panel covers it. */
 .side-panel {
   position: fixed;
-  inset: 0 auto 0 0;
+  inset: 0 0 0 auto;
   z-index: 30;
   width: min(480px, 100vw);
   overflow-y: auto;
   background: var(--surface);
   color: var(--text);
-  border-right: 1px solid var(--border);
+  border-left: 1px solid var(--border);
   box-shadow: 0 0 24px rgb(0 0 0 / 0.12);
 }
 
@@ -374,13 +374,18 @@ button.with-icon {
   outline: none;
 }
 
+/* Keeps clear of the panel, which would otherwise cover it. */
+body:has(.side-panel) .jump-to-top {
+  right: calc(min(480px, 100vw) + 20px);
+}
+
 @media (min-width: 1200px) {
   body:has(.side-panel) .app {
-    margin-left: 480px;
+    margin-right: 480px;
   }
 
   body:has(.side-panel) .pinned-nav {
-    left: calc(50% + 240px);
+    left: calc(50% - 240px);
   }
 }
 

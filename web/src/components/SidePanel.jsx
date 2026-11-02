@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { CloseIcon } from './icons.jsx';
 import { FIRST_FIELD } from './Modal.jsx';
 
-// Modal's counterpart for an item opened from the map: it docks to the left,
+// Modal's counterpart for an item opened from the map: it docks to the right,
 // like a Jira issue view, and leaves the page usable beside it, so the map can
 // still be scrolled and another card clicked. Being non-modal it gets none of
 // <dialog>'s help, so focus and Esc are handled here.
