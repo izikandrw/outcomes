@@ -1089,6 +1089,10 @@ button.small {
   padding-left: 0;
 }
 
+.roadmap-unscheduled-toggle h2 {
+  margin: 0;
+}
+
 .roadmap-date {
   flex: 0 0 150px;
   font-size: 13px;
@@ -2533,7 +2537,8 @@ button.team-chip.link:hover {
 }
 
 /* Native <details>, collapsed by default so the chart leads. */
-.measurement-accordion > summary {
+.measurement-accordion > summary,
+.roadmap-unscheduled-toggle > summary {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2545,16 +2550,19 @@ button.team-chip.link:hover {
   list-style: none;
 }
 
-.measurement-accordion > summary::-webkit-details-marker {
+.measurement-accordion > summary::-webkit-details-marker,
+.roadmap-unscheduled-toggle > summary::-webkit-details-marker {
   display: none;
 }
 
-.measurement-accordion > summary::before {
+.measurement-accordion > summary::before,
+.roadmap-unscheduled-toggle > summary::before {
   content: '▸';
   transition: transform 120ms ease;
 }
 
-.measurement-accordion[open] > summary::before {
+.measurement-accordion[open] > summary::before,
+.roadmap-unscheduled-toggle[open] > summary::before {
   transform: rotate(90deg);
 }
 

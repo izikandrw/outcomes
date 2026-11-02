@@ -11,7 +11,9 @@ import ProjectRow from './ProjectRow.jsx';
 // where it now belongs. `projects` is what to show; `allProjects` is who else it
 // can nest under. The Completion dates view narrows it to when projects finish:
 // it shows in the address bar as tab=completions or tab=all, when `view` is passed,
-// and with no tab it opens on All unless `completionsByDefault` is set.
+// and with no tab it opens on All unless `completionsByDefault` is set. Projects
+// with no end date have no place in that view, so they wait in a collapsed section
+// at the end, still editable, and setting an end date moves one up into its month.
 const COMPLETIONS = 'completions';
 const ALL = 'all';
 const isScheduled = (project) => project.start_at || project.end_at;
@@ -37,7 +39,9 @@ export default function Roadmap({
   const allMonths = roadmapMonths(projects);
   const months = completionsOnly ? completionMonths(allMonths) : allMonths;
   const unscheduled = projects.filter((project) => !isScheduled(project));
-  const noEndDate = projects.filter((project) => !project.end_at).length;
+  const noEndDate = projects.filter((project) => !project.end_at);
+  // Some of these have a start date and some don't, so keep their names lined up.
+  const alignDates = completionsOnly && noEndDate.some(isScheduled);
 
   if (projects.length === 0) {
     return (
@@ -49,7 +53,9 @@ export default function Roadmap({
 
   const renderProject = (project) => (
     <li key={project.id} className="roadmap-item" data-project-id={project.id}>
-      {isScheduled(project) && <span className="roadmap-date">{formatRange(project)}</span>}
+      {(isScheduled(project) || alignDates) && (
+        <span className="roadmap-date">{isScheduled(project) && formatRange(project)}</span>
+      )}
       <div className="roadmap-body">
         <ProjectRow
           project={project}
@@ -86,7 +92,7 @@ export default function Roadmap({
       )}
       {months.length === 0 &&
         (completionsOnly ? (
-          <p className="empty">No project has an end date yet. Set one under All to see it here.</p>
+          <p className="empty">No project has an end date yet. Set one on a project below to see it here.</p>
         ) : (
           <p className="empty">
             No scheduled projects. Set a start or end date on a project below to place it on the roadmap.
@@ -109,10 +115,18 @@ export default function Roadmap({
           )}
         </section>
       ))}
-      {completionsOnly && months.length > 0 && noEndDate > 0 && (
-        <p className="hint">
-          {noEndDate === 1 ? "1 project has no end date, so it isn't shown." : `${noEndDate} projects have no end date, so they aren't shown.`}
-        </p>
+      {completionsOnly && noEndDate.length > 0 && (
+        <section className="roadmap-group roadmap-unscheduled" aria-label="Unscheduled">
+          <details className="roadmap-unscheduled-toggle">
+            <summary>
+              <h2>Unscheduled</h2>
+              <span className="hint">
+                {noEndDate.length} {noEndDate.length === 1 ? 'project' : 'projects'} with no end date
+              </span>
+            </summary>
+            <ul>{noEndDate.map(renderProject)}</ul>
+          </details>
+        </section>
       )}
       {!completionsOnly && unscheduled.length > 0 && (
         <section className="roadmap-group roadmap-unscheduled" aria-label="Unscheduled">
@@ -128,6 +142,7 @@ export default function Roadmap({
 // and drops the focus. This puts the focus back on the same field of the same
 // project and brings it into view, so the next field is still a Tab away. A project
 // can be listed in several months, so it prefers the row in the month being edited.
+// Clearing an end date can land it in the collapsed section, which opens to show it.
 // Focus is read during render because by the time an effect runs the old element is
 // already gone.
 function useFollowFocus(projects) {
@@ -149,6 +164,7 @@ function useFollowFocus(projects) {
     const target =
       (month && root.current?.querySelector(`[data-month="${CSS.escape(month)}"] ${selector}`)) ||
       root.current?.querySelector(selector);
+    target?.closest('details')?.setAttribute('open', '');
     target?.focus();
     target?.scrollIntoView({ block: 'center' });
   }, [projects]);
