@@ -1663,7 +1663,8 @@ button.tag.insight-badge.suggested {
 }
 
 /* Hovering a truncated name lays the whole of it over the cell. It ignores the
-   pointer, so a click still lands on the name underneath and starts editing. */
+   pointer, so a click still lands on the name underneath and starts editing.
+   keepInScroller lifts it off the bottom rows. */
 .insight-table .clamp-wrap {
   position: relative;
 }
@@ -1673,16 +1674,12 @@ button.tag.insight-badge.suggested {
   top: 0;
   left: 0;
   z-index: 5;
-  display: none;
+  overflow: hidden;
   overflow-wrap: anywhere;
   border-color: var(--border);
   background: var(--surface);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
   pointer-events: none;
-}
-
-.insight-table .clamp-wrap:hover .clamp-full {
-  display: block;
 }
 
 .insight-table textarea.cell-input {
@@ -1874,8 +1871,8 @@ button.tag.insight-badge.suggested {
   max-height: calc(100vh - 66px);
 }
 
-/* The scrollbar's width stays reserved: it comes and goes with the row count and
-   with the overlay of a long name, and the columns shouldn't move when it does.
+/* The scrollbar's width stays reserved: it comes and goes with the row count,
+   and the columns shouldn't move when it does.
    The first and last cells sit flush with its edges, so the side padding gives
    their focus rings room not to be clipped, and the margin keeps the table in place. */
 .insight-table-scroll {

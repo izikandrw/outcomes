@@ -410,6 +410,21 @@ function VerifiedSelect({ status, onChange }) {
   );
 }
 
+// Holds the overlay of a long name inside the visible part of the table, lifting
+// it off the bottom rows. Past the bottom edge it would add to what can be scrolled:
+// the list would jump as it came and went, and scrolling would take the row from
+// under the pointer, hide the overlay, and snap back, over and over.
+function keepInScroller(overlay) {
+  const scroller = overlay?.closest('.insight-table-scroll');
+  if (!scroller) return;
+  const ceiling = scroller.querySelector('th').getBoundingClientRect().bottom;
+  const floor = scroller.getBoundingClientRect().top + scroller.clientTop + scroller.clientHeight;
+  const box = overlay.getBoundingClientRect();
+  if (box.height > floor - ceiling) overlay.style.maxHeight = `${Math.max(floor - ceiling, 0)}px`;
+  const lift = Math.min(box.bottom - floor, box.top - ceiling);
+  if (lift > 0) overlay.style.top = `${-Math.ceil(lift)}px`;
+}
+
 // Text/number input that saves on blur or Enter, and only when the value
 // changed. Escape puts back what was there.
 // `display`, when given, is what shows while the cell isn't focused.
@@ -419,7 +434,7 @@ function VerifiedSelect({ status, onChange }) {
 function TextCell({ value, label, type = 'text', step, required, bold, num, multiline, display, onCommit }) {
   const [draft, setDraft] = useState(null);
   const [focused, setFocused] = useState(false);
-  const [truncated, setTruncated] = useState(false);
+  const [revealed, setRevealed] = useState(false);
   const shown = draft ?? String(value);
 
   function commit() {
@@ -434,19 +449,22 @@ function TextCell({ value, label, type = 'text', step, required, bold, num, mult
 
   if (multiline && !focused) {
     return (
-      <div className="clamp-wrap">
+      <div className="clamp-wrap" onMouseLeave={() => setRevealed(false)}>
         <div
           className={`${className} clamp`}
           role="textbox"
           tabIndex={0}
           aria-label={label}
-          onMouseEnter={(event) => setTruncated(event.currentTarget.scrollHeight > event.currentTarget.clientHeight)}
-          onFocus={() => setFocused(true)}
+          onMouseEnter={(event) => setRevealed(event.currentTarget.scrollHeight > event.currentTarget.clientHeight)}
+          onFocus={() => {
+            setRevealed(false);
+            setFocused(true);
+          }}
         >
           {shown}
         </div>
-        {truncated && (
-          <div className={`${className} clamp-full`} aria-hidden="true">
+        {revealed && (
+          <div ref={keepInScroller} className={`${className} clamp-full`} aria-hidden="true">
             {shown}
           </div>
         )}
