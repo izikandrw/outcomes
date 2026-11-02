@@ -36,7 +36,7 @@ import { flaggedBy, ruleById, validateTree } from './lib/validation.js';
 const STORED_PAGE = 'outcomes.page';
 const STORED_TEAM = 'outcomes.team';
 // Where a header issue count takes you, by the kind of thing its rule applies to.
-const ISSUE_PAGES = { impact: 'impacts', outcome: 'outcomes', project: 'roadmap' };
+const ISSUE_PAGES = { impact: 'impacts', outcome: 'outcomes', project: 'projects' };
 
 // The fields a project PUT replaces; parent_project_id is sent explicitly so a
 // partial update never clears it.
