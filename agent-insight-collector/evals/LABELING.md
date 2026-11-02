@@ -14,6 +14,10 @@ Each case has a `name`, a `split` (`dev` or `test`), a `label_source` (`golden` 
 
 Names: `<source>-<what>`, e.g. `csv-churn-tracker-row-12`, `attention-globex-renewal`, `jira-PROD-2291`, `noinsight-password-reset`.
 
+## Finding documents to label
+
+`documents.csv` here is a list of public web pages that may hold insights: URLs and topics only, no content or findings, so it's safe to read before labeling and safe in the repo. The `collect-documents` skill adds to it.
+
 ## The mix to aim for (~30)
 
 | | count |
