@@ -4,17 +4,20 @@ import Modal from './Modal.jsx';
 import ConfirmDialog from './ConfirmDialog.jsx';
 import { formatTime } from './CollectionRuns.jsx';
 import { TrashIcon } from './icons.jsx';
+import { caseForUrl, cleanWebUrl, webCase } from '../lib/webDocument.js';
 
 // The insight collector's eval set (product/agents/insight-collector/evals.md):
-// documents with the answer it should give, added from a run trace. A review
-// case's answer was drafted from what reviewers did; a golden case's is labelled
-// here by hand, from the document alone (agent-insight-collector/evals/LABELING.md). Only ready
-// cases are scored, and the test split is held out while tuning.
+// documents with the answer it should give, added from a run trace or pasted in
+// from a web page. A review case's answer was drafted from what reviewers did; a
+// golden case's is labelled here by hand, from the document alone
+// (agent-insight-collector/evals/LABELING.md). Only ready cases are scored, and
+// the test split is held out while tuning.
 export default function EvalCases({ accountId }) {
   const [cases, setCases] = useState(null);
   const [error, setError] = useState(null);
   const [openId, setOpenId] = useState(null);
   const [deleting, setDeleting] = useState(null);
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     api
@@ -25,13 +28,29 @@ export default function EvalCases({ accountId }) {
 
   if (error) return <p className="error">{error}</p>;
   if (!cases) return <p className="empty">Loading…</p>;
-  if (cases.length === 0) {
-    return (
-      <p className="empty">
-        No eval cases yet. Open a run on the Runs tab and add documents to the review set or the golden set.
-      </p>
-    );
-  }
+
+  // Straight on to labelling it.
+  const newCaseForm = adding && (
+    <NewCaseFromUrl
+      accountId={accountId}
+      cases={cases}
+      onCreated={(created) => {
+        setCases((current) => [...current, created]);
+        setAdding(false);
+        setOpenId(created.id);
+      }}
+      onOpenExisting={(id) => {
+        setAdding(false);
+        setOpenId(id);
+      }}
+      onClose={() => setAdding(false)}
+    />
+  );
+  const addButton = (
+    <button type="button" className="ghost small" onClick={() => setAdding(true)}>
+      New case from URL
+    </button>
+  );
 
   const ready = cases.filter((entry) => entry.status === 'ready');
   const open = cases.find((entry) => entry.id === openId);
@@ -49,6 +68,19 @@ export default function EvalCases({ accountId }) {
     }
   }
 
+  if (cases.length === 0) {
+    return (
+      <>
+        <p className="empty">
+          No eval cases yet. Open a run on the Runs tab and add documents to the review set or the golden set, or
+          start from a web page.
+        </p>
+        {addButton}
+        {newCaseForm}
+      </>
+    );
+  }
+
   return (
     <>
       <div className="list-head">
@@ -56,10 +88,14 @@ export default function EvalCases({ accountId }) {
           {cases.length} cases · {ready.length} ready ({ready.filter((entry) => entry.split === 'dev').length} dev,{' '}
           {ready.filter((entry) => entry.split === 'test').length} test) · {cases.length - ready.length} drafts
         </span>
-        <button type="button" className="ghost small" disabled={ready.length === 0} onClick={() => downloadSet(ready)}>
-          Download ready cases
-        </button>
+        <div className="actions">
+          {addButton}
+          <button type="button" className="ghost small" disabled={ready.length === 0} onClick={() => downloadSet(ready)}>
+            Download ready cases
+          </button>
+        </div>
       </div>
+      {newCaseForm}
       <table className="insight-table runs-table">
         <thead>
           <tr>
@@ -136,6 +172,77 @@ export default function EvalCases({ accountId }) {
         />
       )}
     </>
+  );
+}
+
+// A golden case from a web page, such as one on agent-insight-collector/evals/documents.csv.
+// The text is pasted because many pages refuse to be fetched, and only a person
+// can say which part of the page is the document.
+function NewCaseFromUrl({ accountId, cases, onCreated, onOpenExisting, onClose }) {
+  const [url, setUrl] = useState('');
+  const [title, setTitle] = useState('');
+  const [text, setText] = useState('');
+  const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const existing = cleanWebUrl(url) ? caseForUrl(cases, url) : null;
+
+  async function create(event) {
+    event.preventDefault();
+    if (!cleanWebUrl(url)) {
+      setError('Enter the page’s full URL, starting with http:// or https://.');
+      return;
+    }
+    if (!text.trim()) {
+      setError('Paste the document’s text: it’s what you’ll label.');
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      onCreated(await api.createEvalCase(accountId, webCase({ url, title, text })));
+    } catch (err) {
+      setError(err.message);
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal title="New eval case from a URL" wide onClose={onClose}>
+      <form className="outcome-form eval-case-form" onSubmit={create}>
+        <p className="hint">Paste only the part you’d judge: the post or comment, without the page’s menus and ads.</p>
+        <label>
+          URL
+          <input value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://…" />
+        </label>
+        {existing && (
+          <p className="hint">
+            This page is already in the set as{' '}
+            <button type="button" className="link-button" onClick={() => onOpenExisting(existing.id)}>
+              {existing.name}
+            </button>
+            .
+          </p>
+        )}
+        <label>
+          Title <span className="hint">(optional)</span>
+          <input value={title} onChange={(event) => setTitle(event.target.value)} />
+        </label>
+        <label>
+          Document text
+          <textarea rows={12} value={text} onChange={(event) => setText(event.target.value)} />
+        </label>
+        {error && <p className="error">{error}</p>}
+        <div className="actions">
+          <button type="submit" disabled={saving || Boolean(existing)}>
+            {saving ? 'Adding…' : 'Add and label'}
+          </button>
+          <button type="button" className="ghost" onClick={onClose}>
+            Cancel
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -369,7 +476,17 @@ export function CaseEditor({ accountId, evalCase, onSaved, onDeleted, onClose })
 
         <div className="eval-case-document">
           <span className="eval-case-label">
-            Document <span className="hint">· {evalCase.document.external_id}</span>
+            Document{' '}
+            <span className="hint">
+              ·{' '}
+              {cleanWebUrl(evalCase.document.url) ? (
+                <a href={cleanWebUrl(evalCase.document.url)} target="_blank" rel="noreferrer">
+                  {evalCase.document.external_id}
+                </a>
+              ) : (
+                evalCase.document.external_id
+              )}
+            </span>
           </span>
           <pre ref={textRef} className="run-text" onMouseUp={noteSelection} onKeyUp={noteSelection}>
             {evalCase.document.text}

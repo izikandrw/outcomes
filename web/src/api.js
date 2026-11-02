@@ -137,7 +137,8 @@ export const updateInsight = (accountId, insightId, insight) =>
 export const listCollectionRuns = (accountId) => request(`/accounts/${accountId}/collection-runs`);
 export const getCollectionRun = (accountId, runId) => request(`/accounts/${accountId}/collection-runs/${runId}`);
 // The collector's eval set: documents with the answer it should give.
-// createEvalCase takes { run_document_id, label_source: 'review' | 'golden' }.
+// createEvalCase takes { run_document_id, label_source: 'review' | 'golden' },
+// or a case written elsewhere: { name, label_source, document }.
 export const listEvalCases = (accountId) => request(`/accounts/${accountId}/eval-cases`);
 export const createEvalCase = (accountId, evalCase) =>
   request(`/accounts/${accountId}/eval-cases`, { method: 'POST', body: JSON.stringify(evalCase) });

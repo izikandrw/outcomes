@@ -18,6 +18,8 @@ Names: `<source>-<what>`, e.g. `csv-churn-tracker-row-12`, `attention-globex-ren
 
 `documents.csv` here is a list of public web pages that may hold insights: URLs and topics only, no content or findings, so it's safe to read before labeling and safe in the repo. The `collect-documents` skill adds to it.
 
+To turn one into a case, open the page, then choose **New case from URL** on **Review → Eval set** and paste the URL and the text you'd judge. It becomes a blank golden case and opens for labeling.
+
 ## The mix to aim for (~30)
 
 | | count |

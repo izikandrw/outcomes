@@ -67,4 +67,4 @@ Append rows to `agent-insight-collector/evals/documents.csv`, quoting any field 
 
 ## Report
 
-Say how many URLs you added, split by lane, `source_type` and `voice`; which themes in the catalog came up thin or empty (that's a finding too); anything odd. Then: "Read and grade them from `agent-insight-collector/evals/documents.csv`."
+Say how many URLs you added, split by lane, `source_type` and `voice`; which themes in the catalog came up thin or empty (that's a finding too); anything odd. Then: "Read and grade them from `agent-insight-collector/evals/documents.csv`; **New case from URL** on Review → Eval set turns one into a case."
