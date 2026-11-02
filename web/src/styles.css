@@ -1875,11 +1875,15 @@ button.tag.insight-badge.suggested {
 }
 
 /* The scrollbar's width stays reserved: it comes and goes with the row count and
-   with the overlay of a long name, and the columns shouldn't move when it does. */
+   with the overlay of a long name, and the columns shouldn't move when it does.
+   The first and last cells sit flush with its edges, so the side padding gives
+   their focus rings room not to be clipped, and the margin keeps the table in place. */
 .insight-table-scroll {
   min-height: 0;
   overflow: auto;
   scrollbar-gutter: stable;
+  margin-inline: -4px;
+  padding-inline: 4px;
 }
 
 /* Above the hover overlay of a long name. A collapsed border doesn't travel
