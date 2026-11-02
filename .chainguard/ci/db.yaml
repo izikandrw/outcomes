@@ -8,9 +8,10 @@ environment:
 checks:
   migrate:
     description: >-
-      Builds a fresh database from create_db.sql, applies every migration the
-      way a Render deploy does (npm run migrate && npm start), reruns them to
-      prove a redeploy is a no-op, and boots the API against the result.
+      Checks migrate refuses an empty database, builds a fresh one from
+      create_db.sql, applies every migration the way a Render deploy does
+      (npm run migrate && npm start), reruns them to prove a redeploy is a
+      no-op, and boots the API against the result.
     timeout: 10m
     when:
       changed: [create_db.sql, "migrations/**", scripts/migrate.js, "src/**", package.json, package-lock.json, ".chainguard/**"]
@@ -19,9 +20,15 @@ checks:
     steps:
       - name: install
         cmd: npm ci --no-audit --no-fund
-      - name: create schema
+      - name: migrate refuses an empty database
         script: |
           createdb outcomes
+          if npm run migrate; then
+            echo "migrate should refuse a database with no schema"
+            exit 1
+          fi
+      - name: create schema
+        script: |
           psql -v ON_ERROR_STOP=1 -q -d outcomes -f create_db.sql
       - name: migrate
         cmd: npm run migrate

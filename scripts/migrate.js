@@ -59,8 +59,14 @@ async function main() {
     // Serialise concurrent deploys.
     await acquireLock(client);
 
-    const { rows: [{ tracked }] } = await client.query(
-      "SELECT to_regclass('schema_migrations') IS NOT NULL AS tracked");
+    // Migrations alter the schema create_db.sql builds, so they can't start from
+    // nothing. Stop before touching the database, so it can still be built.
+    const { rows: [{ built }] } = await client.query(
+      "SELECT to_regclass('users') IS NOT NULL AS built");
+    if (!built) {
+      throw new Error('this database has no schema: run `psql -d <database> -f create_db.sql`, then migrate again');
+    }
+
     await client.query(`CREATE TABLE IF NOT EXISTS schema_migrations (
       name       TEXT PRIMARY KEY,
       applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -68,16 +74,14 @@ async function main() {
 
     const files = fs.readdirSync(DIR).filter((f) => /^\d+_.*\.sql$/.test(f)).sort();
 
-    if (!tracked) {
-      const { rows: [{ built }] } = await client.query(
-        "SELECT to_regclass('users') IS NOT NULL AS built");
-      if (built) {
-        for (const f of files.filter((f) => f.slice(0, 3) <= BASELINE_THROUGH)) {
-          await client.query(
-            'INSERT INTO schema_migrations (name) VALUES ($1) ON CONFLICT DO NOTHING', [f]);
-        }
-        console.log(`Baselined existing database through ${BASELINE_THROUGH}`);
+    // Nothing recorded yet, however the tracking table came to exist.
+    const { rows: recorded } = await client.query('SELECT 1 FROM schema_migrations LIMIT 1');
+    if (recorded.length === 0) {
+      for (const f of files.filter((f) => f.slice(0, 3) <= BASELINE_THROUGH)) {
+        await client.query(
+          'INSERT INTO schema_migrations (name) VALUES ($1) ON CONFLICT DO NOTHING', [f]);
       }
+      console.log(`Baselined existing database through ${BASELINE_THROUGH}`);
     }
 
     const { rows } = await client.query('SELECT name FROM schema_migrations');
