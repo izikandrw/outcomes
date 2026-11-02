@@ -453,9 +453,10 @@ export function CaseEditor({ accountId, evalCase, onSaved, onDeleted, onClose })
           </label>
           <label>
             Occurred
+            {/* CSV imports can store a full timestamp, which a date input would show as blank. */}
             <input
-              value={details.occurred_at}
-              placeholder="YYYY-MM-DD"
+              type="date"
+              value={details.occurred_at.slice(0, 10)}
               onChange={(event) => setDetails({ ...details, occurred_at: event.target.value })}
             />
           </label>
