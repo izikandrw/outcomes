@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { SENTIMENTS, sentimentOf } from '../lib/links.js';
+import { selectedFirst } from '../lib/selectedFirst.js';
 import LinkedText, { firstUrl } from './LinkedText.jsx';
 import { ChevronDownIcon } from './icons.jsx';
 
@@ -15,10 +16,12 @@ export const EVIDENCE = [
 // A filterable checklist of outcomes and projects behind a button; ticking one
 // links the insight to it and unticking unlinks it, so several can be picked
 // without reopening the menu. Items carry a `group` heading and `linked`.
-// `buttonClassName` and `children` style and label the button.
+// `buttonClassName` and `children` style and label the button. What's linked
+// when the menu opens is listed first, under its own heading if there are groups.
 export function LinkPicker({ items, disabled, onToggle, buttonClassName = 'ghost small', label, children }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [linkedOnOpen, setLinkedOnOpen] = useState(() => new Set());
   const ref = useRef(null);
 
   useEffect(() => {
@@ -44,6 +47,18 @@ export function LinkPicker({ items, disabled, onToggle, buttonClassName = 'ghost
   const matches = needle ? items.filter((item) => item.name.toLowerCase().includes(needle)) : items;
   const groups = [...new Set(items.map((item) => item.group))];
   const searchLabel = `Search ${groups.map((group) => group.toLowerCase()).join(' and ')}`;
+  const itemKey = (item) => `${item.kind}:${item.id}`;
+  const wasLinked = (item) => linkedOnOpen.has(itemKey(item));
+  const sections = [
+    { heading: 'Selected', rows: groups.length > 1 ? matches.filter(wasLinked) : [] },
+    ...groups.map((group) => {
+      const inGroup = matches.filter((item) => item.group === group);
+      return {
+        heading: group,
+        rows: groups.length > 1 ? inGroup.filter((item) => !wasLinked(item)) : selectedFirst(inGroup, wasLinked),
+      };
+    }),
+  ];
 
   return (
     <div className="link-existing multi-select-anchor" ref={ref}>
@@ -55,6 +70,7 @@ export function LinkPicker({ items, disabled, onToggle, buttonClassName = 'ghost
         disabled={disabled}
         onClick={() => {
           setQuery('');
+          setLinkedOnOpen(new Set(items.filter((item) => item.linked).map(itemKey)));
           setOpen((current) => !current);
         }}
       >
@@ -75,26 +91,25 @@ export function LinkPicker({ items, disabled, onToggle, buttonClassName = 'ghost
           />
           <ul role="listbox" aria-multiselectable="true" aria-label={label}>
             {matches.length === 0 && <li className="hint">No matches.</li>}
-            {groups.map((group) => {
-              const inGroup = matches.filter((item) => item.group === group);
-              return inGroup.length === 0
+            {sections.map(({ heading, rows }) =>
+              rows.length === 0
                 ? null
                 : [
                     groups.length > 1 && (
-                      <li key={group} className="multi-select-group" role="presentation">
-                        {group}
+                      <li key={heading} className="multi-select-group" role="presentation">
+                        {heading}
                       </li>
                     ),
-                    ...inGroup.map((item) => (
-                      <li key={`${item.kind}:${item.id}`} role="option" aria-selected={item.linked}>
+                    ...rows.map((item) => (
+                      <li key={itemKey(item)} role="option" aria-selected={item.linked}>
                         <label>
                           <input type="checkbox" checked={item.linked} onChange={() => onToggle(item)} />
                           {item.name}
                         </label>
                       </li>
                     )),
-                  ];
-            })}
+                  ],
+            )}
           </ul>
         </div>
       )}

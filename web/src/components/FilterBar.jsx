@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { selectedFirst } from '../lib/selectedFirst.js';
 import { ChevronDownIcon, CloseIcon, FilterIcon } from './icons.jsx';
 
 // Filters as a row of pills. Fields marked `primary` always show a pill, so the
@@ -167,11 +168,16 @@ function FieldPicker({ fields, filters, onPick, countFor }) {
 }
 
 // Checkboxes for one field's options, each with how many insights it would show.
-// Long lists (outcomes, projects, teams) get a box to narrow them.
+// Long lists (outcomes, projects, teams) get a box to narrow them. This mounts
+// as the menu opens, so what's picked by then is what's listed first.
 function OptionList({ field, picked, onChange, countFor }) {
   const [query, setQuery] = useState('');
+  const [pickedOnOpen] = useState(picked);
   const needle = query.trim().toLowerCase();
-  const options = needle ? field.options.filter((option) => option.label.toLowerCase().includes(needle)) : field.options;
+  const options = selectedFirst(
+    needle ? field.options.filter((option) => option.label.toLowerCase().includes(needle)) : field.options,
+    (option) => pickedOnOpen.includes(option.id),
+  );
 
   function toggle(id) {
     onChange(picked.includes(id) ? picked.filter((entry) => entry !== id) : [...picked, id]);

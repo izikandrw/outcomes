@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
+import { selectedFirst } from '../lib/selectedFirst.js';
 import { ChevronDownIcon } from './icons.jsx';
 
 // A dropdown for picking several items: the closed state shows the picks as
-// removable chips, and the menu has a filter box for long lists. `selected` is
-// a Set of string ids, matching how the forms keep link ids.
+// removable chips, and the menu has a filter box for long lists and lists the
+// picks first. `selected` is a Set of string ids, matching how the forms keep
+// link ids.
 export default function MultiSelect({ label, items, selected, onChange, placeholder = 'Select…' }) {
   const [open, setOpen] = useState(false);
   const [dropUp, setDropUp] = useState(false);
   const [query, setQuery] = useState('');
+  const [selectedOnOpen, setSelectedOnOpen] = useState(() => new Set());
   const ref = useRef(null);
 
   useEffect(() => {
@@ -38,6 +41,7 @@ export default function MultiSelect({ label, items, selected, onChange, placehol
       const rect = ref.current.getBoundingClientRect();
       setDropUp(window.innerHeight - rect.bottom < 300 && rect.top > window.innerHeight - rect.bottom);
       setQuery('');
+      setSelectedOnOpen(new Set(selected));
     }
     setOpen((current) => !current);
   }
@@ -51,7 +55,10 @@ export default function MultiSelect({ label, items, selected, onChange, placehol
 
   const picked = items.filter((item) => selected.has(String(item.id)));
   const needle = query.trim().toLowerCase();
-  const options = needle ? items.filter((item) => item.name.toLowerCase().includes(needle)) : items;
+  const options = selectedFirst(
+    needle ? items.filter((item) => item.name.toLowerCase().includes(needle)) : items,
+    (item) => selectedOnOpen.has(String(item.id)),
+  );
 
   return (
     <div className="multi-select" ref={ref}>
