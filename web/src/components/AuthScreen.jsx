@@ -56,36 +56,73 @@ export default function AuthScreen({ inviteToken, resetToken, onSignedIn }) {
       : mode === 'signup'
         ? 'Create an account'
         : 'Sign in';
+  // What this form is for, in Dashlane's data-form-type vocabulary (other password
+  // managers go by the name and autocomplete attributes below).
+  const formType = resetting ? 'change_password' : newPassword ? 'register' : 'login';
 
   return (
     <div className="app auth">
       <header>
         <h1>Outcomes</h1>
       </header>
-      <form className="card" onSubmit={submit}>
+      {/* Keyed so switching between sign in and create account gives a new form:
+          password managers classify a form when it appears, and ignore later changes. */}
+      <form key={formType} className="card" data-form-type={formType} onSubmit={submit}>
         {joining && invite.account_logo && <img className="auth-account-logo" src={invite.account_logo} alt="" />}
         <h2>{title}</h2>
         {error && <p className="error banner">{error}</p>}
         {resetting || joining ? (
-          <p className="empty">Choose a password for {(reset || invite).email}.</p>
+          <>
+            <p className="empty">Choose a password for {(reset || invite).email}.</p>
+            {/* Not shown, but tells the password manager which login to save this password under. */}
+            <input
+              hidden
+              readOnly
+              type="email"
+              name="email"
+              autoComplete="username"
+              data-form-type="email"
+              value={(reset || invite).email}
+            />
+          </>
         ) : (
           <>
             {mode === 'signup' && (
               <label>
                 Account name
-                <input value={accountName} onChange={(e) => setAccountName(e.target.value)} required />
+                <input
+                  id="account-name"
+                  name="organization"
+                  autoComplete="organization"
+                  data-form-type="company"
+                  value={accountName}
+                  onChange={(e) => setAccountName(e.target.value)}
+                  required
+                />
               </label>
             )}
             <label>
               Email
-              <input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <input
+                id="email"
+                type="email"
+                name="email"
+                autoComplete="username"
+                data-form-type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
             </label>
           </>
         )}
         <label>
           {resetting ? 'New password' : 'Password'}
           <input
+            id="password"
             type="password"
+            name="password"
+            data-form-type={newPassword ? 'password,new' : 'password'}
             autoComplete={newPassword ? 'new-password' : 'current-password'}
             minLength={newPassword ? 8 : undefined}
             value={password}
@@ -94,13 +131,14 @@ export default function AuthScreen({ inviteToken, resetToken, onSignedIn }) {
           />
         </label>
         <div className="inline-form">
-          <button type="submit" disabled={busy || (linkToken && !linkLoaded)}>
+          <button type="submit" data-form-type={`action,${formType}`} disabled={busy || (linkToken && !linkLoaded)}>
             {resetting ? 'Set password' : joining ? 'Join' : mode === 'signup' ? 'Create account' : 'Sign in'}
           </button>
           {!linkToken && (
             <button
               type="button"
               className="ghost"
+              data-form-type="other"
               onClick={() => {
                 setMode(mode === 'login' ? 'signup' : 'login');
                 setError(null);
