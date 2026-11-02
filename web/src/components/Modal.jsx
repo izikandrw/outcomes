@@ -3,7 +3,7 @@ import { CloseIcon } from './icons.jsx';
 
 // First text-entry field: selects are skipped since they usually arrive
 // preset (e.g. a measurement's target), leaving the value as the thing to type.
-const FIRST_FIELD =
+export const FIRST_FIELD =
   'form :is(input:not([type="hidden"], [type="checkbox"], [type="radio"], [type="file"]), textarea):not(:disabled)';
 
 // Built on native <dialog>, so the browser supplies the top layer, the backdrop,

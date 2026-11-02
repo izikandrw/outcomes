@@ -67,6 +67,7 @@ export default function OutcomeTree({
   targets,
   insights,
   suggestions = [],
+  selectedKey,
   onEdit,
   onEditImpact,
   onViewTarget,
@@ -162,6 +163,11 @@ export default function OutcomeTree({
   const keyOf = (node) => `${node.type}-${node.data.id}`;
   const drawOrder = [...nodes].sort((a, b) => (keyOf(a) === revealKey) - (keyOf(b) === revealKey));
   const { zoom, scrollRef, svgRef, ...zoomActions } = useZoom({ storageKey: 'outcomes.mapZoom', width });
+
+  // The side panel narrows the map, which can leave the open card out of view.
+  useEffect(() => {
+    if (selectedKey) svgRef.current?.querySelector('.node-selected')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [selectedKey, svgRef]);
   // Dragging from one node to another links them: { from, point, target,
   // link, left, top }, where point is in map coordinates and left/top place
   // the hint in the viewport. `link` is what linkBetween makes of the drop.
@@ -376,6 +382,7 @@ export default function OutcomeTree({
               key={`${node.type}-${node.data.id}`}
               className={
                 [
+                  keyOf(node) === selectedKey && 'node-selected',
                   hoverEnds?.includes(keyOf(node)) && 'edge-hover',
                   linking && keyOf(linking.from) === keyOf(node) && 'link-source',
                   linking?.target &&

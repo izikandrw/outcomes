@@ -355,6 +355,35 @@ button.with-icon {
   width: min(1400px, calc(100vw - 32px));
 }
 
+/* A card opened from the map: docked to the left of the window, with the page
+   still usable beside it. Where there's room the page moves over to make way;
+   on a narrow window it would have too little left, so the panel covers it. */
+.side-panel {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 30;
+  width: min(480px, 100vw);
+  overflow-y: auto;
+  background: var(--surface);
+  color: var(--text);
+  border-right: 1px solid var(--border);
+  box-shadow: 0 0 24px rgb(0 0 0 / 0.12);
+}
+
+.side-panel:focus {
+  outline: none;
+}
+
+@media (min-width: 1200px) {
+  body:has(.side-panel) .app {
+    margin-left: 480px;
+  }
+
+  body:has(.side-panel) .pinned-nav {
+    left: calc(50% + 240px);
+  }
+}
+
 .modal::backdrop {
   background: rgb(12 14 18 / 0.55);
 }
@@ -544,6 +573,12 @@ body.modal-open {
 
 .tree-node-full rect {
   stroke-width: 2;
+}
+
+/* The card open in the side panel. */
+.node-selected > .tree-node > rect {
+  stroke: var(--text);
+  stroke-width: 2.5;
 }
 
 .tree-node:focus-visible {

@@ -11,6 +11,7 @@ import InsightList from './components/InsightList.jsx';
 import MeasurementForm from './components/MeasurementForm.jsx';
 import Members from './components/Members.jsx';
 import Modal from './components/Modal.jsx';
+import SidePanel from './components/SidePanel.jsx';
 import OutcomeForm from './components/OutcomeForm.jsx';
 import ParentOutcomeTag from './components/ParentOutcomeTag.jsx';
 import ProjectForm from './components/ProjectForm.jsx';
@@ -217,7 +218,11 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
     setPage(next);
     setIssueFilter(null);
     setFocusInsightId(null);
-    if (next !== page) setPageView(emptyPageView());
+    if (next !== page) {
+      setPageView(emptyPageView());
+      // The side panel leaves the nav clickable, and it belongs to the map.
+      setModal(null);
+    }
   }
 
   function openTeam(id) {
@@ -228,8 +233,9 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   // Keep the address bar in step with the view. Moving to another page, team,
   // tab or run adds a history entry, so Back returns to it; opening an item or
   // changing a list's search or filters rewrites the current one.
+  const openItem = itemOfModal(modal);
   const shownItem =
-    itemOfModal(modal) ??
+    openItem ??
     pendingItem ??
     (page === 'insights' && focusInsightId != null ? { kind: 'insight', id: String(focusInsightId) } : null);
   const search = buildSearch({ page, teamId, issue: issueFilter, item: shownItem, pageView });
@@ -288,6 +294,9 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
     setIssueFilter(rule.id);
     window.scrollTo({ top: 0 });
   }
+
+  const inSidePanel = page === 'map' && modal != null && opensFromCard(modal);
+  const ModalSurface = inSidePanel ? SidePanel : Modal;
 
   const issueRule = issueFilter ? ruleById(issueFilter) : null;
   const flagged = issueRule ? flaggedBy(issueRule, { impacts, outcomes, projects, insights: evidence }) : null;
@@ -664,6 +673,8 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   // Breaks the link a map line draws: a child outcome loses its parent, a
   // project loses its parent project or one driven outcome.
   async function unlink({ from, to }) {
+    // An open form holds the links as they were, and saving would restore them.
+    setModal(null);
     const same = (a, b) => String(a) === String(b);
     try {
       if (to.kind === 'outcome') {
@@ -709,6 +720,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   // takes the parent as its parent outcome, project or impact, an outcome
   // takes an impact, or a project adds an outcome it drives.
   async function link({ parent, child }) {
+    setModal(null);
     const { data } = child;
     try {
       if (child.type === 'impact') {
@@ -1024,6 +1036,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               insights={evidence}
               suggestions={flagged ? [] : suggestions}
               onShowInsights={showInsights}
+              selectedKey={inSidePanel && openItem ? `${openItem.kind}-${openItem.id}` : null}
               onEdit={openEdit}
               onEditImpact={openEditImpact}
               onViewTarget={viewTarget}
@@ -1069,7 +1082,9 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
       <JumpToTop />
 
       {modal && (
-        <Modal
+        <ModalSurface
+          // One card replacing another starts fresh: its own values, at the top.
+          key={inSidePanel ? `${modal.kind}-${(modal[modal.kind] ?? modal.target)?.id ?? 'new'}` : 'modal'}
           title={modalTitle(modal)}
           wide={modal.kind === 'entity-insights'}
           header={
@@ -1207,7 +1222,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               onDelete={() => removeOutcome(modal.outcome)}
             />
           )}
-        </Modal>
+        </ModalSurface>
       )}
 
       {confirmation && (
@@ -1226,6 +1241,14 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
 function sameValue(a, b) {
   if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((x, i) => String(x) === String(b[i]));
   return a === b;
+}
+
+// What opening a card on the map shows: the card's own item, or a target and
+// its readings, reached from a card or from that item's form. New items, and
+// everything else, still open over the page.
+function opensFromCard(modal) {
+  if (['target', 'target-measurements', 'measurement'].includes(modal.kind)) return true;
+  return ['outcome', 'impact', 'project'].includes(modal.kind) && Boolean(modal[modal.kind]);
 }
 
 function modalTitle({ kind, rule, outcome, parent, target, project, team, impact, entity }) {
