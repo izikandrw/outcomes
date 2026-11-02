@@ -101,7 +101,7 @@ export default function ProjectList({
       {visible.length === 0 ? (
         <p className="empty">No projects match.</p>
       ) : (
-        <ul className="outcome-list">
+        <ul className="outcome-list project-list">
           {visible.map((project) => (
             <li key={project.id} className="project-list-item">
               {issues?.get(project.id)?.includes(WHATS_THE_POINT) && (
