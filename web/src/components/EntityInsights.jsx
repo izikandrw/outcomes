@@ -398,7 +398,7 @@ function VerifiedSelect({ status, onChange }) {
       onChange={(event) => onChange(event.target.value)}
     >
       <option value="unvalidated">Unverified</option>
-      <option value="validated">✓ Human</option>
+      <option value="validated">Human</option>
       <optgroup label="Reject as…">
         {REJECTION_REASONS.map((reason) => (
           <option key={reason.id} value={`reject:${reason.id}`}>
