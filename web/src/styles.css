@@ -1003,6 +1003,7 @@ button.small {
 .pinned-nav .top-nav button {
   padding: 4px 10px;
   font-size: 13px;
+  white-space: nowrap;
 }
 
 .pinned-nav .issue-counts {
