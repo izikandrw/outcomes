@@ -986,6 +986,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
                 onOpenTeam={openTeam}
                 view={pageView}
                 onViewChange={setPageView}
+                completionsByDefault={!issueRule}
               />
             )}
           </section>

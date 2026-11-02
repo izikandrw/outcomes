@@ -10,7 +10,8 @@
 //   ?page=outcomes&q=churn&f.team=3&f.team=5&sort=added
 //                                        a list's search, filters and sort
 //   ?page=review&tab=runs&run=8          a tab within a page, and the run open in it
-//   ?page=roadmap&tab=completions        the roadmap showing only completion dates
+//   ?page=roadmap&tab=all                the roadmap showing everything, not just
+//                                        the completion dates it opens on
 //   ?page=team&team=3&subteams=0         a team's home without its subteams' work
 //
 // Filters carry an `f.` prefix because some filter fields share a name with

@@ -10,8 +10,10 @@ import ProjectRow from './ProjectRow.jsx';
 // worth noticing. Every project edits in place, so setting a date here moves it to
 // where it now belongs. `projects` is what to show; `allProjects` is who else it
 // can nest under. The Completion dates view narrows it to when projects finish:
-// it shows in the address bar as tab=completions, when `view` is passed.
+// it shows in the address bar as tab=completions or tab=all, when `view` is passed,
+// and with no tab it opens on All unless `completionsByDefault` is set.
 const COMPLETIONS = 'completions';
+const ALL = 'all';
 const isScheduled = (project) => project.start_at || project.end_at;
 export default function Roadmap({
   projects,
@@ -28,9 +30,10 @@ export default function Roadmap({
   emptyMessage,
   view,
   onViewChange,
+  completionsByDefault = false,
 }) {
   const followFocus = useFollowFocus(projects);
-  const completionsOnly = view?.tab === COMPLETIONS;
+  const completionsOnly = (view?.tab ?? (completionsByDefault ? COMPLETIONS : ALL)) === COMPLETIONS;
   const allMonths = roadmapMonths(projects);
   const months = completionsOnly ? completionMonths(allMonths) : allMonths;
   const unscheduled = projects.filter((project) => !isScheduled(project));
@@ -69,7 +72,7 @@ export default function Roadmap({
     <div className="roadmap" ref={followFocus}>
       {onViewChange && (
         <div className="view-toggle" role="group" aria-label="Show on roadmap">
-          <button type="button" aria-pressed={!completionsOnly} onClick={() => onViewChange({ ...view, tab: null })}>
+          <button type="button" aria-pressed={!completionsOnly} onClick={() => onViewChange({ ...view, tab: ALL })}>
             All
           </button>
           <button
