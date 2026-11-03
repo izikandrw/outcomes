@@ -420,7 +420,7 @@ body:has(.side-panel) .jump-to-top {
 /* An open item's parents, root first, with its title on the line below. Each
    parent is a chevron pointing at the next, so the shape alone shows the order.
    Clicking one opens it. Where parents can be changed, hovering or focusing one
-   shows a caret that opens a searchable list across the width of the head to
+   shows a pencil that opens a searchable list across the width of the head to
    swap it. */
 .crumbs {
   position: relative;
@@ -480,7 +480,7 @@ body:has(.side-panel) .jump-to-top {
   text-decoration: underline;
 }
 
-/* Room in the pill for the caret, kept whether it shows or not so that showing
+/* Room in the pill for the pencil, kept whether it shows or not so that showing
    it doesn't shift the chain. */
 .crumbs li:has(.crumb-swap) .crumb-link {
   padding-right: calc(var(--point) + 22px);

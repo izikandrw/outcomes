@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { ancestorMoves, lineage, nameOf, parentChoices, refKey } from '../lib/hierarchy.js';
 import { selectedFirst } from '../lib/selectedFirst.js';
-import { ChevronDownIcon } from './icons.jsx';
+import { PencilIcon } from './icons.jsx';
 
 const GROUP_LABELS = { impact: 'Impacts', outcome: 'Outcomes', project: 'Projects', team: 'Teams' };
 
 // Sits where the modal title was: the item's ancestors, root first, then the
 // title. Clicking a crumb opens that ancestor. Given `onMove`, hovering or
-// focusing a crumb also shows a caret opening a searchable list to swap it for
+// focusing a crumb also shows a pencil opening a searchable list to swap it for
 // another, and the leading + adds a parent above the top. Swaps only show here until the form is
 // saved, so Cancel undoes them.
 export default function HierarchyBreadcrumb({ title, start, collections, moves, onMove, onOpen }) {
@@ -80,7 +80,7 @@ export default function HierarchyBreadcrumb({ title, start, collections, moves, 
                 aria-label={`Change the parent of ${label(crumb.child)}, now ${crumb.name}`}
                 onClick={() => toggle(crumb.child)}
               >
-                <ChevronDownIcon />
+                <PencilIcon />
               </button>
             )}
           </li>
