@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db');
 const { belongsToAccount, wouldCycle } = require('../lib/validateRef');
+const { deleteWithTargets } = require('../lib/deleteWithTargets');
 
 const router = express.Router({ mergeParams: true });
 
@@ -79,13 +80,12 @@ router.put('/:impactId', async (req, res, next) => {
 
 router.delete('/:impactId', async (req, res, next) => {
   try {
-    // Child impacts, linked outcomes and targets still pointing here raise
-    // 23503, which app.js turns into a 409. project_impacts rows cascade.
-    const { rowCount } = await pool.query('DELETE FROM impacts WHERE id = $1 AND account_id = $2', [
-      req.params.impactId,
-      req.accountId,
-    ]);
-    if (rowCount === 0) return res.status(404).json({ error: 'impact not found' });
+    // Its targets and their readings go with it. Child impacts and linked outcomes
+    // still pointing here raise 23503, which app.js turns into a 409. project_impacts
+    // rows cascade.
+    if (!(await deleteWithTargets('impacts', 'impact_id', req.params.impactId, req.accountId))) {
+      return res.status(404).json({ error: 'impact not found' });
+    }
     res.status(204).send();
   } catch (err) {
     next(err);

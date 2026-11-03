@@ -18,7 +18,10 @@ export async function update(itemPath, changes, writable) {
 // Registers list/get/delete for a collection; create and update differ enough
 // per resource to stay explicit. `listFilters` (a zod shape) become optional
 // query-string parameters on the list tool.
-export function registerReadAndDelete(server, { collection, singular, idField, listDescription, listFilters }) {
+export function registerReadAndDelete(
+  server,
+  { collection, singular, idField, listDescription, listFilters, deleteNote = '' }
+) {
   server.registerTool(
     `list_${collection}`,
     {
@@ -50,7 +53,7 @@ export function registerReadAndDelete(server, { collection, singular, idField, l
     `delete_${singular}`,
     {
       title: `Delete ${singular}`,
-      description: `Permanently delete a ${singular} by id.`,
+      description: `Permanently delete a ${singular} by id.${deleteNote}`,
       inputSchema: { [idField]: id },
       annotations: { destructiveHint: true },
     },

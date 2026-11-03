@@ -5,7 +5,6 @@ const { foreignKeyMessage } = require('../src/lib/foreignKeyError');
 const referencedFrom = (table) => ({ detail: `Key (id)=(29) is still referenced from table "${table}".` });
 
 test('a refused delete names what is still attached', () => {
-  assert.equal(foreignKeyMessage(referencedFrom('targets')), 'still has targets; remove those first');
   assert.equal(foreignKeyMessage(referencedFrom('measurements')), 'still has readings; remove those first');
   assert.equal(foreignKeyMessage(referencedFrom('impacts')), 'still has child impacts; remove those first');
 });

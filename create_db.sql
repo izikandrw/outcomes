@@ -230,8 +230,8 @@ CREATE INDEX idx_insight_projects_project_id ON insight_projects(project_id);
 -- owned by exactly one of them, which can carry several, because a result that
 -- moves exactly one number is rare. The name is optional; the unit labels a
 -- target that has none.
--- No ON DELETE CASCADE: deleting an outcome, impact or project that still has
--- targets is refused, the same way the rest of the real entities behave.
+-- No ON DELETE CASCADE: deleting an outcome, impact or project removes its targets
+-- and their readings explicitly, in src/lib/deleteWithTargets.js.
 CREATE TABLE targets (
     id             BIGSERIAL PRIMARY KEY,
     account_id     BIGINT NOT NULL REFERENCES accounts(id),

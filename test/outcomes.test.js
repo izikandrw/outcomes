@@ -320,14 +320,33 @@ test('PUT /:id 404s and rolls back when the outcome is not in the account', asyn
   assert.ok(sqls().includes('RELEASE'));
 });
 
-test('DELETE /:id deletes the outcome scoped to the account', async () => {
+test('DELETE /:id deletes the outcome and its targets and readings, scoped to the account', async () => {
   db.respond = () => ({ rowCount: 1 });
 
   const res = await request('DELETE', '/5');
 
   assert.equal(res.status, 204);
-  assert.match(db.calls[0].sql, /^DELETE FROM outcomes WHERE id = \$1 AND account_id = \$2/);
-  assert.deepEqual(db.calls[0].params, ['5', ACCOUNT_ID]);
+  const writes = db.calls.filter((call) => /^DELETE/.test(call.sql));
+  assert.match(writes[0].sql, /^DELETE FROM measurements WHERE target_id IN \(SELECT id FROM targets WHERE outcome_id = \$1 AND account_id = \$2\)/);
+  assert.match(writes[1].sql, /^DELETE FROM targets WHERE outcome_id = \$1 AND account_id = \$2/);
+  assert.match(writes[2].sql, /^DELETE FROM outcomes WHERE id = \$1 AND account_id = \$2/);
+  for (const write of writes) assert.deepEqual(write.params, ['5', ACCOUNT_ID]);
+  assert.equal(db.calls.at(-2).sql, 'COMMIT');
+  assert.equal(db.calls.at(-1).sql, 'RELEASE');
+});
+
+test('DELETE /:id keeps the targets when something else still blocks the outcome', async () => {
+  db.respond = (sql) => {
+    if (/^DELETE FROM outcomes/.test(sql)) throw Object.assign(new Error('blocked'), { code: '23503' });
+    return { rowCount: 1 };
+  };
+
+  const res = await request('DELETE', '/5');
+
+  assert.equal(res.status, 500); // this test app's handler; app.js maps 23503 to a 409
+  assert.equal(db.calls.at(-2).sql, 'ROLLBACK');
+  assert.equal(db.calls.at(-1).sql, 'RELEASE');
+  assert.ok(!db.calls.some((call) => call.sql === 'COMMIT'));
 });
 
 test('DELETE /:id 404s when the outcome is not in the account', async () => {

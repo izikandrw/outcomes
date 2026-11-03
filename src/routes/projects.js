@@ -1,5 +1,6 @@
 const express = require('express');
 const pool = require('../db');
+const { deleteWithTargets } = require('../lib/deleteWithTargets');
 const {
   belongsToAccount,
   missingFromAccount,
@@ -257,13 +258,12 @@ router.put('/:projectId', async (req, res, next) => {
 
 router.delete('/:projectId', async (req, res, next) => {
   try {
-    // project_outcomes and project_impacts rows cascade; child projects, outcomes
-    // and targets still referencing this one raise 23503, which app.js turns into a 409.
-    const { rowCount } = await pool.query('DELETE FROM projects WHERE id = $1 AND account_id = $2', [
-      req.params.projectId,
-      req.accountId,
-    ]);
-    if (rowCount === 0) return res.status(404).json({ error: 'project not found' });
+    // Its targets and their readings go with it, and project_outcomes and
+    // project_impacts rows cascade; child projects and outcomes still referencing
+    // this one raise 23503, which app.js turns into a 409.
+    if (!(await deleteWithTargets('projects', 'project_id', req.params.projectId, req.accountId))) {
+      return res.status(404).json({ error: 'project not found' });
+    }
     res.status(204).send();
   } catch (err) {
     next(err);

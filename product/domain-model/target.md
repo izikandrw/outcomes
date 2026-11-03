@@ -20,7 +20,7 @@ A target is not a project. It says how far a number has to move, never what will
 
 Targets are connected to exactly one parent: one outcome, one impact or one project. A number with no behavior, business result or body of work behind it is a metric, not a target.
 
-A target is owned by that parent and is never shared. Two outcomes, or an outcome and a project, that watch the same metric each carry their own target, with their own baseline and goal, because the baseline records what that owner's team believed when it started. A parent that still has targets cannot be deleted until they are removed, so readings are never silently lost.
+A target is owned by that parent and is never shared. Two outcomes, or an outcome and a project, that watch the same metric each carry their own target, with their own baseline and goal, because the baseline records what that owner's team believed when it started. Deleting a parent deletes its targets and their readings with it, and the confirmation says so.
 
 Targets do not nest and do not connect to each other. An outcome or impact that needs breaking down is broken into outcomes or impacts; its targets stay flat. A parent's target is its own number, not the sum of its children's. The two are compared rather than merged: targets roll up. An impact shows what share of its target its child impacts, outcomes and projects account for; an outcome, its child outcomes and projects; a project, its child projects. That adds up the target values of children in the same unit, so a plan that doesn't reach the parent's number shows it. The map draws that plan beside the target's latest reading, planned and actual on one scale from zero to the goal.
 

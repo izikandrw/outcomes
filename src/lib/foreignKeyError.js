@@ -1,7 +1,6 @@
 // What a person calls the rows that can stop a delete. A table missing from here
 // falls back to the generic message rather than naming something meaningless.
 const BLOCKERS = {
-  targets: 'targets',
   measurements: 'readings',
   impacts: 'child impacts',
   outcomes: 'linked outcomes',

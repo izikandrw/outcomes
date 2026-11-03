@@ -1,5 +1,6 @@
 const express = require('express');
 const pool = require('../db');
+const { deleteWithTargets } = require('../lib/deleteWithTargets');
 const {
   belongsToAccount,
   missingFromAccount,
@@ -215,11 +216,10 @@ router.put('/:outcomeId', async (req, res, next) => {
 
 router.delete('/:outcomeId', async (req, res, next) => {
   try {
-    const { rowCount } = await pool.query('DELETE FROM outcomes WHERE id = $1 AND account_id = $2', [
-      req.params.outcomeId,
-      req.accountId,
-    ]);
-    if (rowCount === 0) return res.status(404).json({ error: 'outcome not found' });
+    // Its targets and their readings go with it; child outcomes raise 23503.
+    if (!(await deleteWithTargets('outcomes', 'outcome_id', req.params.outcomeId, req.accountId))) {
+      return res.status(404).json({ error: 'outcome not found' });
+    }
     res.status(204).send();
   } catch (err) {
     next(err);

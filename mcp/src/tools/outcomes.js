@@ -19,6 +19,7 @@ export function registerOutcomeTools(server) {
     collection: 'outcomes',
     singular: 'outcome',
     idField: 'outcome_id',
+    deleteNote: ' Its targets and their readings are deleted with it.',
     listDescription: 'List every outcome in the account, each with the ids of projects linked to it (project_ids).',
   });
 

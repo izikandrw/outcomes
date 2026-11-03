@@ -452,15 +452,31 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
     setModal(null);
   }
 
+  // Deleting an impact, outcome or project takes its targets and their readings
+  // with it, so the confirmation says so when it has any.
+  const deleteWarning = (name, parentField, parentId) => {
+    const hasTargets = targets.some((target) => String(target[parentField]) === String(parentId));
+    return `“${name}”${hasTargets ? ' and its targets and their readings' : ''} will be permanently deleted.`;
+  };
+
+  function dropTargetsOf(parentField, parentId) {
+    const gone = new Set(
+      targets.filter((target) => String(target[parentField]) === String(parentId)).map((target) => target.id)
+    );
+    setTargets((current) => current.filter((target) => !gone.has(target.id)));
+    setMeasurements((current) => current.filter((reading) => !gone.has(reading.target_id)));
+  }
+
   async function removeImpact(impact) {
-    if (!(await askConfirm('Delete impact?', `“${impact.name}” will be permanently deleted.`))) return;
+    if (!(await askConfirm('Delete impact?', deleteWarning(impact.name, 'impact_id', impact.id)))) return;
     try {
       await api.deleteImpact(accountId, impact.id);
       setImpacts((current) => current.filter((item) => item.id !== impact.id));
+      dropTargetsOf('impact_id', impact.id);
       setModal(null);
       setError(null);
     } catch (err) {
-      // 409 when a child impact, outcome or target still points at it.
+      // 409 when a child impact or outcome still points at it.
       setError(`Could not delete: ${err.message}`);
       setModal(null);
     }
@@ -760,10 +776,11 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   }
 
   async function removeProject(project) {
-    if (!(await askConfirm('Delete project?', `“${project.name}” will be permanently deleted.`))) return;
+    if (!(await askConfirm('Delete project?', deleteWarning(project.name, 'project_id', project.id)))) return;
     try {
       await api.deleteProject(accountId, project.id);
       setProjects((current) => current.filter((item) => item.id !== project.id));
+      dropTargetsOf('project_id', project.id);
       setModal(null);
       setError(null);
     } catch (err) {
@@ -865,14 +882,15 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   }
 
   async function removeOutcome(outcome) {
-    if (!(await askConfirm('Delete outcome?', `“${outcome.name}” will be permanently deleted.`))) return;
+    if (!(await askConfirm('Delete outcome?', deleteWarning(outcome.name, 'outcome_id', outcome.id)))) return;
     try {
       await api.deleteOutcome(accountId, outcome.id);
       setOutcomes((current) => current.filter((item) => item.id !== outcome.id));
+      dropTargetsOf('outcome_id', outcome.id);
       if (modal?.outcome?.id === outcome.id) setModal(null);
       setError(null);
     } catch (err) {
-      // The API returns 409 when child outcomes or targets still point here.
+      // The API returns 409 when child outcomes still point here.
       setError(`Could not delete: ${err.message}`);
     }
   }

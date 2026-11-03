@@ -9,6 +9,7 @@ export function registerProjectTools(server) {
     collection: 'projects',
     singular: 'project',
     idField: 'project_id',
+    deleteNote: ' Its targets and their readings are deleted with it.',
     listDescription:
       'List every project in the account, each with the ids of the outcomes it drives (outcome_ids) and the impacts it drives directly (impact_ids). Projects nest via parent_project_id.',
   });
