@@ -544,11 +544,12 @@ body:has(.side-panel) .jump-to-top {
   height: 12px;
 }
 
+/* Names show in full. The chain stays on one row until a name wouldn't fit, then
+   that crumb moves down whole; one too long for a row of its own wraps inside
+   its chevron. */
 .crumb-name {
-  max-width: 180px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  text-align: left;
 }
 
 /* Not part of the chain yet, so a plain pill rather than a chevron. */
