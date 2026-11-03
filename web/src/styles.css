@@ -1854,11 +1854,27 @@ button.tag.insight-badge.suggested {
   background: color-mix(in srgb, var(--text) 8%, transparent);
 }
 
+/* Columns are a set width rather than fitting their contents, so they stay put
+   as the rows change: between Verified, Suggested and All, between one outcome's
+   insights and another's, and when a field is edited. Each is wide enough for its
+   longest value; the Insight column takes what's left, and on a narrow window the
+   table scrolls sideways rather than squeezing it. */
 .insight-table {
   width: 100%;
+  min-width: 74rem;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.9rem;
 }
+
+.insight-table th:nth-child(1) { width: 7rem; }
+.insight-table th:nth-child(2) { width: 5rem; }
+.insight-table th:nth-child(4) { width: 10rem; }
+.insight-table th:nth-child(5) { width: 7.5rem; }
+.insight-table th:nth-child(6) { width: 6.75rem; }
+.insight-table th:nth-child(7) { width: 11rem; }
+.insight-table th:nth-child(8) { width: 9.25rem; }
+.insight-table th:nth-child(9) { width: 2.5rem; }
 
 .insight-table th,
 .insight-table td {
@@ -2007,17 +2023,8 @@ button.tag.insight-badge.suggested {
   outline: none;
 }
 
-.insight-table td:nth-child(3) {
-  width: 100%;
-  min-width: 16rem;
-}
-
-/* Fixed widths so amounts and dates aren't clipped. */
-.insight-table td:nth-child(6) .cell-input { min-width: 5.5rem; }
-.insight-table td:nth-child(8) .cell-input { min-width: 8rem; }
 .insight-table .source-cell {
   display: block;
-  max-width: 12rem;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -2205,11 +2212,6 @@ button.tag.insight-badge.suggested {
   background: var(--surface);
   border-bottom: none;
   box-shadow: inset 0 -1px 0 var(--border);
-}
-
-/* Spare width goes to the name column rather than being spread between the rest. */
-.insight-table th:nth-child(3) {
-  width: 100%;
 }
 
 .modal.confirm {
