@@ -121,6 +121,7 @@ function EditableRange({ target, onUpdateTarget }) {
       await onUpdateTarget(target, {
         outcome_id: target.outcome_id ?? null,
         impact_id: target.impact_id ?? null,
+        project_id: target.project_id ?? null,
         name: target.name ?? null,
         description: target.description ?? null,
         unit: next.unit,

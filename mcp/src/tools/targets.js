@@ -10,7 +10,7 @@ export function registerTargetTools(server) {
     singular: 'target',
     idField: 'target_id',
     listDescription:
-      'List every target in the account. Each belongs to one outcome or impact and carries latest_value, latest_measured_at and measurement_count.',
+      'List every target in the account. Each belongs to one outcome, impact or project and carries latest_value, latest_measured_at and measurement_count.',
   });
 
   server.registerTool(
@@ -18,10 +18,11 @@ export function registerTargetTools(server) {
     {
       title: 'Create target',
       description:
-        'Put numbers on an outcome or an impact: what is counted (unit), where it starts (baseline_value) and where it has to get to (target_value). Pass exactly one of outcome_id or impact_id. Give a due_at.',
+        "Put numbers on an outcome, an impact or a project: what is counted (unit), where it starts (baseline_value) and where it has to get to (target_value). Pass exactly one of outcome_id, impact_id or project_id. Give a due_at. A project's target rolls up to the outcomes and impacts it drives when they have a target in the same unit.",
       inputSchema: {
         outcome_id: id.optional(),
         impact_id: id.optional(),
+        project_id: id.optional(),
         unit: z.string().min(1).describe('What is counted, e.g. "admins inviting in first session"'),
         baseline_value: z.number().describe('The reading when the team decided to move it'),
         target_value: z.number(),
@@ -57,6 +58,7 @@ export function registerTargetTools(server) {
         await update(path('targets', target_id), changes, [
           'outcome_id',
           'impact_id',
+          'project_id',
           'unit',
           'baseline_value',
           'target_value',

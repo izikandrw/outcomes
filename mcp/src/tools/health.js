@@ -53,7 +53,9 @@ export function registerHealthTools(server) {
 
       const subtree = (outcome) => withDescendants([key(outcome.id)], outcomes, 'parent_outcome_id');
 
-      const impactsWithOutcomes = new Set(outcomes.map((o) => key(o.impact_id)).filter(Boolean));
+      const impactsWithOutcomes = new Set(
+        [...outcomes.map((o) => key(o.impact_id)), ...projects.flatMap((p) => (p.impact_ids ?? []).map(key))].filter(Boolean)
+      );
       const chimericalImpacts = impacts.filter((impact) => {
         const ids = withDescendants([key(impact.id)], impacts, 'parent_impact_id');
         return ![...ids].some((i) => impactsWithOutcomes.has(i));
@@ -79,7 +81,7 @@ export function registerHealthTools(server) {
 
       const byId = new Map(projects.map((p) => [key(p.id), p]));
       const hasPoint = (project, seen = new Set()) => {
-        if (project.outcome_ids.length > 0) return true;
+        if (project.outcome_ids.length > 0 || (project.impact_ids ?? []).length > 0) return true;
         const parent = byId.get(key(project.parent_project_id));
         if (!parent || seen.has(key(parent.id))) return false;
         seen.add(key(parent.id));

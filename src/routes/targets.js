@@ -26,14 +26,15 @@ const SELECT_TARGET = `
 // are required on write rather than being allowed to fill in later. The name is
 // optional: the unit labels a target that has none.
 async function validateBody(req, res) {
-  const { outcome_id, impact_id, unit, baseline_value, target_value } = req.body;
-  // A target belongs to exactly one parent: an outcome or an impact.
-  if (!outcome_id && !impact_id) {
-    res.status(400).json({ error: 'outcome_id or impact_id is required' });
+  const { outcome_id, impact_id, project_id, unit, baseline_value, target_value } = req.body;
+  // A target belongs to exactly one parent: an outcome, an impact or a project.
+  const parents = [outcome_id, impact_id, project_id].filter(Boolean);
+  if (parents.length === 0) {
+    res.status(400).json({ error: 'outcome_id, impact_id or project_id is required' });
     return false;
   }
-  if (outcome_id && impact_id) {
-    res.status(400).json({ error: 'a target belongs to an outcome or an impact, not both' });
+  if (parents.length > 1) {
+    res.status(400).json({ error: 'a target belongs to one outcome, impact or project, not several' });
     return false;
   }
   if (!unit) {
@@ -56,6 +57,10 @@ async function validateBody(req, res) {
   }
   if (impact_id && !(await belongsToAccount('impacts', impact_id, req.accountId))) {
     res.status(400).json({ error: 'impact_id not found in this account' });
+    return false;
+  }
+  if (project_id && !(await belongsToAccount('projects', project_id, req.accountId))) {
+    res.status(400).json({ error: 'project_id not found in this account' });
     return false;
   }
   return true;
@@ -86,18 +91,19 @@ router.get('/:targetId', async (req, res, next) => {
 });
 
 router.post('/', async (req, res, next) => {
-  const { outcome_id, impact_id, name, description, unit, baseline_value, target_value, baseline_at, due_at } =
+  const { outcome_id, impact_id, project_id, name, description, unit, baseline_value, target_value, baseline_at, due_at } =
     req.body;
   try {
     if (!(await validateBody(req, res))) return;
     const { rows } = await pool.query(
-      `INSERT INTO targets (account_id, outcome_id, impact_id, name, description, unit,
+      `INSERT INTO targets (account_id, outcome_id, impact_id, project_id, name, description, unit,
          baseline_value, target_value, baseline_at, due_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE($9, now()), $10) RETURNING *`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE($10, now()), $11) RETURNING *`,
       [
         req.accountId,
         outcome_id || null,
         impact_id || null,
+        project_id || null,
         name || null,
         description || null,
         unit,
@@ -114,18 +120,19 @@ router.post('/', async (req, res, next) => {
 });
 
 router.put('/:targetId', async (req, res, next) => {
-  const { outcome_id, impact_id, name, description, unit, baseline_value, target_value, baseline_at, due_at } =
+  const { outcome_id, impact_id, project_id, name, description, unit, baseline_value, target_value, baseline_at, due_at } =
     req.body;
   try {
     if (!(await validateBody(req, res))) return;
     const { rowCount } = await pool.query(
-      `UPDATE targets SET outcome_id = $1, impact_id = $2, name = $3, description = $4, unit = $5,
-         baseline_value = $6, target_value = $7, baseline_at = COALESCE($8, baseline_at),
-         due_at = $9, updated_at = now()
-       WHERE id = $10 AND account_id = $11`,
+      `UPDATE targets SET outcome_id = $1, impact_id = $2, project_id = $3, name = $4, description = $5, unit = $6,
+         baseline_value = $7, target_value = $8, baseline_at = COALESCE($9, baseline_at),
+         due_at = $10, updated_at = now()
+       WHERE id = $11 AND account_id = $12`,
       [
         outcome_id || null,
         impact_id || null,
+        project_id || null,
         name || null,
         description || null,
         unit,

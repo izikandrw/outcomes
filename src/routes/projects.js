@@ -11,14 +11,17 @@ const { adoptProposals } = require('../lib/adoptProposals');
 
 const router = express.Router({ mergeParams: true });
 
-// Every read shape carries the linked outcome ids so a client can render a
-// project's outcomes without a second round trip.
+// Every read shape carries the linked outcome and impact ids so a client can
+// render a project's parents without a second round trip.
 const SELECT_PROJECT = `
   SELECT p.*,
          COALESCE(
            array_agg(po.outcome_id ORDER BY po.outcome_id) FILTER (WHERE po.outcome_id IS NOT NULL),
            '{}'
-         ) AS outcome_ids
+         ) AS outcome_ids,
+         ARRAY(
+           SELECT pi.impact_id FROM project_impacts pi WHERE pi.project_id = p.id ORDER BY pi.impact_id
+         ) AS impact_ids
     FROM projects p
     LEFT JOIN project_outcomes po ON po.project_id = p.id
 `;
@@ -31,12 +34,12 @@ async function fetchProject(executor, projectId, accountId) {
   return rows[0] ?? null;
 }
 
-// Validates team_id, parent_project_id and outcome_ids against the account.
+// Validates team_id, parent_project_id, outcome_ids and impact_ids against the account.
 // Writes the response and returns null when something doesn't check out;
 // otherwise returns the normalised values. `projectId` is set when updating,
 // so the parent check can also reject cycles.
 async function readRefs(req, res, projectId) {
-  const { team_id, parent_project_id, outcome_ids } = req.body;
+  const { team_id, parent_project_id, outcome_ids, impact_ids } = req.body;
 
   // Optional: the team running it often isn't known yet when it's written down.
   if (team_id && !(await belongsToAccount('teams', team_id, req.accountId))) {
@@ -69,27 +72,44 @@ async function readRefs(req, res, projectId) {
     }
   }
 
+  let impacts;
+  if (impact_ids !== undefined) {
+    if (!Array.isArray(impact_ids)) {
+      res.status(400).json({ error: 'impact_ids must be an array' });
+      return null;
+    }
+    impacts = [...new Set(impact_ids.map(String))];
+    const missing = await missingFromAccount('impacts', impacts, req.accountId);
+    if (missing.length > 0) {
+      res.status(400).json({ error: `impact_ids not found in this account: ${missing.join(', ')}` });
+      return null;
+    }
+  }
+
   return {
     teamId: team_id || null,
     parentProjectId: parent_project_id || null,
     outcomeIds: outcomes,
+    impactIds: impacts,
   };
 }
 
-// Replaces a project's outcome links with `outcomeIds`. Left alone when the
-// request didn't mention outcome_ids at all.
-async function replaceLinks(client, projectId, accountId, outcomeIds) {
-  if (outcomeIds === undefined) return;
-  await client.query('DELETE FROM project_outcomes WHERE project_id = $1 AND account_id = $2', [
-    projectId,
-    accountId,
-  ]);
-  if (outcomeIds.length === 0) return;
+// Replaces a project's links of one kind with `ids`. Left alone when the request
+// didn't mention them at all. `table` and `column` are constants from this file.
+async function replaceJoin(client, table, column, projectId, accountId, ids) {
+  if (ids === undefined) return;
+  await client.query(`DELETE FROM ${table} WHERE project_id = $1 AND account_id = $2`, [projectId, accountId]);
+  if (ids.length === 0) return;
   await client.query(
-    `INSERT INTO project_outcomes (account_id, project_id, outcome_id)
+    `INSERT INTO ${table} (account_id, project_id, ${column})
      SELECT $1, $2, unnest($3::bigint[])`,
-    [accountId, projectId, outcomeIds]
+    [accountId, projectId, ids]
   );
+}
+
+async function replaceLinks(client, projectId, accountId, { outcomeIds, impactIds }) {
+  await replaceJoin(client, 'project_outcomes', 'outcome_id', projectId, accountId, outcomeIds);
+  await replaceJoin(client, 'project_impacts', 'impact_id', projectId, accountId, impactIds);
 }
 
 router.get('/', async (req, res, next) => {
@@ -160,7 +180,10 @@ router.post('/', async (req, res, next) => {
         end_at || null,
       ]
     );
-    await replaceLinks(client, rows[0].id, req.accountId, refs.outcomeIds ?? []);
+    await replaceLinks(client, rows[0].id, req.accountId, {
+      outcomeIds: refs.outcomeIds ?? [],
+      impactIds: refs.impactIds ?? [],
+    });
     const redundant = await newRedundantLink(client, req.accountId, before);
     if (redundant) {
       await client.query('ROLLBACK');
@@ -213,7 +236,7 @@ router.put('/:projectId', async (req, res, next) => {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'project not found' });
     }
-    await replaceLinks(client, rows[0].id, req.accountId, refs.outcomeIds);
+    await replaceLinks(client, rows[0].id, req.accountId, refs);
     const redundant = await newRedundantLink(client, req.accountId, before);
     if (redundant) {
       await client.query('ROLLBACK');
@@ -234,8 +257,8 @@ router.put('/:projectId', async (req, res, next) => {
 
 router.delete('/:projectId', async (req, res, next) => {
   try {
-    // project_outcomes rows cascade; child projects and outcomes still
-    // referencing this one raise 23503, which app.js turns into a 409.
+    // project_outcomes and project_impacts rows cascade; child projects, outcomes
+    // and targets still referencing this one raise 23503, which app.js turns into a 409.
     const { rowCount } = await pool.query('DELETE FROM projects WHERE id = $1 AND account_id = $2', [
       req.params.projectId,
       req.accountId,

@@ -1,7 +1,7 @@
 import { targetLabel, targetRange } from '../lib/links.js';
 import { PencilIcon, PlusIcon, TrashIcon } from './icons.jsx';
 
-// The targets an outcome or impact owns, listed inside its own form. A target
+// The targets an outcome, impact or project owns, listed inside its own form. A target
 // belongs to exactly one of them, so this is where they are added and edited.
 // A parent that hasn't been saved yet has nothing to attach a target to.
 export default function TargetsSection({ targets, saved, onAdd, onEdit, onDelete, onView, renderExtra }) {

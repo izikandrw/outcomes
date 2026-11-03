@@ -23,6 +23,11 @@ export function targetsForImpact(targets, impact) {
   return targets.filter((target) => same(target.impact_id, impact.id));
 }
 
+// A project can own targets too, for what its own output has to reach.
+export function targetsForProject(targets, project) {
+  return targets.filter((target) => same(target.project_id, project.id));
+}
+
 // A target's name is optional; the unit labels one that has none, so a lone
 // "1000 → 1200 ARR" under "Grow revenue" doesn't need a second name.
 export function targetLabel(target) {
@@ -34,16 +39,25 @@ export function targetRange(target) {
   return `${formatValue(target.baseline_value)} → ${formatValue(target.target_value)} ${target.unit}`;
 }
 
-// Targets and readings hang off either an outcome or an impact; `kind` says
+// Targets and readings hang off an outcome, an impact or a project; `kind` says
 // which the entity is.
 export function targetsFor(targets, entity, kind) {
-  return kind === 'impact' ? targetsForImpact(targets, entity) : targetsForOutcome(targets, entity);
+  return targets.filter((target) => same(target[`${kind}_id`], entity.id));
 }
 
 // Only top-level outcomes carry an impact link; this is the outcomes drawn
 // directly under the impact.
 export function outcomesForImpact(outcomes, impact) {
   return outcomes.filter((outcome) => same(outcome.impact_id, impact.id));
+}
+
+// Projects serving an impact directly, with no outcome in between.
+export function projectsForImpact(projects, impact) {
+  return projects.filter((project) => (project.impact_ids ?? []).some((id) => same(id, impact.id)));
+}
+
+export function impactsForProject(impacts, project) {
+  return impacts.filter((impact) => (project.impact_ids ?? []).some((id) => same(id, impact.id)));
 }
 
 // The reverse of projectsForOutcome: every outcome that links to this project,
@@ -114,16 +128,35 @@ export function projectsLinkedInLineage(outcomes, projects, outcome) {
   return new Set(lineage.flatMap((relative) => projectsForOutcome(projects, relative)).map((p) => String(p.id)));
 }
 
+// The impacts a project reaches through the outcomes it drives, and those impacts'
+// parents. Linking straight to one duplicates that route, so the server rejects it.
+export function impactsReachedThroughOutcomes(project, outcomes, impacts) {
+  const reached = new Set();
+  for (const outcome of outcomesForProject(outcomes, project)) {
+    const walked = new Set();
+    let current = outcome;
+    while (current && !walked.has(String(current.id))) {
+      walked.add(String(current.id));
+      let impact = current.impact_id == null ? null : impacts.find((item) => same(item.id, current.impact_id));
+      while (impact && !reached.has(String(impact.id))) {
+        reached.add(String(impact.id));
+        impact = impact.parent_impact_id == null ? null : impacts.find((item) => same(item.id, impact.parent_impact_id));
+      }
+      current = current.parent_outcome_id == null ? null : outcomes.find((item) => same(item.id, current.parent_outcome_id));
+    }
+  }
+  return reached;
+}
+
 // What dropping one map node on another links, as { parent, child } nodes
 // ({ type, data }), or { reason } when the two can't be linked that way.
 // Between different kinds the hierarchy fixes the direction (impact above
 // outcome above project); between two of a kind the node dragged from becomes
 // the parent, the way the arrow is drawn. A new parent replaces the child's old
-// one, except for a project, which can drive several outcomes at once.
+// one, except for a project, which can drive several outcomes and impacts at once.
 export function linkBetween(from, to, { impacts, outcomes, projects }) {
   if (from.type === to.type && same(from.data.id, to.data.id)) return { reason: 'Drop on another node to link them' };
   const rank = { impact: 0, outcome: 1, project: 2 };
-  if (Math.abs(rank[from.type] - rank[to.type]) > 1) return { reason: 'An impact can’t link straight to a project' };
   const [parent, child] = rank[from.type] <= rank[to.type] ? [from, to] : [to, from];
   const named = (node) => `“${node.data.name}”`;
   // An outcome hangs off either a parent outcome or an impact, never both.
@@ -133,6 +166,15 @@ export function linkBetween(from, to, { impacts, outcomes, projects }) {
       : child.type === parent.type && child.data[`parent_${child.type}_id`] != null;
 
   if (parent.type !== child.type) {
+    if (parent.type === 'impact' && child.type === 'project') {
+      if (projectsForImpact(projects, parent.data).some((project) => same(project.id, child.data.id))) {
+        return { reason: `${named(child)} already drives ${named(parent)}` };
+      }
+      if (impactsReachedThroughOutcomes(child.data, outcomes, impacts).has(String(parent.data.id))) {
+        return { reason: `${named(child)} already rolls up to ${named(parent)} through an outcome` };
+      }
+      return { parent, child };
+    }
     if (child.type === 'outcome') {
       return same(child.data.impact_id, parent.data.id) && child.data.parent_outcome_id == null
         ? { reason: `${named(child)} already drives ${named(parent)}` }
@@ -209,12 +251,12 @@ export function teamIdsWithin(teams, team) {
   return ids;
 }
 
-// How a set of projects rolls up: each project under the outcome(s) it drives,
-// those outcomes under their ancestors, and the top-level outcomes under their
-// impact (and its parent impacts). Only branches that lead to one of the
-// projects are kept. Returns { roots, noImpact, unlinkedProjects }: impact
-// trees, outcome trees with no impact above them, and projects that drive no
-// outcome at all.
+// How a set of projects rolls up: each project under the outcome(s) it drives
+// and any impact it serves directly, those outcomes under their ancestors, and
+// the top-level outcomes under their impact (and its parent impacts). Only
+// branches that lead to one of the projects are kept. Returns { roots, noImpact,
+// unlinkedProjects }: impact trees, outcome trees with no impact above them, and
+// projects linked to neither an outcome nor an impact.
 export function rollupForProjects(teamProjects, outcomes, impacts) {
   const outcomeById = new Map(outcomes.map((outcome) => [String(outcome.id), outcome]));
   const impactById = new Map(impacts.map((impact) => [String(impact.id), impact]));
@@ -223,7 +265,7 @@ export function rollupForProjects(teamProjects, outcomes, impacts) {
   const unlinkedProjects = [];
   for (const project of teamProjects) {
     const driven = outcomesForProject(outcomes, project);
-    if (driven.length === 0) unlinkedProjects.push(project);
+    if (driven.length === 0 && impactsForProject(impacts, project).length === 0) unlinkedProjects.push(project);
     for (const outcome of driven) {
       let current = outcome;
       while (current && !keptOutcomes.has(String(current.id))) {
@@ -264,6 +306,15 @@ export function rollupForProjects(teamProjects, outcomes, impacts) {
       current = impactById.get(String(current.parent_impact_id));
     }
   }
+  for (const project of teamProjects) {
+    for (const impact of impactsForProject(impacts, project)) {
+      let current = impact;
+      while (current && !keptImpacts.has(String(current.id))) {
+        keptImpacts.add(String(current.id));
+        current = impactById.get(String(current.parent_impact_id));
+      }
+    }
+  }
 
   const impactNode = (impact, path = new Set()) => {
     const here = new Set([...path, String(impact.id)]);
@@ -275,6 +326,7 @@ export function rollupForProjects(teamProjects, outcomes, impacts) {
           .filter((child) => keptImpacts.has(String(child.id)) && same(child.parent_impact_id, impact.id) && !here.has(String(child.id)))
           .map((child) => impactNode(child, here)),
         ...topOutcomes.filter((outcome) => same(outcome.impact_id, impact.id)).map((outcome) => outcomeNode(outcome)),
+        ...projectsForImpact(teamProjects, impact).map((project) => ({ kind: 'project', data: project, children: [] })),
       ],
     };
   };
@@ -475,43 +527,79 @@ export function formatQuarter(value) {
 
 const unitKey = (unit) => String(unit ?? '').trim().toLowerCase();
 
-// What an impact puts toward a figure in `unit`: its own target if it has one in
+// What sits directly beneath an item and can add to its numbers. A project under
+// an impact is linked straight to it; one driving an outcome below that impact
+// arrives through the outcome.
+function childrenFor(kind, entity, { impacts = [], outcomes = [], projects = [] }) {
+  const of = (childKind, items) => items.map((item) => ({ kind: childKind, item }));
+  const childProjects = of('project', projects.filter((child) => same(child.parent_project_id, entity.id)));
+  if (kind === 'project') return childProjects;
+  if (kind === 'outcome') {
+    return [
+      ...of('outcome', outcomes.filter((child) => same(child.parent_outcome_id, entity.id))),
+      ...of('project', projectsForOutcome(projects, entity)),
+    ];
+  }
+  return [
+    ...of('impact', impacts.filter((child) => same(child.parent_impact_id, entity.id))),
+    ...of('outcome', outcomesForImpact(outcomes, entity)),
+    ...of('project', projectsForImpact(projects, entity)),
+  ];
+}
+
+// What an item puts toward a figure in `unit`: its own target if it has one in
 // that unit, otherwise what its own children add up to. Taking one or the other
-// keeps a grandchild from being counted twice. Null means it states nothing in
-// that unit. Only the first matching target counts, because several targets on
-// one impact are different signals on one result, not parts to add up.
-function contributionOf(impact, unit, impacts, targets) {
-  const own = targetsForImpact(targets, impact).find((target) => unitKey(target.unit) === unitKey(unit));
+// keeps a grandchild from being counted twice, and `seen` does the same for a
+// project reached by two routes. Null means it states nothing in that unit. Only
+// the first matching target counts, because several targets on one item are
+// different signals on one result, not parts to add up.
+function contributionOf(kind, entity, unit, collections, seen) {
+  seen.add(`${kind}-${entity.id}`);
+  const own = targetsFor(collections.targets, entity, kind).find((target) => unitKey(target.unit) === unitKey(unit));
   if (own) return Number(own.target_value);
-  const amounts = impacts
-    .filter((child) => same(child.parent_impact_id, impact.id))
-    .map((child) => contributionOf(child, unit, impacts, targets))
+  const amounts = childrenFor(kind, entity, collections)
+    .filter((child) => !seen.has(`${child.kind}-${child.item.id}`))
+    .map((child) => contributionOf(child.kind, child.item, unit, collections, seen))
     .filter((amount) => amount != null);
   return amounts.length > 0 ? amounts.reduce((sum, amount) => sum + amount, 0) : null;
 }
 
-// How much of a parent impact's target its child impacts account for: the
-// children's target values in the same unit, as a share of the parent's. This
-// is a plan check, not progress, and the parent's target stays its own number.
-// Null when there is nothing to compare: no target, no child impacts, or a goal
-// of zero.
-export function childCoverage(impact, target, impacts, targets) {
+// "child impacts and projects": what a set of a parent's children are.
+function childrenLabel(parentKind, parts) {
+  const kinds = [...new Set(parts.map((part) => part.kind))];
+  return kinds.map((kind) => (kind === parentKind ? `child ${kind}s` : `${kind}s`)).join(' and ');
+}
+
+// How much of an item's target what rolls up to it accounts for: its children's
+// target values in the same unit, as a share of its own. This is a plan check,
+// not progress, and the parent's target stays its own number. `kind` is 'impact',
+// 'outcome' or 'project' and `collections` holds { impacts, outcomes, projects,
+// targets }. Null when there is nothing to compare: no target, a goal of zero, or
+// nothing beneath it stating that unit. Child impacts are the exception, shown
+// even at 0%: an impact split into child impacts is meant to add up. An outcome
+// is never listed as missing a number, since most count behavior instead.
+export function childCoverage(kind, entity, target, collections) {
   const goal = Number(target?.target_value);
-  const children = impacts.filter((child) => same(child.parent_impact_id, impact.id));
-  if (children.length === 0 || !goal) return null;
-  const parts = children.map((child) => ({
-    impact: child,
-    value: contributionOf(child, target.unit, impacts, targets),
-  }));
+  if (!goal) return null;
+  const seen = new Set([`${kind}-${entity.id}`]);
+  const parts = [];
+  for (const child of childrenFor(kind, entity, collections)) {
+    if (seen.has(`${child.kind}-${child.item.id}`)) continue;
+    parts.push({ ...child, value: contributionOf(child.kind, child.item, target.unit, collections, seen) });
+  }
   const contributing = parts.filter((part) => part.value != null);
+  if (contributing.length === 0 && !(kind === 'impact' && parts.some((part) => part.kind === 'impact'))) return null;
   const covered = contributing.reduce((sum, part) => sum + part.value, 0);
+  const missing = parts.filter((part) => part.value == null && !(kind === 'impact' && part.kind === 'outcome'));
   return {
     covered,
     goal,
     share: covered / goal,
     unit: target.unit,
     contributing,
-    missing: parts.filter((part) => part.value == null).map((part) => part.impact),
+    source: childrenLabel(kind, contributing.length > 0 ? contributing : parts),
+    missing: missing.map((part) => part.item),
+    missingLabel: childrenLabel(kind, missing),
   };
 }
 

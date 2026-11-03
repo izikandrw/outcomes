@@ -1,4 +1,4 @@
-import { projectsForOutcome, targetLabel } from './links.js';
+import { impactsForProject, projectsForOutcome, targetLabel } from './links.js';
 
 // The parent chain an open item's breadcrumb shows and edits. An item is named
 // by a ref, { kind, id }; `collections` maps each kind to its rows; and `moves`
@@ -7,8 +7,8 @@ import { projectsForOutcome, targetLabel } from './links.js';
 // the hierarchy as it will be, with moves laid over what is stored.
 
 // What each kind can move under. Only an outcome crosses kinds: a top-level
-// outcome links to an impact. A target also sits in the tree, under the outcome
-// or impact it quantifies, but stays there: its breadcrumb only navigates.
+// outcome links to an impact. A target also sits in the tree, under the outcome,
+// impact or project it quantifies, but stays there: its breadcrumb only navigates.
 const PARENT_KINDS = {
   impact: ['impact'],
   outcome: ['impact', 'outcome'],
@@ -32,6 +32,7 @@ export const nameOf = (ref, collections) => {
 export function storedParent(kind, item) {
   if (kind === 'target') {
     if (item.outcome_id) return { kind: 'outcome', id: item.outcome_id };
+    if (item.project_id) return { kind: 'project', id: item.project_id };
     return item.impact_id ? { kind: 'impact', id: item.impact_id } : null;
   }
   if (kind === 'outcome' && !item.parent_outcome_id) {
@@ -48,27 +49,36 @@ function parentOf(ref, collections, moves) {
   return item ? storedParent(ref.kind, item) : null;
 }
 
-// The outcomes a project drives, through project_outcomes or the older
-// outcomes.project_id column. A new project added from an outcome names it on
-// its ref, having no row yet.
-function linkedOutcomes(ref, collections) {
+// What a project drives: outcomes, through project_outcomes or the older
+// outcomes.project_id column, then impacts it serves directly. A new project
+// added from one of them names it on its ref, having no row yet.
+function linkedParents(ref, collections) {
   if (ref.kind !== 'project') return [];
   const project = find(ref, collections);
-  return (collections.outcome ?? []).filter(
+  const outcomes = (collections.outcome ?? []).filter(
     (outcome) =>
       String(ref.linkedOutcomeId) === String(outcome.id) ||
       (project && projectsForOutcome([project], outcome).length > 0),
   );
+  const impacts = (collections.impact ?? []).filter(
+    (impact) =>
+      String(ref.linkedImpactId) === String(impact.id) ||
+      (project && impactsForProject([impact], project).length > 0),
+  );
+  return [
+    ...outcomes.map((outcome) => ({ kind: 'outcome', id: outcome.id, name: outcome.name })),
+    ...impacts.map((impact) => ({ kind: 'impact', id: impact.id, name: impact.name })),
+  ];
 }
 
-// The next crumb up. A project with no parent project sits under the outcome it
-// drives, as it does on the map. That link is not a parent: it is `linked`, and
+// The next crumb up. A project with no parent project sits under what it drives,
+// as it does on the map. That link is not a parent: it is `linked`, and
 // storedParent and moves know nothing of it, so saving never writes it.
 function nextUp(child, collections, moves) {
   const parent = parentOf(child, collections, moves);
   if (parent) return parent;
-  const [outcome] = linkedOutcomes(child, collections);
-  return outcome ? { kind: 'outcome', id: outcome.id, linked: true } : null;
+  const [linked] = linkedParents(child, collections);
+  return linked ? { kind: linked.kind, id: linked.id, linked: true } : null;
 }
 
 // The ancestors of `start`, root first. Each knows its `child`: the ref whose
@@ -89,13 +99,11 @@ export function lineage(start, collections, moves = {}) {
   return chain;
 }
 
-// A project can drive several outcomes but the chain only runs through one:
-// these are the others it drives.
-export function otherLinkedOutcomes(start, collections, moves = {}) {
+// A project can drive several outcomes and impacts but the chain only runs
+// through one: these are the others it drives.
+export function otherLinkedParents(start, collections, moves = {}) {
   const chain = lineage(start, collections, moves);
-  return linkedOutcomes(start, collections)
-    .filter((outcome) => !chain.some((crumb) => crumb.kind === 'outcome' && String(crumb.id) === String(outcome.id)))
-    .map((outcome) => ({ kind: 'outcome', id: outcome.id, name: outcome.name }));
+  return linkedParents(start, collections).filter((linked) => !chain.some((crumb) => sameRef(crumb, linked)));
 }
 
 // What `child` may move under, by kind: anything but itself or what sits
@@ -143,7 +151,9 @@ export function modalHierarchy(modal) {
   const { kind } = modal;
   const item = modal[kind];
   const start = { kind, id: item?.id ?? 'new' };
-  if (kind === 'project' && !item && modal.parent) start.linkedOutcomeId = modal.parent.id;
+  if (kind === 'project' && !item && modal.parent) {
+    start[modal.parentKind === 'impact' ? 'linkedImpactId' : 'linkedOutcomeId'] = modal.parent.id;
+  }
   const moves = { [refKey(start)]: item ? storedParent(kind, item) : newItemParent(modal), ...modal.moves };
   return { start, moves, editable: true, fields: parentFields(kind, moves[refKey(start)]) };
 }

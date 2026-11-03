@@ -1,4 +1,4 @@
-import { insightsForOutcome, outcomesForImpact, targetsForImpact, teamsOnOutcome } from './links.js';
+import { insightsForOutcome, outcomesForImpact, projectsForImpact, targetsForImpact, teamsOnOutcome, teamsOnProject } from './links.js';
 import { targetStatus } from './outcomeFilters.js';
 import { RULES } from './validation.js';
 
@@ -47,12 +47,13 @@ export function impactFilterFields({
         ...teams.map((team) => ({ id: String(team.id), label: team.name })),
         { id: NONE, label: 'No team' },
       ],
-      // Any team working on an outcome driving it, directly or beneath it.
+      // Any team working on an outcome or project driving it, directly or beneath it.
       values: (impact) => {
         const working = new Set(
-          driving(impact).flatMap((outcome) =>
-            teamsOnOutcome(outcomes, projects, outcome).map((entry) => String(entry.teamId)),
-          ),
+          [
+            ...driving(impact).flatMap((outcome) => teamsOnOutcome(outcomes, projects, outcome)),
+            ...projectsForImpact(projects, impact).flatMap((project) => teamsOnProject(projects, project)),
+          ].map((entry) => String(entry.teamId)),
         );
         return working.size ? [...working] : [NONE];
       },

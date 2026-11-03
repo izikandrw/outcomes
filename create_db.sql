@@ -95,6 +95,20 @@ CREATE INDEX idx_project_outcomes_account_id ON project_outcomes(account_id);
 CREATE INDEX idx_project_outcomes_project_id ON project_outcomes(project_id);
 CREATE INDEX idx_project_outcomes_outcome_id ON project_outcomes(outcome_id);
 
+-- A project can also serve an impact directly, with no outcome in between.
+CREATE TABLE project_impacts (
+    id         BIGSERIAL PRIMARY KEY,
+    account_id BIGINT NOT NULL REFERENCES accounts(id),
+    project_id BIGINT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    impact_id  BIGINT NOT NULL REFERENCES impacts(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (project_id, impact_id)
+);
+
+CREATE INDEX idx_project_impacts_account_id ON project_impacts(account_id);
+CREATE INDEX idx_project_impacts_project_id ON project_impacts(project_id);
+CREATE INDEX idx_project_impacts_impact_id ON project_impacts(impact_id);
+
 -- One run of the insight collector agent against one external source. stats
 -- holds the counts and token usage the run reports.
 CREATE TABLE collection_runs (
@@ -216,13 +230,14 @@ CREATE INDEX idx_insight_projects_project_id ON insight_projects(project_id);
 -- owned by exactly one of them, which can carry several, because a result that
 -- moves exactly one number is rare. The name is optional; the unit labels a
 -- target that has none.
--- No ON DELETE CASCADE: deleting an outcome or impact that still has targets is
--- refused, the same way the rest of the real entities behave.
+-- No ON DELETE CASCADE: deleting an outcome, impact or project that still has
+-- targets is refused, the same way the rest of the real entities behave.
 CREATE TABLE targets (
     id             BIGSERIAL PRIMARY KEY,
     account_id     BIGINT NOT NULL REFERENCES accounts(id),
     outcome_id     BIGINT REFERENCES outcomes(id),
     impact_id      BIGINT REFERENCES impacts(id),
+    project_id     BIGINT REFERENCES projects(id),
     name           TEXT,
     description    TEXT,
     unit           TEXT NOT NULL,
@@ -234,13 +249,14 @@ CREATE TABLE targets (
     due_at         TIMESTAMPTZ,
     created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
-    -- A target belongs to exactly one parent: an outcome or an impact.
-    CONSTRAINT targets_one_parent CHECK ((outcome_id IS NULL) <> (impact_id IS NULL))
+    -- A target belongs to exactly one parent: an outcome, an impact or a project.
+    CONSTRAINT targets_one_parent CHECK (num_nonnulls(outcome_id, impact_id, project_id) = 1)
 );
 
 CREATE INDEX idx_targets_account_id ON targets(account_id);
 CREATE INDEX idx_targets_outcome_id ON targets(outcome_id);
 CREATE INDEX idx_targets_impact_id ON targets(impact_id);
+CREATE INDEX idx_targets_project_id ON targets(project_id);
 
 -- Readings hang off a target, not an outcome. The unit lives on the target, so
 -- every reading in one series is guaranteed to be counting the same thing.

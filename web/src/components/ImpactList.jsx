@@ -161,7 +161,12 @@ export default function ImpactList({
                           onEdit={() => onEditTarget(target, impact, 'impact')}
                           onDelete={() => onDeleteTarget(target)}
                         >
-                          <ChildCoverage impact={impact} target={target} impacts={allImpacts} targets={targets} />
+                          <ChildCoverage
+                            kind="impact"
+                            entity={impact}
+                            target={target}
+                            collections={{ impacts: allImpacts, outcomes, projects, targets }}
+                          />
                         </Target>
                       ))}
                     </ul>

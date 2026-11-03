@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
 import AutoGrowTextarea from './AutoGrowTextarea.jsx';
+import ChildCoverage from './ChildCoverage.jsx';
+import MultiSelect from './MultiSelect.jsx';
+import TargetsSection from './TargetsSection.jsx';
+import { impactsForProject, impactsReachedThroughOutcomes } from '../lib/links.js';
 
 const EMPTY = { name: '', description: '', team_id: '', start_at: '', end_at: '' };
 
-// Creates a project already linked to the outcome it is meant to drive (when
-// `outcome` is given) or nested under another project (when `parentProject` is
-// given), or with neither (from the review queue, where it is linked to an
+// Creates a project already linked to the outcome or impact it is meant to drive
+// (when `outcome` or `impact` is given) or nested under another project (when
+// `parentProject` is given), or with none of them (from the review queue, where it is linked to an
 // insight instead), or edits an existing one in place (when `editing` is
 // given). The parent project is set in the modal's breadcrumb and arrives as
 // `parentFields`. The team
@@ -17,14 +21,24 @@ export default function ProjectForm({
   editing,
   draft,
   outcome,
+  impact,
   parentProject,
   parentFields,
   teams,
+  impacts = [],
+  outcomes = [],
+  targets = [],
+  coverageData,
+  onAddTarget,
+  onEditTarget,
+  onDeleteTarget,
+  onViewTarget,
   onSubmit,
   onCancel,
   onDelete,
 }) {
   const [form, setForm] = useState(EMPTY);
+  const [impactIds, setImpactIds] = useState(new Set());
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const defaultTeam = parentProject ?? outcome;
@@ -38,7 +52,9 @@ export default function ProjectForm({
         start_at: asDateInput(editing.start_at),
         end_at: asDateInput(editing.end_at),
       });
+      setImpactIds(new Set(impactsForProject(impacts, editing).map((item) => String(item.id))));
     } else {
+      setImpactIds(new Set(impact ? [String(impact.id)] : []));
       setForm({
         ...EMPTY,
         name: draft?.name ?? '',
@@ -51,9 +67,14 @@ export default function ProjectForm({
       });
     }
     setError(null);
-    // teams is left out on purpose: a refetch mid-edit shouldn't reset the pick.
+    // teams and impacts are left out on purpose: a refetch mid-edit shouldn't reset the picks.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editing, draft, defaultTeam]);
+  }, [editing, draft, defaultTeam, impact]);
+
+  // An impact already reached through an outcome this project drives is carried
+  // by it, so it isn't offered. One picked before stays listed so it can go.
+  const reached = editing ? impactsReachedThroughOutcomes(editing, outcomes, impacts) : new Set();
+  const linkableImpacts = impacts.filter((item) => !reached.has(String(item.id)) || impactIds.has(String(item.id)));
 
   function update(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -76,6 +97,7 @@ export default function ProjectForm({
         start_at: form.start_at ? new Date(form.start_at).toISOString() : null,
         end_at: form.end_at ? new Date(form.end_at).toISOString() : null,
         ...parentFields,
+        impact_ids: [...impactIds].map(Number),
         ...(editing ? {} : { outcome_ids: outcome ? [outcome.id] : [] }),
       });
     } catch (err) {
@@ -87,14 +109,14 @@ export default function ProjectForm({
 
   return (
     <form className="outcome-form" onSubmit={submit}>
-      {!editing && (outcome || !parentFields.parent_project_id) && (
+      {!editing && (outcome || impact || !parentFields.parent_project_id) && (
         <p className="empty">
-          {outcome ? (
+          {outcome || impact ? (
             <>
-              This project will be linked to <strong>{outcome.name}</strong>.
+              This project will be linked to <strong>{(outcome ?? impact).name}</strong>.
             </>
           ) : (
-            'This project will start without a parent outcome or project; you can link one later.'
+            'This project will start without a parent outcome, impact or project; you can link one later.'
           )}
         </p>
       )}
@@ -149,6 +171,28 @@ export default function ProjectForm({
         </label>
       </div>
       <span className="hint">Places the project on the roadmap. Leave empty if unscheduled.</span>
+
+      {impacts.length > 0 && (
+        <MultiSelect
+          label="Impacts it drives directly"
+          placeholder="Select impacts…"
+          items={linkableImpacts}
+          selected={impactIds}
+          onChange={setImpactIds}
+        />
+      )}
+
+      <TargetsSection
+        targets={targets}
+        saved={Boolean(editing)}
+        onAdd={onAddTarget}
+        onEdit={onEditTarget}
+        onDelete={onDeleteTarget}
+        onView={onViewTarget}
+        renderExtra={(target) =>
+          editing && <ChildCoverage kind="project" entity={editing} target={target} collections={coverageData} />
+        }
+      />
 
       {error && <p className="error">{error}</p>}
 

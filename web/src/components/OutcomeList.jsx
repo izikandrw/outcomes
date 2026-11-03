@@ -15,6 +15,7 @@ import { outcomeFilterFields } from '../lib/outcomeFilters.js';
 import useSlashFocus from '../lib/useSlashFocus.js';
 import useStuck from '../lib/useStuck.js';
 import FilterBar from './FilterBar.jsx';
+import ChildCoverage from './ChildCoverage.jsx';
 import InsightBadge from './InsightBadge.jsx';
 import TeamChips from './TeamChips.jsx';
 import { PencilIcon, PlusIcon, SearchIcon, TrashIcon } from './icons.jsx';
@@ -28,6 +29,8 @@ export default function OutcomeList({
   view,
   onViewChange,
   outcomes,
+  // Every outcome, for adding up what rolls up when `outcomes` is filtered.
+  allOutcomes = outcomes,
   teams,
   projects,
   impacts = [],
@@ -181,7 +184,14 @@ export default function OutcomeList({
                           onView={() => onViewTarget(target)}
                           onEdit={() => onEditTarget(target, outcome)}
                           onDelete={() => onDeleteTarget(target)}
-                        />
+                        >
+                          <ChildCoverage
+                            kind="outcome"
+                            entity={outcome}
+                            target={target}
+                            collections={{ outcomes: allOutcomes, projects, targets }}
+                          />
+                        </Target>
                       ))}
                     </ul>
                   )}

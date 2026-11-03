@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { insightsForProject, outcomesForProject, teamsOnProject, totalDollarImpact } from '../lib/links.js';
+import {
+  impactsForProject,
+  insightsForProject,
+  outcomesForProject,
+  targetRange,
+  targetsForProject,
+  teamsOnProject,
+  totalDollarImpact,
+} from '../lib/links.js';
 import InsightBadge from './InsightBadge.jsx';
 import { DateField, InlineText, LinkPicker, PillField, PillSelect } from './InlineFields.jsx';
 import TeamChips from './TeamChips.jsx';
@@ -26,14 +34,16 @@ function descendantIds(projects, project) {
 
 // One project, every field a click away from editing, as on an insight card:
 // name and description as text, team and parent as tag-like selects, dates as
-// date pickers, and the outcomes it drives as a checklist. onUpdate(project,
+// date pickers, and the outcomes and impacts it drives as a checklist. onUpdate(project,
 // patch) saves a change to its own fields and onToggleOutcome(project, outcome)
-// links or unlinks an outcome it drives. A failed save shows under the row.
+// links or unlinks an outcome it drives. Its targets open in onOpenProject's form. A failed save shows under the row.
 // Shared by the project list and the roadmap.
 export default function ProjectRow({
   project,
   allProjects,
   outcomes,
+  impacts = [],
+  targets = [],
   teams,
   insights,
   suggestions,
@@ -42,6 +52,7 @@ export default function ProjectRow({
   onDelete,
   onShowInsights,
   onOpenTeam,
+  onOpenProject,
 }) {
   const [error, setError] = useState(null);
 
@@ -64,7 +75,8 @@ export default function ProjectRow({
     save({ [field]: value ? new Date(value).toISOString() : null });
   }
 
-  const driven = outcomesForProject(outcomes, project);
+  const driven = [...outcomesForProject(outcomes, project), ...impactsForProject(impacts, project)];
+  const projectTargets = targetsForProject(targets, project);
   const projectInsights = insightsForProject(insights, project);
   // The project's own team is the select; chips are only for teams on projects nested under it.
   const nestedTeams = teamsOnProject(allProjects, project).filter((entry) => !entry.direct);
@@ -73,9 +85,21 @@ export default function ProjectRow({
     id: Number(outcome.id),
     name: outcome.name,
     group: 'Outcomes',
-    linked: driven.some((item) => sameId(item.id, outcome.id)),
+    linked: outcomesForProject(outcomes, project).some((item) => sameId(item.id, outcome.id)),
     outcome,
   }));
+  const impactItems = impacts.map((impact) => ({
+    kind: 'impact',
+    id: Number(impact.id),
+    name: impact.name,
+    group: 'Impacts',
+    linked: (project.impact_ids ?? []).some((id) => sameId(id, impact.id)),
+  }));
+  function toggle(item) {
+    if (item.kind === 'outcome') return run(() => onToggleOutcome(project, item.outcome));
+    const ids = (project.impact_ids ?? []).map(Number);
+    return save({ impact_ids: item.linked ? ids.filter((id) => id !== item.id) : [...ids, item.id] });
+  }
   const nested = descendantIds(allProjects, project);
   const parentOptions = allProjects
     .filter((item) => !sameId(item.id, project.id) && !nested.has(String(item.id)))
@@ -97,20 +121,31 @@ export default function ProjectRow({
           />
         </p>
         <div className="meta">
-          <PillField label="Drives" title="The outcomes this project moves">
+          <PillField label="Drives" title="The outcomes and impacts this project moves">
             <LinkPicker
-              items={outcomeItems}
-              label="Drives outcomes"
+              items={[...outcomeItems, ...impactItems]}
+              label="Drives outcomes and impacts"
               buttonClassName={`tag link-pill${driven.length === 0 ? ' warn' : ''}`}
-              onToggle={(item) => run(() => onToggleOutcome(project, item.outcome))}
+              onToggle={toggle}
             >
               {driven.length === 0
-                ? 'No outcome'
+                ? 'Nothing yet'
                 : driven.length <= 2
-                  ? driven.map((outcome) => outcome.name).join(', ')
-                  : `${driven.length} outcomes`}
+                  ? driven.map((item) => item.name).join(', ')
+                  : `${driven.length} outcomes and impacts`}
             </LinkPicker>
           </PillField>
+          {onOpenProject && (
+            <PillField label="Targets" title="What this project's output has to reach">
+              <button type="button" className="tag link-pill" onClick={() => onOpenProject(project)}>
+                {projectTargets.length === 0
+                  ? 'No target'
+                  : projectTargets.length === 1
+                    ? targetRange(projectTargets[0])
+                    : `${projectTargets.length} targets`}
+              </button>
+            </PillField>
+          )}
           <PillField label="Team" title="The team running this project">
             <PillSelect
               label="Team"

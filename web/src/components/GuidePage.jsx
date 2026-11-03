@@ -168,7 +168,7 @@ read -rs OUTCOMES_PASSWORD`;
             </div>
           </div>
           <p className="guide-note">
-            A target puts numbers on an impact or outcome, and a team owns each outcome and project. This example is made up.
+            A target puts numbers on an impact, outcome or project, and targets in the same unit roll up to what they drive. A team owns each outcome and project, and a project can drive an impact directly when no outcome sits between them. This example is made up.
           </p>
         </div>
         <div>

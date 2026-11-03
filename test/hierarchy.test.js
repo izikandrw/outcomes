@@ -1,9 +1,9 @@
 const { test, before } = require('node:test');
 const assert = require('node:assert/strict');
 
-let lineage, parentChoices, ancestorMoves, parentFields, modalHierarchy, otherLinkedOutcomes;
+let lineage, parentChoices, ancestorMoves, parentFields, modalHierarchy, otherLinkedParents;
 before(async () => {
-  ({ lineage, parentChoices, ancestorMoves, parentFields, modalHierarchy, otherLinkedOutcomes } = await import(
+  ({ lineage, parentChoices, ancestorMoves, parentFields, modalHierarchy, otherLinkedParents } = await import(
     '../web/src/lib/hierarchy.js'
   ));
 });
@@ -220,12 +220,12 @@ test('a new project added from an outcome shows it without nesting under it', ()
 });
 
 test('the other outcomes a project drives are listed beside the chain', () => {
-  assert.deepEqual(otherLinkedOutcomes(projectRef('30'), withProjects), [{ kind: 'outcome', id: '13', name: 'Other' }]);
-  assert.deepEqual(otherLinkedOutcomes(projectRef('33'), withProjects), []);
-  assert.deepEqual(otherLinkedOutcomes({ kind: 'outcome', id: '12' }, withProjects), []);
+  assert.deepEqual(otherLinkedParents(projectRef('30'), withProjects), [{ kind: 'outcome', id: '13', name: 'Other' }]);
+  assert.deepEqual(otherLinkedParents(projectRef('33'), withProjects), []);
+  assert.deepEqual(otherLinkedParents({ kind: 'outcome', id: '12' }, withProjects), []);
   // Under a parent project, its own links are all "others".
   const moves = { 'project-30': { kind: 'project', id: '33' } };
-  assert.deepEqual(names(otherLinkedOutcomes(projectRef('30'), withProjects, moves)), ['Mid', 'Other']);
+  assert.deepEqual(names(otherLinkedParents(projectRef('30'), withProjects, moves)), ['Mid', 'Other']);
 });
 
 test('an insight view of a project shows the project and everything above it', () => {
