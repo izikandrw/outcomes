@@ -39,7 +39,7 @@ export default function TargetMeasurements({ target, measurements, onAddReading,
       {readings.length === 0 ? (
         <p className="empty no-targets">No readings yet.</p>
       ) : (
-        <details className="measurement-accordion">
+        <details className="measurement-accordion" open>
           <summary>
             {readings.length} reading{readings.length === 1 ? "" : "s"}
           </summary>
