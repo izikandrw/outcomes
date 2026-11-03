@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import * as api from './api.js';
 import ImpactForm from './components/ImpactForm.jsx';
 import ImpactList from './components/ImpactList.jsx';
+import CommandPalette, { CommandPaletteButton } from './components/CommandPalette.jsx';
 import ConfirmDialog from './components/ConfirmDialog.jsx';
 import AccountLogo from './components/AccountLogo.jsx';
 import AccountMenu from './components/AccountMenu.jsx';
@@ -100,6 +101,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   // The insight a link named, outlined on the Insights page; insights edit in
   // place there rather than opening over the page.
   const [focusInsightId, setFocusInsightId] = useState(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => setHeaderHidden(!entry.isIntersecting));
@@ -293,6 +295,32 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
     changePage(ISSUE_PAGES[rule.appliesTo]);
     setIssueFilter(rule.id);
     window.scrollTo({ top: 0 });
+  }
+
+  // Where the command palette's pick goes (see lib/commandPalette.js). An item
+  // opens as a link to it would, over the page you are on.
+  function jumpTo(entry) {
+    setPaletteOpen(false);
+    if (entry.modal) return setModal({ kind: entry.modal });
+    if (entry.page || entry.kind === 'team') {
+      if (entry.page) {
+        changePage(entry.page);
+        setPageView((current) => ({ ...current, tab: entry.tab ?? null, run: null }));
+      } else {
+        openTeam(entry.id);
+      }
+      window.scrollTo({ top: 0 });
+      return;
+    }
+    if (entry.kind === 'insight' && page === 'insights') {
+      // The list's own search or filters could be hiding it.
+      setPageView(emptyPageView());
+      // Already the focused one, so nothing will scroll back to it by itself.
+      if (String(focusInsightId) === entry.id) {
+        document.getElementById(`insight-${entry.id}`)?.scrollIntoView({ block: 'center' });
+      }
+    }
+    setPendingItem({ kind: entry.kind, id: entry.id });
   }
 
   const inSidePanel = page === 'map' && modal != null && opensFromCard(modal);
@@ -782,6 +810,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
           activeId={issueFilter}
           onOpen={openIssues}
         />
+        <CommandPaletteButton onClick={() => setPaletteOpen(true)} />
         <AccountMenu
           user={user}
           account={account}
@@ -810,6 +839,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
             activeId={issueFilter}
             onOpen={openIssues}
           />
+          <CommandPaletteButton onClick={() => setPaletteOpen(true)} />
         </div>
       )}
 
@@ -1080,6 +1110,14 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
       </main>
 
       <JumpToTop />
+
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        data={{ teams, impacts, outcomes, projects, targets, insights }}
+        loading={loading}
+        onGo={jumpTo}
+      />
 
       {modal && (
         <ModalSurface
