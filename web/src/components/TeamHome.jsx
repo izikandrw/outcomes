@@ -1,3 +1,4 @@
+import { lineage } from '../lib/hierarchy.js';
 import { rollupForProjects, teamIdsWithin } from '../lib/links.js';
 import Roadmap from './Roadmap.jsx';
 
@@ -28,7 +29,6 @@ export default function TeamHome({
   view,
   onViewChange,
 }) {
-  const parent = teams.find((item) => String(item.id) === String(team.parent_team_id));
   const children = teams.filter((item) => String(item.parent_team_id) === String(team.id));
 
   const scope = includeSubteams ? teamIdsWithin(teams, team) : new Set([String(team.id)]);
@@ -42,9 +42,22 @@ export default function TeamHome({
   return (
     <div className="team-home">
       <div className="team-home-nav">
-        <button type="button" className="ghost small" onClick={onBack}>
-          ← Teams
-        </button>
+        <nav className="crumbs" aria-label="Hierarchy">
+          <ol>
+            <li>
+              <button type="button" className="crumb crumb-link" onClick={onBack}>
+                <span className="crumb-name">Teams</span>
+              </button>
+            </li>
+            {lineage({ kind: 'team', id: team.id }, { team: teams }).map((crumb) => (
+              <li key={crumb.id}>
+                <button type="button" className="crumb crumb-link" title={`Open ${crumb.name}`} onClick={() => onOpenTeam(crumb.id)}>
+                  <span className="crumb-name">{crumb.name}</span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </nav>
         <button type="button" className="ghost small" onClick={() => onEdit(team)}>
           Edit team
         </button>
@@ -59,14 +72,6 @@ export default function TeamHome({
         <div>
           <h2>{team.name}</h2>
           <p className="meta">
-            {parent && (
-              <span>
-                Part of{' '}
-                <button type="button" className="link-button" onClick={() => onOpenTeam(parent.id)}>
-                  {parent.name}
-                </button>
-              </span>
-            )}
             {children.map((child) => (
               <button key={child.id} type="button" className="team-chip indirect link" onClick={() => onOpenTeam(child.id)}>
                 {child.name}

@@ -1,11 +1,14 @@
+import { targetLabel } from './links.js';
+
 // The parent chain an open item's breadcrumb shows and edits. An item is named
 // by a ref, { kind, id }; `collections` maps each kind to its rows; and `moves`
 // maps a ref's key to the parent it will have once saved (a ref, or null for
 // none). Nothing is written until the form is saved, so everything here reads
 // the hierarchy as it will be, with moves laid over what is stored.
 
-// What each kind can sit under. Only an outcome crosses kinds: a top-level
-// outcome links to an impact.
+// What each kind can move under. Only an outcome crosses kinds: a top-level
+// outcome links to an impact. A target also sits in the tree, under the outcome
+// or impact it quantifies, but stays there: its breadcrumb only navigates.
 const PARENT_KINDS = {
   impact: ['impact'],
   outcome: ['impact', 'outcome'],
@@ -19,9 +22,18 @@ const sameRef = (a, b) => a.kind === b.kind && String(a.id) === String(b.id);
 
 const find = (ref, collections) => collections[ref.kind]?.find((item) => String(item.id) === String(ref.id));
 
-export const nameOf = (ref, collections) => find(ref, collections)?.name;
+const nameOfItem = (kind, item) => (kind === 'target' ? targetLabel(item) : item.name);
+
+export const nameOf = (ref, collections) => {
+  const item = find(ref, collections);
+  return item && nameOfItem(ref.kind, item);
+};
 
 export function storedParent(kind, item) {
+  if (kind === 'target') {
+    if (item.outcome_id) return { kind: 'outcome', id: item.outcome_id };
+    return item.impact_id ? { kind: 'impact', id: item.impact_id } : null;
+  }
   if (kind === 'outcome' && !item.parent_outcome_id) {
     return item.impact_id ? { kind: 'impact', id: item.impact_id } : null;
   }
@@ -47,7 +59,7 @@ export function lineage(start, collections, moves = {}) {
     const item = find(ref, collections);
     if (!item) break;
     seen.add(refKey(ref));
-    chain.unshift({ kind: ref.kind, id: ref.id, name: item.name, child });
+    chain.unshift({ kind: ref.kind, id: ref.id, name: nameOfItem(ref.kind, item), child });
     child = { kind: ref.kind, id: ref.id };
     ref = parentOf(child, collections, moves);
   }
@@ -89,16 +101,35 @@ export function parentFields(kind, parent) {
   return { [`parent_${kind}_id`]: parent?.id ?? null };
 }
 
-// The item a modal holds and the parent it starts with, or null when the modal
-// isn't for something with parents. A new item takes the parent it was added
-// under, which each way of opening one names differently.
+// Where a modal sits in the tree, or null when it sits nowhere. `editable` says
+// its breadcrumb can swap parents, which takes a form whose Save writes them. A
+// new item takes the parent it was added under, which each way of opening one
+// names differently.
 export function modalHierarchy(modal) {
-  if (!modal || !PARENT_KINDS[modal.kind]) return null;
+  if (!modal) return null;
+  if (!PARENT_KINDS[modal.kind]) return viewHierarchy(modal);
   const { kind } = modal;
   const item = modal[kind];
   const start = { kind, id: item?.id ?? 'new' };
   const moves = { [refKey(start)]: item ? storedParent(kind, item) : newItemParent(modal), ...modal.moves };
-  return { start, moves, fields: parentFields(kind, moves[refKey(start)]) };
+  return { start, moves, editable: true, fields: parentFields(kind, moves[refKey(start)]) };
+}
+
+// The views below an item: a target and what hangs off one or off anything else.
+function viewHierarchy({ kind, target, parent, parentKind = 'outcome', entity, entityKind, rule }) {
+  const under = (ref) => {
+    const start = { kind, id: 'view' };
+    return { start, moves: { [refKey(start)]: ref } };
+  };
+  const owner = parent ? { kind: parentKind, id: parent.id } : null;
+  const ownTarget = target ? { kind: 'target', id: target.id } : null;
+  if (kind === 'target-measurements') return { start: ownTarget, moves: {} };
+  if (kind === 'target') return target ? { start: ownTarget, moves: {} } : under(owner);
+  if (kind === 'measurement') return under(ownTarget ?? owner);
+  // A suggested outcome or project doesn't exist yet, so it has no place.
+  if (kind === 'entity-insights') return under(entity.suggested ? null : { kind: entityKind, id: entity.id });
+  if (kind === 'issue') return under({ kind: rule.appliesTo, id: entity.id });
+  return null;
 }
 
 function newItemParent({ kind, parent, parentId, impactId, parentProject }) {

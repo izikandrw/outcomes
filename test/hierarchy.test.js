@@ -23,6 +23,10 @@ const collections = {
   ],
   project: [],
   team: [],
+  target: [
+    { id: '20', name: 'ARR goal', unit: '$M', outcome_id: null, impact_id: '2' },
+    { id: '21', name: null, unit: 'users', outcome_id: '11', impact_id: null },
+  ],
 };
 const leaf = { kind: 'outcome', id: '12' };
 const names = (chain) => chain.map((crumb) => crumb.name);
@@ -136,6 +140,42 @@ test('a modal starts from the stored parent, or the one a new item was added und
 test('a staged move on the open item wins, and other kinds of modal have no hierarchy', () => {
   const opened = modalHierarchy({ kind: 'impact', impact: collections.impact[1], moves: { 'impact-2': null } });
   assert.deepEqual(opened.fields, { parent_impact_id: null });
-  assert.equal(modalHierarchy({ kind: 'target' }), null);
+  assert.equal(modalHierarchy({ kind: 'account' }), null);
   assert.equal(modalHierarchy(null), null);
+});
+
+const chainOf = (modal) => {
+  const { start, moves } = modalHierarchy(modal);
+  return names(lineage(start, collections, moves));
+};
+
+test('a target sits under what it quantifies, named by its unit when it has no name', () => {
+  const [impactTarget, outcomeTarget] = collections.target;
+  assert.deepEqual(chainOf({ kind: 'target-measurements', target: impactTarget }), ['Revenue', 'ARR']);
+  assert.deepEqual(chainOf({ kind: 'target', target: outcomeTarget }), ['Revenue', 'ARR', 'Top', 'Mid']);
+  assert.deepEqual(chainOf({ kind: 'target', target: null, parent: { id: '3' }, parentKind: 'impact' }), ['Retention']);
+  assert.deepEqual(chainOf({ kind: 'measurement', target: outcomeTarget, parent: { id: '11' } }), [
+    'Revenue',
+    'ARR',
+    'Top',
+    'Mid',
+    'users',
+  ]);
+  assert.deepEqual(chainOf({ kind: 'measurement', parent: { id: '10' } }), ['Revenue', 'ARR', 'Top']);
+});
+
+test('a view of an item shows the item as its last crumb', () => {
+  assert.deepEqual(chainOf({ kind: 'entity-insights', entity: { id: '10' }, entityKind: 'outcome' }), [
+    'Revenue',
+    'ARR',
+    'Top',
+  ]);
+  assert.deepEqual(chainOf({ kind: 'issue', rule: { appliesTo: 'impact' }, entity: { id: '2' } }), ['Revenue', 'ARR']);
+  assert.deepEqual(chainOf({ kind: 'entity-insights', entity: { id: '10', suggested: true }, entityKind: 'outcome' }), []);
+});
+
+test('only forms that save their parents can swap them', () => {
+  assert.equal(modalHierarchy({ kind: 'outcome', outcome: collections.outcome[0] }).editable, true);
+  assert.equal(modalHierarchy({ kind: 'target-measurements', target: collections.target[0] }).editable, undefined);
+  assert.equal(modalHierarchy({ kind: 'target', target: collections.target[0] }).editable, undefined);
 });
