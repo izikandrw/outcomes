@@ -717,6 +717,12 @@ body.modal-open {
   stroke-width: 2.5;
 }
 
+/* Browsers ring any focused SVG element, even one focused by a mouse click, and
+   the ring wraps the whole group, "+" included. Only the keyboard gets a cue. */
+svg [tabindex]:focus:not(:focus-visible) {
+  outline: none;
+}
+
 .tree-node:focus-visible {
   outline: none;
 }
