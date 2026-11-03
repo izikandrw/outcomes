@@ -107,7 +107,7 @@ export default function ProjectForm({ editing, draft, outcome, parentProject, te
       <label>
         Description
         <textarea
-          rows={3}
+          rows={8}
           value={form.description}
           placeholder="What will this ship?"
           onChange={(event) => update('description', event.target.value)}

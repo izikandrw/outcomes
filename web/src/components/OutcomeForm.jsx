@@ -132,7 +132,7 @@ export default function OutcomeForm({
       <label>
         Description
         <textarea
-          rows={3}
+          rows={8}
           value={form.description}
           placeholder="What does success look like?"
           onChange={(event) => update('description', event.target.value)}

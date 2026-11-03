@@ -78,7 +78,7 @@ export default function ImpactForm({
       <label>
         Description
         <textarea
-          rows={3}
+          rows={8}
           value={form.description}
           placeholder="Why does this matter to the business?"
           onChange={(event) => update('description', event.target.value)}
