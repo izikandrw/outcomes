@@ -61,7 +61,7 @@ export default function HierarchyBreadcrumb({ title, start, collections, moves, 
           </li>
         )}
         {chain.map((crumb) => (
-          <li key={refKey(crumb)}>
+          <li key={refKey(crumb)} data-kind={crumb.kind}>
             <button
               type="button"
               className="crumb crumb-link"

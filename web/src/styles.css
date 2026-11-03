@@ -448,6 +448,28 @@ body:has(.side-panel) .jump-to-top {
   margin-top: 4px;
 }
 
+/* Each parent wears its kind's color from the map. As on the map, an outcome
+   tints with the accent but keeps plain text. */
+.crumbs li[data-kind='impact'] {
+  --crumb-color: var(--impact);
+  --crumb-text: var(--impact);
+}
+
+.crumbs li[data-kind='project'] {
+  --crumb-color: var(--project);
+  --crumb-text: var(--project);
+}
+
+.crumbs li[data-kind='team'] {
+  --crumb-color: var(--team);
+  --crumb-text: var(--team);
+}
+
+.crumbs li[data-kind='target'] {
+  --crumb-color: var(--target);
+  --crumb-text: var(--target);
+}
+
 .crumb {
   --point: 9px;
   --notch: var(--point);
@@ -455,8 +477,8 @@ body:has(.side-panel) .jump-to-top {
   align-items: center;
   min-width: 0;
   padding: 5px calc(var(--point) + 8px) 5px calc(var(--notch) + 8px);
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  color: var(--text);
+  background: color-mix(in srgb, var(--crumb-color, var(--accent)) 12%, transparent);
+  color: var(--crumb-text, var(--text));
   border: none;
   border-radius: 0;
   font-size: 13px;
@@ -481,7 +503,7 @@ body:has(.side-panel) .jump-to-top {
 .crumb:hover,
 .crumb:focus-visible,
 .crumb[aria-expanded='true'] {
-  background: color-mix(in srgb, var(--accent) 26%, transparent);
+  background: color-mix(in srgb, var(--crumb-color, var(--accent)) 26%, transparent);
 }
 
 .crumb-link:hover .crumb-name {
