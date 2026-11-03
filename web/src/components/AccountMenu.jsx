@@ -32,10 +32,12 @@ export default function AccountMenu({ user, account, onSettings, onMembers, onSi
         className="ghost small account-menu-button"
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label={account.name}
+        title={account.name}
         onClick={() => setOpen((current) => !current)}
       >
         <AccountLogo account={account} size={20} />
-        {account.name} ▾
+        <span className="account-menu-button-name">{account.name}</span> ▾
       </button>
       {open && (
         <div className="account-menu-panel" role="menu">

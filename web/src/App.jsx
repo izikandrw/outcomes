@@ -860,22 +860,24 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
           <h1>Outcomes</h1>
         </div>
         <TopNav page={page === 'team' ? 'teams' : page} onChange={changePage} counts={{ review: pendingReview }} />
-        <IssueCounts
-          impacts={impacts}
-          outcomes={outcomes}
-          projects={projects}
-          insights={evidence}
-          activeId={issueFilter}
-          onOpen={openIssues}
-        />
-        <CommandPaletteButton onClick={() => setPaletteOpen(true)} />
-        <AccountMenu
-          user={user}
-          account={account}
-          onSettings={() => setModal({ kind: 'account' })}
-          onMembers={() => setModal({ kind: 'members' })}
-          onSignOut={onSignOut}
-        />
+        <div className="header-tools">
+          <IssueCounts
+            impacts={impacts}
+            outcomes={outcomes}
+            projects={projects}
+            insights={evidence}
+            activeId={issueFilter}
+            onOpen={openIssues}
+          />
+          <CommandPaletteButton onClick={() => setPaletteOpen(true)} />
+          <AccountMenu
+            user={user}
+            account={account}
+            onSettings={() => setModal({ kind: 'account' })}
+            onMembers={() => setModal({ kind: 'members' })}
+            onSignOut={onSignOut}
+          />
+        </div>
       </header>
 
       {headerHidden && (

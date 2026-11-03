@@ -95,6 +95,21 @@ header {
   margin-bottom: 20px;
 }
 
+/* The page's own header, so the account menu can react to the room it has, which
+   the side panel takes away as well as a narrow window. */
+.app > header {
+  container: app-header / inline-size;
+}
+
+/* Wraps as one group, kept to the right, so a tight header never strands the
+   account menu alone on a row of its own. */
+.header-tools {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+}
+
 h1 {
   font-size: 24px;
   margin: 0;
@@ -1770,6 +1785,22 @@ button.tag.insight-badge.suggested {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.account-menu-button-name {
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Short of room for the whole header on one row: the logo alone still marks the
+   account, and the name is on hover and in the menu. The width is what the header
+   needs with the longest name the rule above allows. */
+@container app-header (max-width: 1430px) {
+  .account-menu-button-name {
+    display: none;
+  }
 }
 
 /* The account's logo, or its initial on a neutral square when it has none.
