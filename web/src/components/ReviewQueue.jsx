@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as api from '../api.js';
 import { insightFilterFields, matchesFilters } from '../lib/insightFilters.js';
 import { IMPACT_AREAS, INSIGHT_TYPES, REJECTION_REASONS, formatDollars, rejectionReasonLabel } from '../lib/links.js';
+import { isTypingTarget, reviewAction, reviewLegend, worksInField } from '../lib/reviewShortcuts.js';
+import useStuck from '../lib/useStuck.js';
 import FilterBar from './FilterBar.jsx';
 import CollectionRuns, { formatTime } from './CollectionRuns.jsx';
 import EvalCases from './EvalCases.jsx';
 import {
+  DateField,
   EVIDENCE,
   InlineText,
   LinkPicker,
@@ -28,7 +31,9 @@ import {
 // Whatever was proposed, the reviewer can also create an outcome or project of
 // their own and link the insight to it. Every field on a card edits in place:
 // click it, change it, and it saves. The Runs tab shows the collector's traces,
-// and the Eval set tab the cases picked from them.
+// and the Eval set tab the cases picked from them. The whole queue works from
+// the keyboard (lib/reviewShortcuts.js): one card is always selected, and focus
+// sits on it, so J and K move and Tab walks into its fields.
 // `view` holds the tab, the open run and the filters ({ tab, run, filters }, a
 // null tab meaning Needs review), which the app keeps in the URL.
 const REVIEW_TABS = ['pending', 'rejected', 'runs', 'evals'];
@@ -50,8 +55,19 @@ export default function ReviewQueue({
   onAcceptAll,
 }) {
   const tab = REVIEW_TABS.includes(view.tab) ? view.tab : 'pending';
-  const setTab = (next) => onViewChange({ ...view, tab: next === 'pending' ? null : next, run: null });
+  const setTab = (next) => {
+    lastIndex.current = 0;
+    onViewChange({ ...view, tab: next === 'pending' ? null : next, run: null });
+  };
   const [lastRunAt, setLastRunAt] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
+  const lastIndex = useRef(0);
+  const previousId = useRef(null);
+  const listRef = useRef(null);
+  const legendRef = useRef(null);
+  // What the keys do to the selected card, which registers them.
+  const cardActions = useRef(null);
+  const legendStuck = useStuck(legendRef);
   const pending = insights.filter((insight) => insight.status === 'unvalidated');
   const rejected = insights.filter((insight) => insight.status === 'rejected');
   const inTab = tab === 'pending' ? pending : rejected;
@@ -65,6 +81,61 @@ export default function ReviewQueue({
     [insights, outcomes, projects],
   );
   const shown = inTab.filter((insight) => matchesFilters(insight, fields, filters));
+  const listed = ['runs', 'evals'].includes(tab) ? [] : [...shown].reverse();
+  const ids = listed.map((insight) => insight.id);
+
+  // Approving, rejecting or filtering can take the selected card off the list;
+  // the one that moved into its place is then selected.
+  const found = ids.indexOf(selectedId);
+  const currentIndex = found >= 0 ? found : Math.min(lastIndex.current, ids.length - 1);
+  const currentId = ids[currentIndex] ?? null;
+  lastIndex.current = Math.max(currentIndex, 0);
+
+  function focusCard(id, scroll = true) {
+    const card = listRef.current?.querySelector(`[data-insight-id="${id}"]`);
+    if (!card) return;
+    card.focus({ preventScroll: true });
+    // A card taller than the window starts from its top, not its nearest edge.
+    if (scroll) card.scrollIntoView({ block: card.offsetHeight > window.innerHeight ? 'start' : 'nearest' });
+  }
+
+  // Focus lands on the selected card when nothing else holds it: on arriving, and
+  // after the card it was on has gone. Elsewhere, like the filter bar, it stays put.
+  useEffect(() => {
+    const moved = previousId.current != null && previousId.current !== currentId;
+    previousId.current = currentId;
+    if (currentId == null) return;
+    const active = document.activeElement;
+    if (!active || active === document.body) focusCard(currentId, moved);
+  }, [currentId]);
+
+  // Registered afresh each render, so it always sees the current list.
+  useEffect(() => {
+    function onKeyDown(event) {
+      const action = reviewAction(event);
+      if (!action || currentId == null) return;
+      if (document.querySelector('[role="dialog"], dialog[open]')) return;
+      const { target } = event;
+      // By now Enter may have saved a text field and removed it from the page, so
+      // ask the path the key took rather than the target's current ancestors.
+      const within = (className) => event.composedPath().some((node) => node.classList?.contains(className));
+      // These handle their own keys.
+      if (within('multi-select-menu') || within('reject-form')) return;
+      if (isTypingTarget(target) && !(within('review-card') && worksInField(action, target))) return;
+      if (action === 'next' || action === 'previous') {
+        event.preventDefault();
+        const next = currentIndex + (action === 'next' ? 1 : -1);
+        if (next >= 0 && next < ids.length) focusCard(ids[next]);
+        return;
+      }
+      // Holding a key down must not run through the queue approving everything.
+      if (event.repeat) return;
+      event.preventDefault();
+      cardActions.current?.[action]?.();
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  });
 
   function countFor(fieldId, optionId) {
     const field = fields.find((entry) => entry.id === fieldId);
@@ -105,6 +176,23 @@ export default function ReviewQueue({
         </div>
       </div>
       {!['runs', 'evals'].includes(tab) && inTab.length > 0 && (
+        <div
+          ref={legendRef}
+          className={`list-toolbar review-shortcuts${legendStuck ? ' stuck' : ''}`}
+          role="note"
+          aria-label="Keyboard shortcuts"
+        >
+          {reviewLegend(tab, { mac: /Mac|iPhone|iPad/.test(navigator.platform) }).map(({ keys, label }) => (
+            <span key={label} className="shortcut">
+              {keys.map((key) => (
+                <kbd key={key}>{key}</kbd>
+              ))}
+              {label}
+            </span>
+          ))}
+        </div>
+      )}
+      {!['runs', 'evals'].includes(tab) && inTab.length > 0 && (
         <FilterBar fields={fields} filters={filters} onChange={setFilters} countFor={countFor} />
       )}
       {tab === 'evals' ? (
@@ -127,11 +215,14 @@ export default function ReviewQueue({
       ) : shown.length === 0 ? (
         <p className="empty">No suggestions match.</p>
       ) : (
-        <ul className="review-list">
-          {[...shown].reverse().map((insight) => (
+        <ul className="review-list" ref={listRef}>
+          {listed.map((insight) => (
             <ReviewCard
               key={insight.id}
               insight={insight}
+              selected={insight.id === currentId}
+              onSelect={() => setSelectedId(insight.id)}
+              actionsRef={cardActions}
               outcomes={outcomes}
               projects={projects}
               onApprove={onApprove}
@@ -152,6 +243,9 @@ export default function ReviewQueue({
 
 function ReviewCard({
   insight,
+  selected,
+  onSelect,
+  actionsRef,
   outcomes,
   projects,
   onApprove,
@@ -168,11 +262,16 @@ function ReviewCard({
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const cardRef = useRef(null);
+  const savingNow = useRef(null);
 
   async function run(action) {
     setBusy(true);
     setError(null);
     try {
+      // Approving from inside a field saves it on the way out. That has to land
+      // first, and if it fails the insight stays here with the error showing.
+      await savingNow.current;
       await action();
     } catch (err) {
       setError(err.message);
@@ -181,12 +280,33 @@ function ReviewCard({
   }
 
   // Saves one field edited in place. Unlike run, the card stays on screen after.
-  async function save(patch) {
+  function save(patch) {
     setError(null);
-    try {
-      await onUpdate(insight, patch);
-    } catch (err) {
-      setError(`Could not save: ${err.message}`);
+    const saving = onUpdate(insight, patch);
+    savingNow.current = saving;
+    saving
+      .catch((err) => setError(`Could not save: ${err.message}`))
+      .finally(() => {
+        if (savingNow.current === saving) savingNow.current = null;
+      });
+  }
+
+  function confirmReject() {
+    if (!busy) run(() => onReject(insight, reason, note.trim() || null));
+  }
+
+  function cancelReject() {
+    setRejecting(false);
+    cardRef.current.focus();
+  }
+
+  function onRejectFormKey(event) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      cancelReject();
+    } else if (event.key === 'Enter' && event.target.tagName !== 'BUTTON') {
+      event.preventDefault();
+      confirmReject();
     }
   }
 
@@ -211,8 +331,33 @@ function ReviewCard({
   // Every outcome and project, ticked when this insight already links to it.
   const linkable = linkableItems(insight, outcomes, projects);
 
+  // The review queue's keys act on the selected card, through what it would click.
+  useEffect(() => {
+    if (!selected) return;
+    const click = (selector) => cardRef.current.querySelector(selector)?.click();
+    const idle = !busy && !rejecting;
+    const approve = () => idle && run(() => onApprove(insight));
+    actionsRef.current = {
+      approve,
+      submit: approve,
+      approveAll: () => idle && pending && proposals.length > 0 && run(() => onAcceptAll(insight)),
+      reject: () => idle && pending && setRejecting(true),
+      edit: () => idle && click('h3 .inline-edit'),
+      link: () => idle && click('.link-existing > button'),
+      open: () => click('.source-row a[href]'),
+      leave: () => cardRef.current.focus(),
+    };
+  });
+
   return (
-    <li className="review-card">
+    <li
+      ref={cardRef}
+      className={`review-card${selected ? ' selected' : ''}`}
+      data-insight-id={insight.id}
+      tabIndex={-1}
+      aria-current={selected || undefined}
+      onFocus={onSelect}
+    >
       <h3>
         <SentimentSelect value={insight.sentiment} disabled={locked} onChange={(sentiment) => save({ sentiment })} />
         <InlineText
@@ -280,15 +425,11 @@ function ReviewCard({
           />
         </PillField>
         <PillField label="Observed" title="When it was seen">
-          <input
-            className="cell-input pill-date"
-            type="date"
-            aria-label="Observed"
+          <DateField
+            label="Observed"
             disabled={locked}
             value={insight.observed_at ? new Date(insight.observed_at).toISOString().slice(0, 10) : ''}
-            onChange={(event) =>
-              save({ observed_at: event.target.value ? new Date(event.target.value).toISOString() : null })
-            }
+            onCommit={(value) => save({ observed_at: value ? new Date(value).toISOString() : null })}
           />
         </PillField>
         {insight.edited_in_review && <span className="tag parent">Edited</span>}
@@ -420,8 +561,8 @@ function ReviewCard({
       {error && <p className="error">{error}</p>}
 
       {rejecting ? (
-        <div className="reject-form">
-          <select value={reason} aria-label="Reason" onChange={(event) => setReason(event.target.value)}>
+        <div className="reject-form" onKeyDown={onRejectFormKey}>
+          <select autoFocus value={reason} aria-label="Reason" onChange={(event) => setReason(event.target.value)}>
             {REJECTION_REASONS.map((entry) => (
               <option key={entry.id} value={entry.id}>
                 {entry.label}
@@ -429,22 +570,16 @@ function ReviewCard({
             ))}
           </select>
           <input
-            autoFocus
             value={note}
             placeholder="Note (optional): what was wrong?"
             aria-label="Note"
             onChange={(event) => setNote(event.target.value)}
           />
           <div className="actions">
-            <button type="button" className="ghost" disabled={busy} onClick={() => setRejecting(false)}>
+            <button type="button" className="ghost" disabled={busy} onClick={cancelReject}>
               Cancel
             </button>
-            <button
-              type="button"
-              className="danger-solid"
-              disabled={busy}
-              onClick={() => run(() => onReject(insight, reason, note.trim() || null))}
-            >
+            <button type="button" className="danger-solid" disabled={busy} onClick={confirmReject}>
               Reject
             </button>
           </div>

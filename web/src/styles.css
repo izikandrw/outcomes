@@ -2686,6 +2686,50 @@ button.team-chip.link:hover {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  /* Moving between cards stops them clear of the pinned nav and the key legend. */
+  scroll-margin: 150px 0 16px;
+}
+
+/* The card the keyboard is on. Focus sits on it, but the border says so instead. */
+.review-card:focus {
+  outline: none;
+}
+
+.review-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.review-shortcuts {
+  justify-content: flex-start;
+  gap: 4px 14px;
+  margin-top: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.shortcut {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.shortcut kbd {
+  font: inherit;
+  font-size: 11px;
+  line-height: 16px;
+  min-width: 18px;
+  padding: 0 4px;
+  text-align: center;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+}
+
+.shortcut kbd:last-of-type {
+  margin-right: 3px;
 }
 
 :is(.review-card, .insight-card) h3 {

@@ -34,6 +34,8 @@ export function LinkPicker({ items, disabled, onToggle, buttonClassName = 'ghost
       if (event.key !== 'Escape') return;
       // Inside a modal, Esc would otherwise close the dialog as well as the menu.
       event.preventDefault();
+      // Focus would otherwise drop out of the page with the menu it was in.
+      if (ref.current?.contains(document.activeElement)) ref.current.querySelector('button').focus();
       setOpen(false);
     }
     document.addEventListener('mousedown', onPointerDown);
@@ -61,6 +63,15 @@ export function LinkPicker({ items, disabled, onToggle, buttonClassName = 'ghost
     }),
   ];
 
+  // Up and down walk the search box and the checkboxes; Space ticks.
+  function moveInMenu(event) {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+    event.preventDefault();
+    const inputs = [...event.currentTarget.querySelectorAll('input')];
+    const next = inputs.indexOf(document.activeElement) + (event.key === 'ArrowDown' ? 1 : -1);
+    inputs[Math.min(Math.max(next, 0), inputs.length - 1)].focus();
+  }
+
   return (
     <div className="link-existing multi-select-anchor" ref={ref}>
       <button
@@ -78,7 +89,14 @@ export function LinkPicker({ items, disabled, onToggle, buttonClassName = 'ghost
         {children} <ChevronDownIcon />
       </button>
       {open && (
-        <div className="multi-select-menu">
+        <div
+          className="multi-select-menu"
+          onKeyDown={moveInMenu}
+          onBlur={(event) => {
+            // Tabbing out closes it. A click inside moves focus nowhere, so has no related target.
+            if (event.relatedTarget && !ref.current.contains(event.relatedTarget)) setOpen(false);
+          }}
+        >
           <input
             autoFocus
             value={query}
@@ -239,7 +257,7 @@ export function PillSelect({ label, value, options, empty, disabled, onChange })
 // on leaving the field instead: each keystroke changes the value, so saving them
 // would store year 0002 on the way to 2026 and, on the roadmap, move the row while
 // it is being typed in. Escape puts back what was there.
-export function DateField({ label, value, onCommit }) {
+export function DateField({ label, value, disabled, onCommit }) {
   const [draft, setDraft] = useState(null);
   const typing = useRef(false);
 
@@ -255,6 +273,7 @@ export function DateField({ label, value, onCommit }) {
       className="cell-input pill-date"
       type="date"
       aria-label={label}
+      disabled={disabled}
       value={draft ?? value}
       onKeyDown={(event) => {
         if (event.key === 'Enter') {
@@ -302,11 +321,19 @@ export function SentimentSelect({ value, disabled, onChange }) {
 // Text that becomes an input when clicked and saves when you click away or
 // press Enter; Escape puts back what was there. `display`, when given, is what
 // shows while it isn't being edited. `multiline` edits in a textarea that grows
-// to fit (Shift+Enter for a new line); `pill` shows the value as a tag.
+// to fit (Shift+Enter for a new line); `pill` shows the value as a tag. Enter and
+// Escape leave focus on the text, so the keyboard carries on from where it was.
 export function InlineText({ value, label, display, placeholder = '', type = 'text', required, multiline, pill, className = '', disabled, onCommit }) {
   const [draft, setDraft] = useState(null);
   // Set by Escape, so the blur that follows doesn't save.
   const cancelled = useRef(false);
+  const restoreFocus = useRef(false);
+  const shownRef = useRef(null);
+  useEffect(() => {
+    if (draft !== null || !restoreFocus.current) return;
+    restoreFocus.current = false;
+    shownRef.current?.focus();
+  }, [draft]);
   const current = String(value);
   const shown = display ?? current;
 
@@ -322,6 +349,7 @@ export function InlineText({ value, label, display, placeholder = '', type = 'te
     if (disabled) return <span className={classes}>{shown}</span>;
     return (
       <span
+        ref={shownRef}
         className={classes}
         role="button"
         tabIndex={0}
@@ -355,12 +383,20 @@ export function InlineText({ value, label, display, placeholder = '', type = 'te
   function onKeyDown(event) {
     if (event.key === 'Enter' && !(multiline && event.shiftKey)) {
       event.preventDefault();
+      restoreFocus.current = true;
       event.currentTarget.blur();
     }
     if (event.key === 'Escape') {
       cancelled.current = true;
+      restoreFocus.current = true;
       event.currentTarget.blur();
     }
+  }
+
+  // Focus puts a textarea's caret at the start; carry on typing from the end.
+  function caretToEnd(event) {
+    const { length } = event.target.value;
+    event.target.setSelectionRange(length, length);
   }
 
   const classes = `cell-input inline-input${pill ? ' pill-input' : ''} ${className}`.trim();
@@ -376,6 +412,7 @@ export function InlineText({ value, label, display, placeholder = '', type = 'te
         setDraft(event.target.value);
         fitHeight(event.target);
       }}
+      onFocus={caretToEnd}
       onBlur={commit}
       onKeyDown={onKeyDown}
     />
@@ -388,6 +425,7 @@ export function InlineText({ value, label, display, placeholder = '', type = 'te
       aria-label={label}
       value={draft}
       onChange={(event) => setDraft(type === 'number' ? numberDraft(event.target.value) : event.target.value)}
+      onFocus={caretToEnd}
       onBlur={commit}
       onKeyDown={onKeyDown}
     />
