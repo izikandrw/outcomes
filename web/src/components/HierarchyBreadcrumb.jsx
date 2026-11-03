@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ancestorMoves, lineage, nameOf, parentChoices, refKey } from '../lib/hierarchy.js';
+import { ancestorMoves, lineage, nameOf, otherLinkedOutcomes, parentChoices, refKey } from '../lib/hierarchy.js';
 import { selectedFirst } from '../lib/selectedFirst.js';
 import { PencilIcon } from './icons.jsx';
 
@@ -42,6 +42,7 @@ export default function HierarchyBreadcrumb({ title, start, collections, moves, 
   const toggle = (child) => setChoosingFor(isChoosing(child) ? null : child);
   const label = (child) => nameOf(child, collections) ?? `this ${child.kind}`;
   const staged = onMove ? ancestorMoves(start, collections, moves) : [];
+  const alsoDrives = otherLinkedOutcomes(start, collections, moves);
 
   return (
     <nav className="crumbs" aria-label="Hierarchy" ref={ref}>
@@ -74,10 +75,14 @@ export default function HierarchyBreadcrumb({ title, start, collections, moves, 
               <button
                 type="button"
                 className="crumb crumb-swap"
-                title={`Change the parent of ${label(crumb.child)}`}
+                title={crumb.linked ? `Nest ${label(crumb.child)} under a project` : `Change the parent of ${label(crumb.child)}`}
                 aria-haspopup="listbox"
                 aria-expanded={Boolean(isChoosing(crumb.child))}
-                aria-label={`Change the parent of ${label(crumb.child)}, now ${crumb.name}`}
+                aria-label={
+                  crumb.linked
+                    ? `Nest ${label(crumb.child)} under a project`
+                    : `Change the parent of ${label(crumb.child)}, now ${crumb.name}`
+                }
                 onClick={() => toggle(crumb.child)}
               >
                 <PencilIcon />
@@ -89,6 +94,20 @@ export default function HierarchyBreadcrumb({ title, start, collections, moves, 
           <h2>{title}</h2>
         </li>
       </ol>
+
+      {alsoDrives.length > 0 && (
+        <p className="hint crumbs-hint crumbs-also">
+          Also drives{' '}
+          {alsoDrives.map((outcome, index) => (
+            <span key={refKey(outcome)}>
+              {index > 0 && ', '}
+              <button type="button" onClick={() => onOpen({ kind: outcome.kind, id: outcome.id })}>
+                {outcome.name}
+              </button>
+            </span>
+          ))}
+        </p>
+      )}
 
       {staged.length > 0 && (
         <p className="hint crumbs-hint">
@@ -104,7 +123,8 @@ export default function HierarchyBreadcrumb({ title, start, collections, moves, 
         <ParentMenu
           key={refKey(choosingFor)}
           childLabel={label(choosingFor)}
-          current={chain.find((crumb) => refKey(crumb.child) === refKey(choosingFor)) ?? null}
+          // A link to an outcome isn't a parent, so there is none to clear or mark.
+          current={chain.find((crumb) => !crumb.linked && refKey(crumb.child) === refKey(choosingFor)) ?? null}
           groups={parentChoices(choosingFor, collections, moves)}
           onChoose={(parent) => {
             onMove(choosingFor, parent);

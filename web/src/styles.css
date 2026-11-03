@@ -562,6 +562,15 @@ body:has(.side-panel) .jump-to-top {
   clip-path: none;
 }
 
+.crumbs-also button {
+  padding: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+}
+
 .crumbs-hint {
   margin: 4px 0 0;
 }

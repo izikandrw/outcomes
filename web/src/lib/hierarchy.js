@@ -1,4 +1,4 @@
-import { targetLabel } from './links.js';
+import { projectsForOutcome, targetLabel } from './links.js';
 
 // The parent chain an open item's breadcrumb shows and edits. An item is named
 // by a ref, { kind, id }; `collections` maps each kind to its rows; and `moves`
@@ -48,22 +48,54 @@ function parentOf(ref, collections, moves) {
   return item ? storedParent(ref.kind, item) : null;
 }
 
+// The outcomes a project drives, through project_outcomes or the older
+// outcomes.project_id column. A new project added from an outcome names it on
+// its ref, having no row yet.
+function linkedOutcomes(ref, collections) {
+  if (ref.kind !== 'project') return [];
+  const project = find(ref, collections);
+  return (collections.outcome ?? []).filter(
+    (outcome) =>
+      String(ref.linkedOutcomeId) === String(outcome.id) ||
+      (project && projectsForOutcome([project], outcome).length > 0),
+  );
+}
+
+// The next crumb up. A project with no parent project sits under the outcome it
+// drives, as it does on the map. That link is not a parent: it is `linked`, and
+// storedParent and moves know nothing of it, so saving never writes it.
+function nextUp(child, collections, moves) {
+  const parent = parentOf(child, collections, moves);
+  if (parent) return parent;
+  const [outcome] = linkedOutcomes(child, collections);
+  return outcome ? { kind: 'outcome', id: outcome.id, linked: true } : null;
+}
+
 // The ancestors of `start`, root first. Each knows its `child`: the ref whose
 // parent changes when that crumb is swapped.
 export function lineage(start, collections, moves = {}) {
   const chain = [];
   const seen = new Set([refKey(start)]);
   let child = start;
-  let ref = parentOf(child, collections, moves);
+  let ref = nextUp(child, collections, moves);
   while (ref && !seen.has(refKey(ref))) {
     const item = find(ref, collections);
     if (!item) break;
     seen.add(refKey(ref));
-    chain.unshift({ kind: ref.kind, id: ref.id, name: nameOfItem(ref.kind, item), child });
+    chain.unshift({ kind: ref.kind, id: ref.id, name: nameOfItem(ref.kind, item), child, linked: Boolean(ref.linked) });
     child = { kind: ref.kind, id: ref.id };
-    ref = parentOf(child, collections, moves);
+    ref = nextUp(child, collections, moves);
   }
   return chain;
+}
+
+// A project can drive several outcomes but the chain only runs through one:
+// these are the others it drives.
+export function otherLinkedOutcomes(start, collections, moves = {}) {
+  const chain = lineage(start, collections, moves);
+  return linkedOutcomes(start, collections)
+    .filter((outcome) => !chain.some((crumb) => crumb.kind === 'outcome' && String(crumb.id) === String(outcome.id)))
+    .map((outcome) => ({ kind: 'outcome', id: outcome.id, name: outcome.name }));
 }
 
 // What `child` may move under, by kind: anything but itself or what sits
@@ -111,6 +143,7 @@ export function modalHierarchy(modal) {
   const { kind } = modal;
   const item = modal[kind];
   const start = { kind, id: item?.id ?? 'new' };
+  if (kind === 'project' && !item && modal.parent) start.linkedOutcomeId = modal.parent.id;
   const moves = { [refKey(start)]: item ? storedParent(kind, item) : newItemParent(modal), ...modal.moves };
   return { start, moves, editable: true, fields: parentFields(kind, moves[refKey(start)]) };
 }

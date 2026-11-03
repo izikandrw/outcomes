@@ -1,9 +1,9 @@
 const { test, before } = require('node:test');
 const assert = require('node:assert/strict');
 
-let lineage, parentChoices, ancestorMoves, parentFields, modalHierarchy;
+let lineage, parentChoices, ancestorMoves, parentFields, modalHierarchy, otherLinkedOutcomes;
 before(async () => {
-  ({ lineage, parentChoices, ancestorMoves, parentFields, modalHierarchy } = await import(
+  ({ lineage, parentChoices, ancestorMoves, parentFields, modalHierarchy, otherLinkedOutcomes } = await import(
     '../web/src/lib/hierarchy.js'
   ));
 });
@@ -178,4 +178,57 @@ test('only forms that save their parents can swap them', () => {
   assert.equal(modalHierarchy({ kind: 'outcome', outcome: collections.outcome[0] }).editable, true);
   assert.equal(modalHierarchy({ kind: 'target-measurements', target: collections.target[0] }).editable, undefined);
   assert.equal(modalHierarchy({ kind: 'target', target: collections.target[0] }).editable, undefined);
+});
+
+const withProjects = {
+  ...collections,
+  outcome: [...collections.outcome, { id: '14', name: 'Legacy', parent_outcome_id: null, impact_id: null, project_id: '32' }],
+  project: [
+    { id: '30', name: 'Driver', parent_project_id: null, outcome_ids: ['11', '13'] },
+    { id: '31', name: 'Sub', parent_project_id: '30', outcome_ids: [] },
+    { id: '32', name: 'Old link', parent_project_id: null, outcome_ids: [] },
+    { id: '33', name: 'Loose', parent_project_id: null, outcome_ids: [] },
+  ],
+};
+const projectRef = (id) => ({ kind: 'project', id });
+
+test('a project sits under the outcome it drives, up to the impact', () => {
+  assert.deepEqual(names(lineage(projectRef('30'), withProjects)), ['Revenue', 'ARR', 'Top', 'Mid']);
+  assert.deepEqual(names(lineage(projectRef('31'), withProjects)), ['Revenue', 'ARR', 'Top', 'Mid', 'Driver']);
+  assert.deepEqual(names(lineage(projectRef('32'), withProjects)), ['Legacy']);
+  assert.deepEqual(names(lineage(projectRef('33'), withProjects)), []);
+});
+
+test('a parent project takes the place of the outcome link', () => {
+  const moves = { 'project-30': { kind: 'project', id: '33' } };
+  assert.deepEqual(names(lineage(projectRef('30'), withProjects, moves)), ['Loose']);
+});
+
+test('the outcome link is marked as a link and never saved as a move', () => {
+  const chain = lineage(projectRef('30'), withProjects);
+  assert.deepEqual(chain.map((crumb) => crumb.linked), [false, false, false, true]);
+  const { fields, moves, start } = modalHierarchy({ kind: 'project', project: withProjects.project[0] });
+  assert.deepEqual(fields, { parent_project_id: null });
+  assert.deepEqual(ancestorMoves(start, withProjects, moves), []);
+});
+
+test('a new project added from an outcome shows it without nesting under it', () => {
+  const modal = { kind: 'project', project: null, parent: { id: '11' } };
+  const { fields, moves, start } = modalHierarchy(modal);
+  assert.deepEqual(names(lineage(start, withProjects, moves)), ['Revenue', 'ARR', 'Top', 'Mid']);
+  assert.deepEqual(fields, { parent_project_id: null });
+});
+
+test('the other outcomes a project drives are listed beside the chain', () => {
+  assert.deepEqual(otherLinkedOutcomes(projectRef('30'), withProjects), [{ kind: 'outcome', id: '13', name: 'Other' }]);
+  assert.deepEqual(otherLinkedOutcomes(projectRef('33'), withProjects), []);
+  assert.deepEqual(otherLinkedOutcomes({ kind: 'outcome', id: '12' }, withProjects), []);
+  // Under a parent project, its own links are all "others".
+  const moves = { 'project-30': { kind: 'project', id: '33' } };
+  assert.deepEqual(names(otherLinkedOutcomes(projectRef('30'), withProjects, moves)), ['Mid', 'Other']);
+});
+
+test('an insight view of a project shows the project and everything above it', () => {
+  const { start, moves } = modalHierarchy({ kind: 'entity-insights', entity: { id: '30' }, entityKind: 'project' });
+  assert.deepEqual(names(lineage(start, withProjects, moves)), ['Revenue', 'ARR', 'Top', 'Mid', 'Driver']);
 });
