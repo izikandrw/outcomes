@@ -464,3 +464,62 @@ export function formatQuarter(value) {
   const date = new Date(value);
   return `Q${Math.floor(date.getUTCMonth() / 3) + 1} ${date.getUTCFullYear()}`;
 }
+
+const unitKey = (unit) => String(unit ?? '').trim().toLowerCase();
+
+// What an impact puts toward a figure in `unit`: its own target if it has one in
+// that unit, otherwise what its own children add up to. Taking one or the other
+// keeps a grandchild from being counted twice. Null means it states nothing in
+// that unit. Only the first matching target counts, because several targets on
+// one impact are different signals on one result, not parts to add up.
+function contributionOf(impact, unit, impacts, targets) {
+  const own = targetsForImpact(targets, impact).find((target) => unitKey(target.unit) === unitKey(unit));
+  if (own) return Number(own.target_value);
+  const amounts = impacts
+    .filter((child) => same(child.parent_impact_id, impact.id))
+    .map((child) => contributionOf(child, unit, impacts, targets))
+    .filter((amount) => amount != null);
+  return amounts.length > 0 ? amounts.reduce((sum, amount) => sum + amount, 0) : null;
+}
+
+// How much of a parent impact's target its child impacts account for: the
+// children's target values in the same unit, as a share of the parent's. This
+// is a plan check, not progress, and the parent's target stays its own number.
+// Null when there is nothing to compare: no target, no child impacts, or a goal
+// of zero.
+export function childCoverage(impact, target, impacts, targets) {
+  const goal = Number(target?.target_value);
+  const children = impacts.filter((child) => same(child.parent_impact_id, impact.id));
+  if (children.length === 0 || !goal) return null;
+  const parts = children.map((child) => ({
+    impact: child,
+    value: contributionOf(child, target.unit, impacts, targets),
+  }));
+  const contributing = parts.filter((part) => part.value != null);
+  const covered = contributing.reduce((sum, part) => sum + part.value, 0);
+  return {
+    covered,
+    goal,
+    share: covered / goal,
+    unit: target.unit,
+    contributing,
+    missing: parts.filter((part) => part.value == null).map((part) => part.impact),
+  };
+}
+
+// The bar is clamped so an overshoot still draws; the percentage stays real.
+export function coverageWidth(coverage) {
+  return Math.max(0, Math.min(1, coverage.share)) * 100;
+}
+
+// "130 of 150 ARR ($M)".
+export function coverageAmounts({ covered, goal, unit }) {
+  return `${formatValue(covered)} of ${formatValue(goal)} ${unit}`;
+}
+
+// "20 left to account for", or "5 more than the target" when children overshoot.
+export function coverageGap({ covered, goal }) {
+  const gap = goal - covered;
+  if (Math.abs(gap) < 0.005) return null;
+  return gap > 0 ? `${formatValue(gap)} left to account for` : `${formatValue(-gap)} more than the target`;
+}

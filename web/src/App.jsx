@@ -1114,6 +1114,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
             // Filtered to impacts with an issue, the map draws just those impacts.
             <OutcomeTree
               impacts={flagged ?? impacts}
+              allImpacts={impacts}
               outcomes={flagged ? [] : outcomes}
               projects={flagged ? [] : projects}
               targets={targets}
@@ -1237,6 +1238,8 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               editing={modal.impact}
               parentFields={hierarchy.fields}
               targets={modal.impact ? targetsFor(targets, modal.impact, 'impact') : []}
+              impacts={impacts}
+              allTargets={targets}
               onAddTarget={() => openAdd(modal.impact, 'target', 'impact')}
               onEditTarget={(target) => openEditTarget(target, modal.impact, 'impact')}
               onDeleteTarget={removeTarget}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import AutoGrowTextarea from './AutoGrowTextarea.jsx';
+import ChildCoverage from './ChildCoverage.jsx';
 import TargetsSection from './TargetsSection.jsx';
 
 const EMPTY = { name: '', description: '' };
@@ -11,6 +12,8 @@ export default function ImpactForm({
   editing,
   parentFields,
   targets = [],
+  impacts = [],
+  allTargets = [],
   onAddTarget,
   onEditTarget,
   onDeleteTarget,
@@ -87,6 +90,9 @@ export default function ImpactForm({
         onEdit={onEditTarget}
         onDelete={onDeleteTarget}
         onView={onViewTarget}
+        renderExtra={(target) =>
+          editing && <ChildCoverage impact={editing} target={target} impacts={impacts} targets={allTargets} />
+        }
       />
 
       {error && <p className="error">{error}</p>}

@@ -22,7 +22,7 @@ Targets are connected to exactly one parent: either one outcome or one impact, n
 
 A target is owned by that parent and is never shared. Two outcomes, or an outcome and an impact, that watch the same metric each carry their own target, with their own baseline and goal, because the baseline records what that owner's team believed when it started. A parent that still has targets cannot be deleted until they are removed, so readings are never silently lost.
 
-Targets do not nest and do not connect to each other. An outcome or impact that needs breaking down is broken into outcomes or impacts; its targets stay flat. A parent impact's target is its own number, not the sum of its children's.
+Targets do not nest and do not connect to each other. An outcome or impact that needs breaking down is broken into outcomes or impacts; its targets stay flat. A parent impact's target is its own number, not the sum of its children's. The two are compared rather than merged: a parent impact shows what share of its target its child impacts account for, adding up the target values of children in the same unit, so a plan that doesn't reach the parent's number shows it.
 
 Targets can be connected to one or more measurements. Those measurements are the readings taken against the target, and their order over time is its progress.
 

@@ -4,6 +4,7 @@ import { matchesFilters } from '../lib/insightFilters.js';
 import { outcomesForImpact, targetsForImpact } from '../lib/links.js';
 import useSlashFocus from '../lib/useSlashFocus.js';
 import useStuck from '../lib/useStuck.js';
+import ChildCoverage from './ChildCoverage.jsx';
 import FilterBar from './FilterBar.jsx';
 import { Target } from './OutcomeList.jsx';
 import { PencilIcon, PlusIcon, SearchIcon, TrashIcon } from './icons.jsx';
@@ -159,7 +160,9 @@ export default function ImpactList({
                           onView={() => onViewTarget(target)}
                           onEdit={() => onEditTarget(target, impact, 'impact')}
                           onDelete={() => onDeleteTarget(target)}
-                        />
+                        >
+                          <ChildCoverage impact={impact} target={target} impacts={allImpacts} targets={targets} />
+                        </Target>
                       ))}
                     </ul>
                   )}

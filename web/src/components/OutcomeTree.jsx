@@ -14,6 +14,10 @@ import {
   teamsOnProject,
   formatQuarter,
   targetRange,
+  childCoverage,
+  coverageAmounts,
+  coverageGap,
+  coverageWidth,
 } from '../lib/links.js';
 import { issuesFor, validateTree } from '../lib/validation.js';
 import { unlinkButtonPoint } from '../lib/edgeButton.js';
@@ -24,6 +28,9 @@ export const NODE_W = 160;
 export const NODE_H = 83;
 // Nodes with an insight pill straddle their bottom edge; lift the label to clear it.
 const LABEL_LIFT = 4;
+// An impact whose children can account for its target draws a bar along its
+// bottom edge; lift the label to clear it.
+const COVERAGE_LIFT = 9;
 export const H_GAP = 24; // between sibling subtrees
 export const V_GAP = 54; // between a node's bottom edge and its children's top edge
 export const LEVEL_H = NODE_H + V_GAP;
@@ -64,6 +71,8 @@ const HOVER_GRACE_MS = 200;
 // occupy, so sibling subtrees never overlap however wide they fan out.
 export default function OutcomeTree({
   impacts = [],
+  // Every impact, for adding up a parent's children when `impacts` is filtered.
+  allImpacts = impacts,
   outcomes,
   projects,
   targets,
@@ -397,7 +406,7 @@ export default function OutcomeTree({
               }
               onPointerDown={(event) => startLink(event, node)}
               onMouseEnter={() =>
-                !linking && setRevealKey(isTruncated(nodeLines(node, targets)) ? keyOf(node) : null)
+                !linking && setRevealKey(isTruncated(nodeLines(node, targets, allImpacts)) ? keyOf(node) : null)
               }
               onMouseLeave={() => setRevealKey(null)}
             >
@@ -405,6 +414,7 @@ export default function OutcomeTree({
               <ImpactNode
                 key={`impact-${node.data.id}`}
                 impact={node.data}
+                impacts={allImpacts}
                 revealed={keyOf(node) === revealKey}
                 issues={issuesFor(validation, 'impact', node.data)}
                 targets={targets}
@@ -662,9 +672,10 @@ function SuggestedTitle({ entity, noun }) {
 
 // The business result at the top of the tree. Click edits it; the hover "+"
 // adds a child impact, an outcome driving it, or a target measuring it.
-function ImpactNode({ impact, revealed, x, y, depth, targets, issues, onShowIssue, onEdit, onViewTarget, onOpenMenu }) {
+function ImpactNode({ impact, impacts, revealed, x, y, depth, targets, issues, onShowIssue, onEdit, onViewTarget, onOpenMenu }) {
   const quantified = targetsForImpact(targets, impact);
-  const { lines, targetLine } = nodeLabel(impact.name, quantified);
+  const coverage = childCoverage(impact, quantified[0], impacts, targets);
+  const { lines, targetLine } = nodeLabel(impact.name, quantified, coverage ? 1 : 0);
 
   return (
     <g
@@ -687,8 +698,10 @@ function ImpactNode({ impact, revealed, x, y, depth, targets, issues, onShowIssu
         y={y}
         lines={lines}
         targetLine={targetLine}
+        lift={coverage ? COVERAGE_LIFT : 0}
         onTargetClick={() => onViewTarget(quantified[0])}
       />
+      {coverage && <CoverageBar coverage={coverage} x={x} y={y} />}
       {revealed && <FullName node={{ type: 'impact', data: impact, x, y }} />}
       <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, impact)} />
 
@@ -939,12 +952,50 @@ function linkHint({ parent, child, moves }) {
 
 // An outcome or impact states its targets inside its own node: the name takes
 // up to three lines and the last line is its first target's numbers, with "+N"
-// when it owns more. Without targets the name gets all four lines.
-function nodeLabel(name, quantified) {
+// when it owns more. Without targets the name gets all four lines. `reserved`
+// is how many lines something else drawn in the node needs.
+function nodeLabel(name, quantified, reserved = 0) {
   if (quantified.length === 0) return { lines: wrapLabel(name), targetLine: null };
   const extra = quantified.length > 1 ? ` +${quantified.length - 1}` : '';
   const [targetLine] = wrapLabel(`${targetRange(quantified[0])}${extra}`, MAX_CHARS, 1);
-  return { lines: wrapLabel(name, MAX_CHARS, MAX_LINES - 1), targetLine };
+  return { lines: wrapLabel(name, MAX_CHARS, MAX_LINES - 1 - reserved), targetLine };
+}
+
+// How much of an impact's target its children account for, along the node's
+// bottom edge. The hover title carries the amounts the node has no room for.
+function CoverageBar({ coverage, x, y }) {
+  const inset = 10;
+  const labelW = 38;
+  const width = NODE_W - inset * 2 - labelW;
+  const left = x - NODE_W / 2 + inset;
+  const top = y + NODE_H - 15;
+  const percent = `${Math.round(coverage.share * 100)}%`;
+  const gap = coverageGap(coverage);
+  return (
+    <g className="node-coverage">
+      <title>
+        {`${percent} accounted for by child impacts: ${coverageAmounts(coverage)}${gap ? `, ${gap}` : ''}`}
+      </title>
+      <rect className="node-coverage-track" x={left} y={top} width={width} height={5} rx={2.5} />
+      <rect
+        className="node-coverage-fill"
+        x={left}
+        y={top}
+        width={(width * coverageWidth(coverage)) / 100}
+        height={5}
+        rx={2.5}
+      />
+      <text
+        className="node-coverage-label"
+        x={x + NODE_W / 2 - inset}
+        y={top + 2.5}
+        textAnchor="end"
+        dominantBaseline="middle"
+      >
+        {percent}
+      </text>
+    </g>
+  );
 }
 
 // Clicking the target line opens that target's measurements instead of the
@@ -1440,11 +1491,14 @@ function isTruncated(lines) {
 }
 
 // The name lines a node draws, as its own component wraps them.
-function nodeLines(node, targets) {
+function nodeLines(node, targets, impacts) {
   if (node.type === 'project') return wrapLabel(node.data.name, MAX_CHARS, MAX_LINES);
-  const quantified =
-    node.type === 'impact' ? targetsForImpact(targets, node.data) : targetsForOutcome(targets, node.data);
-  return nodeLabel(node.data.name, quantified).lines;
+  if (node.type === 'impact') {
+    const quantified = targetsForImpact(targets, node.data);
+    const coverage = childCoverage(node.data, quantified[0], impacts, targets);
+    return nodeLabel(node.data.name, quantified, coverage ? 1 : 0).lines;
+  }
+  return nodeLabel(node.data.name, targetsForOutcome(targets, node.data)).lines;
 }
 
 // Where each line of a node's whole name goes, and how tall its overlay is. The

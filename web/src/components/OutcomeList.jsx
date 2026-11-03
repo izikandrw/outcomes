@@ -203,7 +203,7 @@ export default function OutcomeList({
   );
 }
 
-export function Target({ target, onView, onEdit, onDelete }) {
+export function Target({ target, onView, onEdit, onDelete, children }) {
   const progress = progressOf(target);
   // The bar is clamped so an overshoot or a slide backwards still draws, while
   // the percentage beside it keeps reporting the real number.
@@ -271,6 +271,7 @@ export function Target({ target, onView, onEdit, onDelete }) {
         )}
         {target.due_at && <span>due {formatDate(target.due_at)}</span>}
       </p>
+      {children}
     </li>
   );
 }
