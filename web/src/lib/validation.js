@@ -1,6 +1,8 @@
 import {
   insightsForOutcome,
+  impactsForProject,
   outcomesForImpact,
+  projectsForImpact,
   outcomesForProject,
   projectsForOutcome,
 } from './links.js';
@@ -18,8 +20,8 @@ export const RULES = [
     emoji: '🐉',
     appliesTo: 'impact',
     title: 'Chimerical impact',
-    description: 'Impact with no outcomes rolling up to it — we hope it will just happen.',
-    fix: 'Connect at least one outcome to this impact, or break it into child impacts, so there is a plan for how it gets achieved.',
+    description: 'Impact with no outcomes or projects rolling up to it — we hope it will just happen.',
+    fix: 'Connect an outcome or a project to this impact, or break it into child impacts, so there is a plan for how it gets achieved.',
   },
   {
     id: 'unvalidated-outcome',
@@ -42,8 +44,8 @@ export const RULES = [
     emoji: '🤷',
     appliesTo: 'project',
     title: "What's the point? project",
-    description: "Project that doesn't roll up to any outcome.",
-    fix: 'Connect this project to the outcome it drives, or question whether the work is worth doing.',
+    description: "Project that doesn't roll up to any outcome or impact.",
+    fix: 'Connect this project to the outcome or impact it drives, or question whether the work is worth doing.',
   },
   // A team is optional when an outcome or project is first written down, since
   // who owns it often isn't known yet, but every one should end up with one.
@@ -85,11 +87,15 @@ export function validateTree({ outcomes, projects, insights = [], impacts = [] }
     result[kind].get(entity.id).push(rule);
   };
 
-  // An impact is carried by outcomes driving it, or by child impacts that
-  // narrow it further.
+  // An impact is carried by outcomes or projects driving it, or by child impacts
+  // that narrow it further.
   for (const impact of impacts) {
     const childImpacts = impacts.filter((candidate) => same(candidate.parent_impact_id, impact.id));
-    if (childImpacts.length === 0 && outcomesForImpact(outcomes, impact).length === 0) {
+    if (
+      childImpacts.length === 0 &&
+      outcomesForImpact(outcomes, impact).length === 0 &&
+      projectsForImpact(projects, impact).length === 0
+    ) {
       flag('impact', impact, ruleById('chimerical-impact'));
     }
   }
@@ -110,7 +116,7 @@ export function validateTree({ outcomes, projects, insights = [], impacts = [] }
   }
 
   for (const project of projects) {
-    if (outcomesForProject(outcomes, project).length === 0) {
+    if (outcomesForProject(outcomes, project).length === 0 && impactsForProject(impacts, project).length === 0) {
       flag('project', project, ruleById('whats-the-point'));
     }
     if (project.team_id == null) flag('project', project, ruleById('ownerless-project'));

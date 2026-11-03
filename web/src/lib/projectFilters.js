@@ -110,10 +110,10 @@ export function projectFilterFields({
         ...impacts.map((impact) => ({ id: String(impact.id), label: impact.name })),
         { id: NONE, label: 'No impact' },
       ],
-      // The impact each driven outcome rolls up to, following parent outcomes
-      // to the top-level one that carries the link.
+      // Any impact it serves directly, and the impact each driven outcome rolls
+      // up to, following parent outcomes to the top-level one with the link.
       values: (project) => {
-        const reached = new Set();
+        const reached = new Set((project.impact_ids ?? []).map(String));
         for (const outcome of outcomesForProject(outcomes, project)) {
           let current = outcome;
           const seen = new Set();

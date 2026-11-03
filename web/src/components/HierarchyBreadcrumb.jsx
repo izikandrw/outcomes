@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ancestorMoves, lineage, nameOf, otherLinkedOutcomes, parentChoices, refKey } from '../lib/hierarchy.js';
+import { ancestorMoves, lineage, nameOf, otherLinkedParents, parentChoices, refKey } from '../lib/hierarchy.js';
 import { selectedFirst } from '../lib/selectedFirst.js';
 import { PencilIcon } from './icons.jsx';
 
@@ -42,7 +42,7 @@ export default function HierarchyBreadcrumb({ heading, start, collections, moves
   const toggle = (child) => setChoosingFor(isChoosing(child) ? null : child);
   const label = (child) => nameOf(child, collections) ?? `this ${child.kind}`;
   const staged = onMove ? ancestorMoves(start, collections, moves) : [];
-  const alsoDrives = otherLinkedOutcomes(start, collections, moves);
+  const alsoDrives = otherLinkedParents(start, collections, moves);
 
   return (
     <nav className="crumbs" aria-label="Hierarchy" ref={ref}>
@@ -100,11 +100,11 @@ export default function HierarchyBreadcrumb({ heading, start, collections, moves
       {alsoDrives.length > 0 && (
         <p className="hint crumbs-hint crumbs-also">
           Also drives{' '}
-          {alsoDrives.map((outcome, index) => (
-            <span key={refKey(outcome)}>
+          {alsoDrives.map((linked, index) => (
+            <span key={refKey(linked)}>
               {index > 0 && ', '}
-              <button type="button" onClick={() => onOpen({ kind: outcome.kind, id: outcome.id })}>
-                {outcome.name}
+              <button type="button" onClick={() => onOpen({ kind: linked.kind, id: linked.id })}>
+                {linked.name}
               </button>
             </span>
           ))}

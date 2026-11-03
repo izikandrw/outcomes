@@ -21,6 +21,9 @@ export default function Roadmap({
   projects,
   allProjects = projects,
   outcomes,
+  impacts = [],
+  targets = [],
+  onOpenProject,
   teams,
   insights,
   suggestions,
@@ -61,6 +64,9 @@ export default function Roadmap({
           project={project}
           allProjects={allProjects}
           outcomes={outcomes}
+          impacts={impacts}
+          targets={targets}
+          onOpenProject={onOpenProject}
           teams={teams}
           insights={insights}
           suggestions={suggestions}

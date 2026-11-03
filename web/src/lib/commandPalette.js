@@ -64,7 +64,9 @@ export function paletteEntries({ teams = [], impacts = [], outcomes = [], projec
   const parentName = (target) =>
     (target.impact_id != null
       ? impacts.find((impact) => String(impact.id) === String(target.impact_id))
-      : outcomes.find((outcome) => String(outcome.id) === String(target.outcome_id))
+      : target.project_id != null
+        ? projects.find((project) => String(project.id) === String(target.project_id))
+        : outcomes.find((outcome) => String(outcome.id) === String(target.outcome_id))
     )?.name;
   return [
     ...NAV_PAGES.map(({ id, label }) =>

@@ -12,8 +12,7 @@ export default function ImpactForm({
   editing,
   parentFields,
   targets = [],
-  impacts = [],
-  allTargets = [],
+  coverageData,
   onAddTarget,
   onEditTarget,
   onDeleteTarget,
@@ -91,7 +90,7 @@ export default function ImpactForm({
         onDelete={onDeleteTarget}
         onView={onViewTarget}
         renderExtra={(target) =>
-          editing && <ChildCoverage impact={editing} target={target} impacts={impacts} targets={allTargets} />
+          editing && <ChildCoverage kind="impact" entity={editing} target={target} collections={coverageData} />
         }
       />
 

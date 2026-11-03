@@ -24,6 +24,8 @@ export default function ProjectList({
   outcomes,
   teams,
   impacts = [],
+  targets = [],
+  onOpenProject,
   insights,
   suggestions,
   issues,
@@ -118,9 +120,12 @@ export default function ProjectList({
                 project={project}
                 allProjects={allProjects}
                 outcomes={outcomes}
+                impacts={impacts}
+                targets={targets}
                 teams={teams}
                 insights={insights}
                 suggestions={suggestions}
+                onOpenProject={onOpenProject}
                 onUpdate={onUpdate}
                 onToggleOutcome={onToggleOutcome}
                 onDelete={onDelete}

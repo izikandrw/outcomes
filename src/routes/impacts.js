@@ -80,7 +80,7 @@ router.put('/:impactId', async (req, res, next) => {
 router.delete('/:impactId', async (req, res, next) => {
   try {
     // Child impacts, linked outcomes and targets still pointing here raise
-    // 23503, which app.js turns into a 409.
+    // 23503, which app.js turns into a 409. project_impacts rows cascade.
     const { rowCount } = await pool.query('DELETE FROM impacts WHERE id = $1 AND account_id = $2', [
       req.params.impactId,
       req.accountId,

@@ -8,8 +8,11 @@ import {
   outcomesForImpact,
   projectsForOutcome,
   suggestedEntities,
+  projectsForImpact,
+  targetsFor,
   targetsForImpact,
   targetsForOutcome,
+  targetsForProject,
   teamsOnOutcome,
   teamsOnProject,
   formatQuarter,
@@ -88,7 +91,6 @@ export default function OutcomeTree({
   onEditProject,
   onShowInsights,
   onAdd,
-  onAddChildProject,
   onUnlink,
   onLink,
   onOpenTeam,
@@ -120,6 +122,7 @@ export default function OutcomeTree({
       // Storage can be off; the toggle still works for this visit.
     }
   }
+  const coverageData = { impacts: allImpacts, outcomes, projects, targets };
   const { nodes, edges, width, height: treeHeight } = useMemo(
     () => layout(mapOutcomes, mapProjects, impacts),
     [mapOutcomes, mapProjects, impacts]
@@ -409,7 +412,7 @@ export default function OutcomeTree({
               }
               onPointerDown={(event) => startLink(event, node)}
               onMouseEnter={() =>
-                !linking && setRevealKey(isTruncated(nodeLines(node, targets, allImpacts)) ? keyOf(node) : null)
+                !linking && setRevealKey(isTruncated(nodeLines(node, coverageData)) ? keyOf(node) : null)
               }
               onMouseLeave={() => setRevealKey(null)}
             >
@@ -417,7 +420,7 @@ export default function OutcomeTree({
               <ImpactNode
                 key={`impact-${node.data.id}`}
                 impact={node.data}
-                impacts={allImpacts}
+                coverageData={coverageData}
                 revealed={keyOf(node) === revealKey}
                 issues={issuesFor(validation, 'impact', node.data)}
                 targets={targets}
@@ -441,7 +444,9 @@ export default function OutcomeTree({
                 issues={node.data.suggested ? [] : issuesFor(validation, 'project', node.data)}
                 onShowInsights={onShowInsights}
                 onEdit={node.data.suggested ? onOpenSuggested : onEditProject}
-                onAddChild={onAddChildProject}
+                coverageData={coverageData}
+                onViewTarget={onViewTarget}
+                onOpenMenu={openMenu}
                 {...node}
               />
             ) : (
@@ -449,7 +454,7 @@ export default function OutcomeTree({
                 key={`outcome-${node.data.id}`}
                 outcome={node.data}
                 revealed={keyOf(node) === revealKey}
-                targets={targets}
+                coverageData={coverageData}
                 teamEntries={teamsOnOutcome(outcomes, projects, node.data)}
                 onOpenTeam={onOpenTeam}
                 onShowIssue={onShowIssue}
@@ -534,6 +539,21 @@ export default function OutcomeTree({
               <button type="button" role="menuitem" onClick={() => choose('outcome')}>
                 🌱 Outcome
               </button>
+              <button type="button" role="menuitem" onClick={() => choose('project')}>
+                🚀 Project
+              </button>
+              <button type="button" role="menuitem" onClick={() => choose('target')}>
+                🎯 Target
+              </button>
+              <button type="button" role="menuitem" onClick={() => choose('measurement')}>
+                📈 Measurement
+              </button>
+            </>
+          ) : menu.kind === 'project' ? (
+            <>
+              <button type="button" role="menuitem" onClick={() => choose('project')}>
+                🚀 Child project
+              </button>
               <button type="button" role="menuitem" onClick={() => choose('target')}>
                 🎯 Target
               </button>
@@ -572,7 +592,7 @@ function OutcomeNode({
   x,
   y,
   depth,
-  targets,
+  coverageData,
   teamEntries,
   onOpenTeam,
   onShowIssue,
@@ -585,8 +605,9 @@ function OutcomeNode({
   onViewTarget,
   onOpenMenu,
 }) {
-  const quantified = targetsForOutcome(targets, outcome);
-  const { lines, targetLine } = nodeLabel(outcome.name, quantified);
+  const quantified = targetsForOutcome(coverageData.targets, outcome);
+  const coverage = childCoverage('outcome', outcome, quantified[0], coverageData);
+  const { lines, targetLine } = nodeLabel(outcome.name, quantified, coverage ? 1 : 0);
   const className = [
     'tree-node',
     outcome.suggested ? 'suggested' : outcome.parent_outcome_id == null && 'root',
@@ -617,9 +638,10 @@ function OutcomeNode({
         y={y}
         lines={lines}
         targetLine={targetLine}
-        lift={LABEL_LIFT}
+        lift={coverage ? COVERAGE_LIFT : LABEL_LIFT}
         onTargetClick={() => onViewTarget(quantified[0])}
       />
+      {coverage && <CoverageBars coverage={coverage} target={quantified[0]} x={x} y={y} />}
 
       {revealed && <FullName node={{ type: 'outcome', data: outcome, x, y, dollars: insightDollars, suggested: suggestedCount }} />}
       <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, outcome)} />
@@ -674,10 +696,10 @@ function SuggestedTitle({ entity, noun }) {
 }
 
 // The business result at the top of the tree. Click edits it; the hover "+"
-// adds a child impact, an outcome driving it, or a target measuring it.
-function ImpactNode({ impact, impacts, revealed, x, y, depth, targets, issues, onShowIssue, onEdit, onViewTarget, onOpenMenu }) {
-  const quantified = targetsForImpact(targets, impact);
-  const coverage = childCoverage(impact, quantified[0], impacts, targets);
+// adds a child impact, an outcome or project driving it, or a target measuring it.
+function ImpactNode({ impact, coverageData, revealed, x, y, depth, issues, onShowIssue, onEdit, onViewTarget, onOpenMenu }) {
+  const quantified = targetsForImpact(coverageData.targets, impact);
+  const coverage = childCoverage('impact', impact, quantified[0], coverageData);
   const { lines, targetLine } = nodeLabel(impact.name, quantified, coverage ? 1 : 0);
 
   return (
@@ -860,10 +882,14 @@ function ProjectNode({
   issues,
   onShowInsights,
   onEdit,
-  onAddChild,
+  coverageData,
+  onViewTarget,
+  onOpenMenu,
 }) {
   const quarter = formatQuarter(project.end_at);
-  const lines = wrapLabel(project.name, MAX_CHARS, MAX_LINES);
+  const quantified = targetsForProject(coverageData.targets, project);
+  const coverage = childCoverage('project', project, quantified[0], coverageData);
+  const { lines, targetLine } = nodeLabel(project.name, quantified, coverage ? 1 : 0);
 
   return (
     <g
@@ -884,17 +910,15 @@ function ProjectNode({
     >
       {project.suggested && <SuggestedTitle entity={project} noun="project" />}
       <rect x={x - NODE_W / 2} y={y} width={NODE_W} height={NODE_H} rx="10" />
-      <text x={x} y={y + NODE_H / 2 - LABEL_LIFT} textAnchor="middle" dominantBaseline="middle">
-        {lines.map((line, index) => (
-          <tspan
-            key={index}
-            x={x}
-            dy={index === 0 ? -((lines.length - 1) * LINE_H) / 2 : LINE_H}
-          >
-            {line}
-          </tspan>
-        ))}
-      </text>
+      <NodeText
+        x={x}
+        y={y}
+        lines={lines}
+        targetLine={targetLine}
+        lift={coverage ? COVERAGE_LIFT : LABEL_LIFT}
+        onTargetClick={() => onViewTarget(quantified[0])}
+      />
+      {coverage && <CoverageBars coverage={coverage} target={quantified[0]} x={x} y={y} />}
 
       {quarter && (
         <g className="quarter-pill">
@@ -921,16 +945,13 @@ function ProjectNode({
           className="node-add"
           role="button"
           tabIndex={0}
-          aria-label={`Add child project to ${project.name}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            onAddChild(project);
-          }}
+          aria-label={`Add to ${project.name}`}
+          onClick={(event) => onOpenMenu(event, project, 'project')}
           onKeyDown={(event) => {
             if (event.key === 'Enter' || event.key === ' ') {
               event.preventDefault();
               event.stopPropagation();
-              onAddChild(project);
+              onOpenMenu(event, project, 'project');
             }
           }}
         >
@@ -949,11 +970,11 @@ function ProjectNode({
 // What dropping the dragged link will do, shown beside the pointer.
 function linkHint({ parent, child, moves }) {
   const [parentName, childName] = [`“${parent.data.name}”`, `“${child.data.name}”`];
-  if (child.type === 'project' && parent.type === 'outcome') return `Link ${childName} to ${parentName}`;
+  if (child.type === 'project' && parent.type !== 'project') return `Link ${childName} to ${parentName}`;
   return `${moves ? 'Move' : 'Put'} ${childName} under ${parentName}`;
 }
 
-// An outcome or impact states its targets inside its own node: the name takes
+// An outcome, impact or project states its targets inside its own node: the name takes
 // up to three lines and the last line is its first target's numbers, with "+N"
 // when it owns more. Without targets the name gets all four lines. `reserved`
 // is how many lines something else drawn in the node needs.
@@ -964,8 +985,8 @@ function nodeLabel(name, quantified, reserved = 0) {
   return { lines: wrapLabel(name, MAX_CHARS, MAX_LINES - 1 - reserved), targetLine };
 }
 
-// Planned and actual against an impact's target, stacked along the node's bottom
-// edge. Planned is what its children's targets add up to, actual its own latest
+// Planned and actual against a node's target, stacked along its bottom edge.
+// Planned is what the targets rolling up to it add up to, actual its own latest
 // reading. Both bars run from zero to the goal so one reads against the other,
 // and show amounts because a percentage from zero would disagree with "% of the
 // way", which counts from the baseline. The hover title spells each out.
@@ -978,7 +999,7 @@ function CoverageBars({ coverage, target, x, y }) {
       label: 'Planned',
       value: coverage.covered,
       width: coverageWidth(coverage),
-      title: `Planned: ${coverageAmounts(coverage)} from child impacts${gap ? `, ${gap}` : ''}`,
+      title: `Planned: ${coverageAmounts(coverage)} from ${coverage.source}${gap ? `, ${gap}` : ''}`,
     },
     {
       key: 'actual',
@@ -1065,10 +1086,10 @@ function NodeText({ x, y, lines, targetLine, lift = 0, onTargetClick }) {
 }
 
 // Places impacts on the top row, then outcomes as a node-link tree, then hangs each project as a node
-// under the first outcome (in list order) it drives, or under its parent
-// project when it has one. A project linked to more than one outcome is still
-// drawn once — the other outcomes it drives get a cross-edge to that
-// same node instead of a duplicate.
+// under the first outcome (in list order) it drives, under its parent project
+// when it has one, or under an impact it serves directly when it has neither. A
+// project linked to more than one outcome or impact is still drawn once — the
+// others it drives get a cross-edge to that same node instead of a duplicate.
 // A project shared by several outcomes is drawn under the deepest of them, so
 // every other outcome's link runs down into its top edge instead of climbing
 // into it from below. Outcome rows don't depend on where projects go, so a
@@ -1216,6 +1237,18 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth, weights) {
 
   const impactsByParent = new Map(); // impact.id -> child impact[]
   const presentImpacts = new Set(impacts.map((impact) => String(impact.id)));
+  // A project drawn under an outcome or parent project stays there; only one
+  // with neither hangs off an impact it serves directly.
+  const primaryImpactOf = new Map(); // project.id -> impact.id it's drawn under
+  const projectsByImpact = new Map(); // impact.id -> project[] drawn under it
+  for (const impact of impacts) {
+    for (const project of projectsForImpact(projects, impact)) {
+      if (nestedUnder(project) || primaryOutcomeOf.has(project.id) || primaryImpactOf.has(project.id)) continue;
+      primaryImpactOf.set(project.id, impact.id);
+      if (!projectsByImpact.has(String(impact.id))) projectsByImpact.set(String(impact.id), []);
+      projectsByImpact.get(String(impact.id)).push(project);
+    }
+  }
   for (const impact of impacts) {
     if (impact.parent_impact_id == null || !presentImpacts.has(String(impact.parent_impact_id))) continue;
     const key = String(impact.parent_impact_id);
@@ -1244,7 +1277,7 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth, weights) {
     let children;
     if (item.kind === 'impact') {
       placedImpacts.add(entity.id);
-      children = [
+      const above = [
         ...byWeight(
           'impact',
           (impactsByParent.get(String(entity.id)) ?? []).filter((child) => !placedImpacts.has(child.id))
@@ -1257,6 +1290,14 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth, weights) {
             (child) => child.parent_outcome_id == null && !placed.has(child.id)
           )
         ).map((child) => ({ kind: 'outcome', data: child })),
+      ];
+      // As under an outcome, projects beside other children drop a further row.
+      children = [
+        ...above,
+        ...byWeight(
+          'project',
+          (projectsByImpact.get(String(entity.id)) ?? []).filter((child) => !placedProjects.has(child.id))
+        ).map((project) => ({ kind: 'project', data: project, lowered: above.length > 0 })),
       ];
     } else if (item.kind === 'project') {
       placedProjects.add(entity.id);
@@ -1366,6 +1407,26 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth, weights) {
         kind: 'project',
         ends: [`outcome-${outcome.id}`, `project-${project.id}`],
         from: { kind: 'outcome', id: outcome.id },
+        to: { kind: 'project', id: project.id },
+      });
+    }
+  }
+
+  const impactNodeById = new Map(
+    nodes.filter((node) => node.type === 'impact').map((node) => [node.data.id, node])
+  );
+  for (const impact of impacts) {
+    for (const project of projectsForImpact(projects, impact)) {
+      if (String(primaryImpactOf.get(project.id)) === String(impact.id)) continue;
+      const from = impactNodeById.get(impact.id);
+      const to = projectNodeById.get(project.id);
+      if (!from || !to) continue;
+      edges.push({
+        key: `impact-${impact.id}-project-${project.id}-cross`,
+        d: crossLinkPath(from, to, nodes, channels),
+        kind: 'project',
+        ends: [`impact-${impact.id}`, `project-${project.id}`],
+        from: { kind: 'impact', id: impact.id },
         to: { kind: 'project', id: project.id },
       });
     }
@@ -1529,14 +1590,10 @@ function isTruncated(lines) {
 }
 
 // The name lines a node draws, as its own component wraps them.
-function nodeLines(node, targets, impacts) {
-  if (node.type === 'project') return wrapLabel(node.data.name, MAX_CHARS, MAX_LINES);
-  if (node.type === 'impact') {
-    const quantified = targetsForImpact(targets, node.data);
-    const coverage = childCoverage(node.data, quantified[0], impacts, targets);
-    return nodeLabel(node.data.name, quantified, coverage ? 1 : 0).lines;
-  }
-  return nodeLabel(node.data.name, targetsForOutcome(targets, node.data)).lines;
+function nodeLines(node, coverageData) {
+  const quantified = targetsFor(coverageData.targets, node.data, node.type);
+  const coverage = childCoverage(node.type, node.data, quantified[0], coverageData);
+  return nodeLabel(node.data.name, quantified, coverage ? 1 : 0).lines;
 }
 
 // Where each line of a node's whole name goes, and how tall its overlay is. The

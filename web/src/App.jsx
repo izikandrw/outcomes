@@ -182,31 +182,33 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   const openEditImpact = (impact) => setModal({ kind: 'impact', impact, parent: null });
   // From the tree's per-node add menu: kind is 'outcome' | 'target' |
   // 'project' | 'insight' | 'impact', and parentKind says whether the node it
-  // was opened from is an 'outcome' (default) or an 'impact'.
+  // was opened from is an 'outcome' (default), an 'impact' or a 'project'.
   const openAdd = (parent, kind, parentKind = 'outcome') => {
     // Insights are added in place, in the list of the outcome's own.
     if (kind === 'insight') {
       return setModal({ kind: 'entity-insights', entity: parent, entityKind: parentKind, filter: 'all', adding: true });
     }
     if (kind === 'impact') return setModal({ kind: 'impact', impact: null, parent });
+    if (kind === 'project' && parentKind === 'project') {
+      return setModal({ kind: 'project', project: null, parent: null, parentProject: parent });
+    }
     // An outcome added under an impact is top-level and carries the link.
     if (kind === 'outcome' && parentKind === 'impact') {
       return setModal({ kind: 'outcome', outcome: null, parent: null, parentId: null, impactId: parent.id });
     }
     setModal({ kind, outcome: null, parent, parentKind, parentId: kind === 'outcome' ? parent.id : null });
   };
-  // A target is always edited in the context of the outcome or impact it quantifies.
+  // A target is always edited in the context of the outcome, impact or project it quantifies.
   const openEditTarget = (target, parent, parentKind = 'outcome') =>
     setModal({ kind: 'target', outcome: null, target, parent, parentKind });
   const viewTarget = (target) => setModal({ kind: 'target-measurements', target });
   // From a target's measurements: the reading form is for that one target, and
   // `returnTo` brings the user back to the table once it is saved or cancelled.
   const addReading = (target) => {
-    const parentKind = target.impact_id != null ? 'impact' : 'outcome';
-    const parent =
-      parentKind === 'impact'
-        ? impacts.find((item) => String(item.id) === String(target.impact_id))
-        : outcomes.find((item) => String(item.id) === String(target.outcome_id));
+    const parentKind = target.impact_id != null ? 'impact' : target.project_id != null ? 'project' : 'outcome';
+    const parent = { impact: impacts, project: projects, outcome: outcomes }[parentKind].find(
+      (item) => String(item.id) === String(target[`${parentKind}_id`]),
+    );
     setModal({ kind: 'measurement', target, parent, parentKind, returnTo: target });
   };
   const showIssue = (rule, entity) => setModal({ kind: 'issue', rule, entity });
@@ -216,8 +218,6 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
     setModal({ kind: 'entity-insights', entity, entityKind: kind, filter });
   const openEditProject = (project) => setModal({ kind: 'project', project, parent: null });
   const openCreateProject = () => setModal({ kind: 'project', project: null, parent: null });
-  const openAddChildProject = (parentProject) =>
-    setModal({ kind: 'project', project: null, parent: null, parentProject });
   const moveInBreadcrumb = (child, parent) =>
     setModal((current) => current && { ...current, moves: { ...current.moves, [refKey(child)]: parent } });
 
@@ -345,6 +345,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   const hierarchyItems = { impact: impacts, outcome: outcomes, project: projects, team: teams, target: targets };
   const modalView = modal && `${modal.kind}-${(modal[modal.kind] ?? modal.target)?.id ?? 'new'}`;
   const hierarchy = modalHierarchy(modal);
+  const coverageData = { impacts, outcomes, projects, targets };
   const shareSearch = modal && shareSearchOfModal(modal, { page, teamId });
   const modalHeading =
     modal && (shareSearch ? <CopyLinkLabel label={modalTitle(modal)} search={shareSearch} /> : modalTitle(modal));
@@ -772,7 +773,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   }
 
   // Breaks the link a map line draws: a child outcome loses its parent, a
-  // project loses its parent project or one driven outcome.
+  // project loses its parent project or one driven outcome or impact.
   async function unlink({ from, to }) {
     // An open form holds the links as they were, and saving would restore them.
     setModal(null);
@@ -792,6 +793,13 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
         const updated = await api.updateProject(accountId, child.id, {
           ...projectPayload(child),
           parent_project_id: null,
+        });
+        setProjects((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      } else if (from.kind === 'impact') {
+        const project = projects.find((item) => same(item.id, to.id));
+        const updated = await api.updateProject(accountId, project.id, {
+          ...projectPayload(project),
+          impact_ids: (project.impact_ids ?? []).filter((id) => !same(id, from.id)).map(Number),
         });
         setProjects((current) => current.map((item) => (item.id === updated.id ? updated : item)));
       } else {
@@ -819,7 +827,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
 
   // Saves a link dragged between two map nodes (see linkBetween): the child
   // takes the parent as its parent outcome, project or impact, an outcome
-  // takes an impact, or a project adds an outcome it drives.
+  // takes an impact, or a project adds an outcome or impact it drives.
   async function link({ parent, child }) {
     setModal(null);
     const { data } = child;
@@ -844,7 +852,9 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
           ...projectPayload(data),
           ...(parent.type === 'project'
             ? { parent_project_id: parent.data.id }
-            : { outcome_ids: [...(data.outcome_ids ?? []), parent.data.id].map(Number) }),
+            : parent.type === 'impact'
+              ? { impact_ids: [...(data.impact_ids ?? []), parent.data.id].map(Number) }
+              : { outcome_ids: [...(data.outcome_ids ?? []), parent.data.id].map(Number) }),
         });
         setProjects((current) => current.map((item) => (item.id === updated.id ? updated : item)));
       }
@@ -938,6 +948,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
                 projects={projects}
                 outcomes={outcomes}
                 impacts={impacts}
+                targets={targets}
                 insights={evidence}
                 suggestions={suggestions}
                 onBack={() => changePage('teams')}
@@ -1074,6 +1085,8 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
                 outcomes={outcomes}
                 teams={teams}
                 impacts={impacts}
+                targets={targets}
+                onOpenProject={openEditProject}
                 insights={evidence}
                 suggestions={suggestions}
                 issues={validateTree({ outcomes, projects, insights: evidence, impacts }).project}
@@ -1096,6 +1109,9 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
                 projects={flagged ?? projects}
                 allProjects={projects}
                 outcomes={outcomes}
+                impacts={impacts}
+                targets={targets}
+                onOpenProject={openEditProject}
                 teams={teams}
                 insights={evidence}
                 suggestions={suggestions}
@@ -1151,7 +1167,6 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               onViewTarget={viewTarget}
               onEditProject={openEditProject}
               onAdd={openAdd}
-              onAddChildProject={openAddChildProject}
               onUnlink={unlink}
               onLink={link}
               onOpenTeam={openTeam}
@@ -1166,6 +1181,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               view={pageView}
               onViewChange={setPageView}
               outcomes={flagged ?? outcomes}
+              allOutcomes={outcomes}
               teams={teams}
               projects={projects}
               impacts={impacts}
@@ -1264,8 +1280,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               editing={modal.impact}
               parentFields={hierarchy.fields}
               targets={modal.impact ? targetsFor(targets, modal.impact, 'impact') : []}
-              impacts={impacts}
-              allTargets={targets}
+              coverageData={coverageData}
               onAddTarget={() => openAdd(modal.impact, 'target', 'impact')}
               onEditTarget={(target) => openEditTarget(target, modal.impact, 'impact')}
               onDeleteTarget={removeTarget}
@@ -1317,10 +1332,19 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
             <ProjectForm
               editing={modal.project}
               draft={modal.draft}
-              outcome={modal.parent}
+              outcome={modal.parentKind === 'impact' ? null : modal.parent}
+              impact={modal.parentKind === 'impact' ? modal.parent : null}
               parentProject={modal.parentProject}
               parentFields={hierarchy.fields}
               teams={teams}
+              impacts={impacts}
+              outcomes={outcomes}
+              targets={modal.project ? targetsFor(targets, modal.project, 'project') : []}
+              coverageData={coverageData}
+              onAddTarget={() => openAdd(modal.project, 'target', 'project')}
+              onEditTarget={(target) => openEditTarget(target, modal.project, 'project')}
+              onDeleteTarget={removeTarget}
+              onViewTarget={viewTarget}
               onSubmit={saveProject}
               onCancel={() => setModal(null)}
               onDelete={() => removeProject(modal.project)}
@@ -1335,6 +1359,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               outcomes={outcomes}
               projects={projects}
               targets={modal.outcome ? targetsFor(targets, modal.outcome, 'outcome') : []}
+              coverageData={coverageData}
               onAddTarget={() => openAdd(modal.outcome, 'target', 'outcome')}
               onEditTarget={(target) => openEditTarget(target, modal.outcome, 'outcome')}
               onDeleteTarget={removeTarget}

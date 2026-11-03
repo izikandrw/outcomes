@@ -41,7 +41,7 @@ async function wouldCycle(table, parentColumn, id, parentId) {
 // so the direct link only duplicates it (and draws a second line on the map).
 // Links come from project_outcomes and the older outcomes.project_id column.
 // UNION rather than UNION ALL keeps the walk finite if parents ever loop.
-async function redundantLinks(executor, accountId) {
+async function redundantOutcomeLinks(executor, accountId) {
   const { rows } = await executor.query(
     `WITH RECURSIVE lineage AS (
        SELECT id AS outcome_id, parent_outcome_id AS ancestor_id
@@ -69,6 +69,60 @@ async function redundantLinks(executor, accountId) {
     [accountId]
   );
   return rows;
+}
+
+// The same for impacts: a project linked straight to an impact it already reaches
+// through a child impact or through an outcome that rolls up to it. Outcomes roll
+// up through their top-level ancestor, the only one that carries an impact.
+async function redundantImpactLinks(executor, accountId) {
+  const { rows } = await executor.query(
+    `WITH RECURSIVE impact_lineage AS (
+       SELECT id AS impact_id, id AS ancestor_id
+         FROM impacts WHERE account_id = $1
+       UNION
+       SELECT l.impact_id, up.parent_impact_id
+         FROM impact_lineage l JOIN impacts up ON up.id = l.ancestor_id
+        WHERE up.parent_impact_id IS NOT NULL
+     ),
+     outcome_walk AS (
+       SELECT id AS outcome_id, parent_outcome_id, impact_id
+         FROM outcomes WHERE account_id = $1
+       UNION
+       SELECT w.outcome_id, up.parent_outcome_id, up.impact_id
+         FROM outcome_walk w JOIN outcomes up ON up.id = w.parent_outcome_id
+     ),
+     outcome_links AS (
+       SELECT project_id, outcome_id FROM project_outcomes WHERE account_id = $1
+       UNION
+       SELECT project_id, id FROM outcomes WHERE account_id = $1 AND project_id IS NOT NULL
+     ),
+     routes AS (
+       SELECT ol.project_id, 'outcome-' || o.id AS via_id, o.name AS via_name, w.impact_id
+         FROM outcome_links ol
+         JOIN outcomes o ON o.id = ol.outcome_id
+         JOIN outcome_walk w ON w.outcome_id = o.id AND w.impact_id IS NOT NULL
+       UNION
+       SELECT pi.project_id, 'impact-' || child.id, child.name, pi.impact_id
+         FROM project_impacts pi
+         JOIN impacts child ON child.id = pi.impact_id
+        WHERE pi.account_id = $1
+     )
+     SELECT DISTINCT p.id AS project_id, p.name AS project_name,
+            r.via_id AS outcome_id, r.via_name AS outcome_name,
+            'impact-' || anc.id AS ancestor_id, anc.name AS ancestor_name
+       FROM routes r
+       JOIN impact_lineage reached ON reached.impact_id = r.impact_id
+       JOIN project_impacts direct ON direct.project_id = r.project_id AND direct.impact_id = reached.ancestor_id
+       JOIN projects p ON p.id = r.project_id
+       JOIN impacts anc ON anc.id = reached.ancestor_id
+      WHERE r.via_id <> 'impact-' || anc.id`,
+    [accountId]
+  );
+  return rows;
+}
+
+async function redundantLinks(executor, accountId) {
+  return [...(await redundantOutcomeLinks(executor, accountId)), ...(await redundantImpactLinks(executor, accountId))];
 }
 
 // Run inside a write's transaction: `before` is redundantLinks() taken before

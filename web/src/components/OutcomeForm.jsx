@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import AutoGrowTextarea from './AutoGrowTextarea.jsx';
 import MultiSelect from './MultiSelect.jsx';
+import ChildCoverage from './ChildCoverage.jsx';
 import TargetsSection from './TargetsSection.jsx';
 import { projectsForOutcome, projectsLinkedInLineage } from '../lib/links.js';
 
@@ -25,6 +26,7 @@ export default function OutcomeForm({
   outcomes = [],
   projects,
   targets = [],
+  coverageData,
   onAddTarget,
   onEditTarget,
   onDeleteTarget,
@@ -159,6 +161,9 @@ export default function OutcomeForm({
         onEdit={onEditTarget}
         onDelete={onDeleteTarget}
         onView={onViewTarget}
+        renderExtra={(target) =>
+          editing && <ChildCoverage kind="outcome" entity={editing} target={target} collections={coverageData} />
+        }
       />
 
       {error && <p className="error">{error}</p>}

@@ -12,6 +12,7 @@ export default function TeamHome({
   projects,
   outcomes,
   impacts,
+  targets,
   insights,
   suggestions,
   onBack,
@@ -105,6 +106,9 @@ export default function TeamHome({
           projects={teamProjects}
           allProjects={projects}
           outcomes={outcomes}
+          impacts={impacts}
+          targets={targets}
+          onOpenProject={onOpenProject}
           teams={teams}
           insights={insights}
           suggestions={suggestions}
@@ -140,7 +144,7 @@ export default function TeamHome({
             )}
             {rollup.unlinkedProjects.length > 0 && (
               <li>
-                <span className="rollup-note warn">Projects driving no outcome</span>
+                <span className="rollup-note warn">Projects with no outcome or impact</span>
                 <ul>
                   {rollup.unlinkedProjects.map((project) => (
                     <RollupNode
