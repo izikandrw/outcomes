@@ -5,6 +5,9 @@
 // different domains (Vercel + Render).
 const API_URL = import.meta.env.VITE_API_URL || '';
 
+// The API's full address, for anything outside the browser that needs it.
+export const API_ORIGIN = API_URL || window.location.origin;
+
 const STORED_TOKEN = 'outcomes.token';
 export const getToken = () => localStorage.getItem(STORED_TOKEN);
 export const setToken = (token) =>

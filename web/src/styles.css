@@ -1797,7 +1797,7 @@ button.tag.insight-badge.suggested {
 /* Short of room for the whole header on one row: the logo alone still marks the
    account, and the name is on hover and in the menu. The width is what the header
    needs with the longest name the rule above allows. */
-@container app-header (max-width: 1430px) {
+@container app-header (max-width: 1500px) {
   .account-menu-button-name {
     display: none;
   }
@@ -4024,4 +4024,284 @@ body:has(.list-toolbar.stuck) .pinned-nav {
 
 .palette-count {
   margin-left: auto;
+}
+
+/* The how-to page */
+.guide {
+  gap: 28px;
+  padding: 28px;
+}
+
+.guide h2 {
+  margin: 0 0 6px;
+  color: var(--text);
+  font-size: 24px;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.guide a {
+  color: var(--accent);
+}
+
+.guide h3 {
+  margin: 0 0 10px;
+  font-size: 18px;
+}
+
+.guide h4 {
+  margin: 20px 0 6px;
+  font-size: 15px;
+}
+
+.guide p {
+  margin: 0 0 8px;
+  max-width: 76ch;
+}
+
+.guide code,
+.guide-code pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+}
+
+.guide-intro p {
+  font-size: 16px;
+}
+
+.guide-section + .guide-section {
+  border-top: 1px solid var(--border);
+  padding-top: 24px;
+}
+
+.guide-step.guide-tone-impact,
+.guide-link.guide-tone-impact {
+  --guide-color: var(--impact);
+}
+
+.guide-step.guide-tone-insight,
+.guide-link.guide-tone-insight {
+  --guide-color: var(--hue-yellow);
+}
+
+.guide-step.guide-tone-outcome,
+.guide-link.guide-tone-outcome {
+  --guide-color: var(--outcome);
+}
+
+.guide-step.guide-tone-prioritize {
+  --guide-color: var(--muted);
+}
+
+.guide-step.guide-tone-project,
+.guide-link.guide-tone-project {
+  --guide-color: var(--project);
+}
+
+.guide-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guide-step {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--guide-color);
+  border-radius: 8px;
+}
+
+.guide-step-number {
+  color: var(--guide-color);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.guide-step strong {
+  font-size: 16px;
+}
+
+.guide-step strong a {
+  color: inherit;
+}
+
+.guide-step em {
+  font-style: normal;
+  font-weight: 500;
+}
+
+.guide-step p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.guide-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 32px;
+}
+
+.guide-chain {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.guide-link {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 0 10px;
+  padding: 8px 12px;
+  border-left: 3px solid var(--guide-color);
+  background: color-mix(in srgb, var(--guide-color) 7%, transparent);
+  border-radius: 0 6px 6px 0;
+}
+
+.guide-link:nth-child(2) {
+  margin-left: 20px;
+}
+
+.guide-link:nth-child(3),
+.guide-link:nth-child(4) {
+  margin-left: 40px;
+}
+
+.guide-link-kind {
+  color: var(--guide-color);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.7;
+}
+
+.guide-link small {
+  grid-column: 2;
+  color: var(--muted);
+}
+
+.guide-note {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.guide-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guide-rules li {
+  display: flex;
+  gap: 10px;
+}
+
+.guide-rules p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.guide-code {
+  position: relative;
+  max-width: 900px;
+  margin: 10px 0;
+}
+
+.guide-code pre {
+  margin: 0;
+  padding: 12px 72px 12px 14px;
+  overflow-x: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.guide-code button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+.guide-prompts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.guide-prompt {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.guide-prompt blockquote {
+  margin: 8px 0;
+  padding: 8px 10px;
+  background: var(--bg);
+  border-radius: 6px;
+}
+
+.guide-prompt p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.guide-terminal {
+  max-width: 900px;
+  margin: 12px 0 0;
+}
+
+/* A terminal stays dark in both themes. */
+.guide-terminal-screen {
+  padding: 14px 16px;
+  overflow-x: auto;
+  background: #15191f;
+  color: #e8eaee;
+  border-radius: 8px;
+  font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.guide-terminal-screen p {
+  max-width: none;
+  margin: 0 0 8px;
+}
+
+.guide-terminal-screen p:last-child {
+  margin-bottom: 0;
+}
+
+.guide-terminal-screen .dim {
+  color: #9aa1ad;
+}
+
+.guide-terminal-screen .strong {
+  font-weight: 700;
+}
+
+.guide-terminal-row {
+  display: flex;
+  gap: 24px;
+  width: max-content;
+  min-width: 100%;
+  padding: 2px 6px;
+  background: #2b3038;
+  border-radius: 4px;
+}
+
+.guide-terminal figcaption {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
 }

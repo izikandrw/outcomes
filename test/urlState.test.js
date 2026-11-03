@@ -42,3 +42,7 @@ test('anything that is not one existing item has no link', () => {
   assert.equal(shareSearchOfModal({ kind: 'measurement', target: { id: 1 } }, view), null);
   assert.equal(shareSearchOfModal({ kind: 'account' }, view), null);
 });
+
+test('the how-to page can be linked to', () => {
+  assert.equal(readUrl('?page=guide').page, 'guide');
+});

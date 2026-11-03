@@ -13,4 +13,5 @@ export const NAV_PAGES = [
     hint: 'Insights the collector suggested, waiting for you to approve or reject before they count as evidence',
   },
   { id: 'teams', label: 'Teams' },
+  { id: 'guide', label: 'Guide', hint: 'How to use Outcomes: the framework, and working with Claude and agents' },
 ];

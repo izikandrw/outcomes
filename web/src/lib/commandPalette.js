@@ -10,6 +10,7 @@ const PAGE_KEYWORDS = {
   insights: 'evidence',
   review: 'suggestions queue approve',
   teams: 'org',
+  guide: 'how to use help docs framework claude mcp agents',
 };
 
 // Places that aren't in the top nav. `tab` is a tab of the page; `modal` a modal

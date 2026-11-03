@@ -32,6 +32,7 @@ import OutcomeTree from './components/OutcomeTree.jsx';
 import ReviewQueue from './components/ReviewQueue.jsx';
 import Roadmap from './components/Roadmap.jsx';
 import TopNav from './components/TopNav.jsx';
+import GuidePage from './components/GuidePage.jsx';
 import { PlusIcon } from './components/icons.jsx';
 import { formatValue, insightsForOutcome, insightsForProject, isEvidence, targetLabel, targetsFor } from './lib/links.js';
 import { buildSearch, emptyPageView, itemOfModal, readUrl, shareSearchOfModal } from './lib/urlState.js';
@@ -917,7 +918,9 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
       {error && <p className="error banner">{error}</p>}
 
       <main>
-        {page === 'teams' || page === 'team' ? (
+        {page === 'guide' ? (
+          <GuidePage user={user} onNavigate={changePage} />
+        ) : page === 'teams' || page === 'team' ? (
           <section className="card" aria-label={currentTeam ? currentTeam.name : 'Teams'}>
             {loading ? (
               <p className="empty">Loading…</p>
