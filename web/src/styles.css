@@ -357,8 +357,14 @@ button.with-icon {
   box-shadow: 0 18px 50px rgb(0 0 0 / 0.25);
 }
 
+/* A set height, so filtering a list doesn't resize the dialog and re-centre it. */
 .modal.wide {
   width: min(1400px, calc(100vw - 32px));
+  height: calc(100vh - 64px);
+}
+
+.modal.wide > .modal-body {
+  min-height: 100%;
 }
 
 /* A card opened from the map: docked to the right of the window, with the page
@@ -2126,6 +2132,7 @@ button.tag.insight-badge.suggested {
 }
 
 .entity-insights {
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -2134,9 +2141,16 @@ button.tag.insight-badge.suggested {
 
 /* Only the table scrolls, so the title, the Verified/Suggested/All toggle and
    Add insight stay put, and the column headings stick to the top of it. The
-   body is held to the dialog's height (less its border) so the table can shrink. */
+   body is held to the dialog's height so the table can shrink. */
 .modal-body:has(.insight-table-scroll) {
-  max-height: calc(100vh - 66px);
+  height: 100%;
+}
+
+/* Whatever the list shows takes up the spare height, keeping Add insight at the
+   bottom of the dialog with few rows or none. */
+.entity-insights > .insight-table-scroll,
+.entity-insights > .empty {
+  flex: 1 1 0;
 }
 
 /* The scrollbar's width stays reserved: it comes and goes with the row count,
