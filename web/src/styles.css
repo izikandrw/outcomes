@@ -450,10 +450,11 @@ body:has(.side-panel) .jump-to-top {
 
 .crumb {
   --point: 9px;
+  --notch: var(--point);
   display: inline-flex;
   align-items: center;
   min-width: 0;
-  padding: 5px calc(var(--point) + 8px);
+  padding: 5px calc(var(--point) + 8px) 5px calc(var(--notch) + 8px);
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--text);
   border: none;
@@ -466,8 +467,15 @@ body:has(.side-panel) .jump-to-top {
     100% 50%,
     calc(100% - var(--point)) 100%,
     0 100%,
-    var(--point) 50%
+    var(--notch) 50%
   );
+}
+
+/* Nothing comes before the top of the chain, so its left edge is flat. The add
+   pill isn't part of the chain, so the crumb after it is still the top. */
+.crumbs li:first-child .crumb-link,
+.crumbs li:has(.crumb-add) + li .crumb-link {
+  --notch: 0px;
 }
 
 .crumb:hover,
