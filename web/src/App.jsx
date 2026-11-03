@@ -14,7 +14,8 @@ import Members from './components/Members.jsx';
 import Modal from './components/Modal.jsx';
 import SidePanel from './components/SidePanel.jsx';
 import OutcomeForm from './components/OutcomeForm.jsx';
-import ParentOutcomeTag from './components/ParentOutcomeTag.jsx';
+import HierarchyBreadcrumb from './components/HierarchyBreadcrumb.jsx';
+import { ancestorMoves, modalHierarchy, parentFields, refKey } from './lib/hierarchy.js';
 import ProjectForm from './components/ProjectForm.jsx';
 import ProjectList from './components/ProjectList.jsx';
 import TargetMeasurements from './components/TargetMeasurements.jsx';
@@ -69,9 +70,10 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   const [targets, setTargets] = useState([]);
   const [measurements, setMeasurements] = useState([]);
   const [insights, setInsights] = useState([]);
-  // null when closed, otherwise { kind, outcome, parent, parentId }: `outcome`
-  // is the row being edited, `parent` the outcome a new child hangs off, and
-  // `parentId` (for kind 'outcome') the live value of the parent-outcome tag.
+  // null when closed, otherwise { kind, outcome, parent, parentId, moves }:
+  // `outcome` is the row being edited, `parent` the outcome a new child hangs
+  // off, `parentId` (for kind 'outcome') the parent it starts with, and `moves`
+  // the breadcrumb's unsaved parent swaps (see lib/hierarchy.js).
   const [modal, setModal] = useState(null);
   // { title, message, resolve } while a delete confirmation is showing.
   const [confirmation, setConfirmation] = useState(null);
@@ -214,7 +216,8 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   const openCreateProject = () => setModal({ kind: 'project', project: null, parent: null });
   const openAddChildProject = (parentProject) =>
     setModal({ kind: 'project', project: null, parent: null, parentProject });
-  const setModalParentId = (parentId) => setModal((current) => (current ? { ...current, parentId } : current));
+  const moveInBreadcrumb = (child, parent) =>
+    setModal((current) => current && { ...current, moves: { ...current.moves, [refKey(child)]: parent } });
 
   function changePage(next) {
     setPage(next);
@@ -325,6 +328,26 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
 
   const inSidePanel = page === 'map' && modal != null && opensFromCard(modal);
   const ModalSurface = inSidePanel ? SidePanel : Modal;
+  const hierarchyItems = { impact: impacts, outcome: outcomes, project: projects, team: teams };
+  const hierarchy = modalHierarchy(modal);
+
+  // Swaps made further up the breadcrumb change those items, not the one open,
+  // so each save writes them first. A failure throws to the form like any other,
+  // and retrying skips what already landed.
+  async function saveAncestorMoves() {
+    const writes = {
+      impact: { update: api.updateImpact, set: setImpacts, payload: ({ name, description }) => ({ name, description }) },
+      outcome: { update: api.updateOutcome, set: setOutcomes, payload: outcomePayload },
+      project: { update: api.updateProject, set: setProjects, payload: projectPayload },
+      team: { update: api.updateTeam, set: setTeams, payload: ({ name, logo }) => ({ name, logo }) },
+    };
+    for (const { child, parent } of ancestorMoves(hierarchy.start, hierarchyItems, hierarchy.moves)) {
+      const { update, set, payload } = writes[child.kind];
+      const item = hierarchyItems[child.kind].find((row) => String(row.id) === String(child.id));
+      const updated = await update(accountId, child.id, { ...payload(item), ...parentFields(child.kind, parent) });
+      set((current) => current.map((row) => (row.id === updated.id ? updated : row)));
+    }
+  }
 
   const issueRule = issueFilter ? ruleById(issueFilter) : null;
   const flagged = issueRule ? flaggedBy(issueRule, { impacts, outcomes, projects, insights: evidence }) : null;
@@ -334,6 +357,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
     );
 
   async function saveTeam(team) {
+    await saveAncestorMoves();
     const editing = modal?.team;
     if (editing) {
       const updated = await api.updateTeam(accountId, editing.id, team);
@@ -370,6 +394,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   // Throws on failure so the form can surface the error and stay open; the
   // modal only closes once the save has actually landed.
   async function saveOutcome(outcome) {
+    await saveAncestorMoves();
     const editing = modal?.outcome;
     let saved;
     if (editing) {
@@ -393,6 +418,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   }
 
   async function saveImpact(impact) {
+    await saveAncestorMoves();
     const editing = modal?.impact;
     if (editing) {
       const updated = await api.updateImpact(accountId, editing.id, impact);
@@ -650,6 +676,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   }
 
   async function saveProject(project) {
+    await saveAncestorMoves();
     const editing = modal?.project;
     if (editing) {
       const updated = await api.updateProject(accountId, editing.id, project);
@@ -1126,12 +1153,13 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
           title={modalTitle(modal)}
           wide={modal.kind === 'entity-insights'}
           header={
-            modal.kind === 'outcome' ? (
-              <ParentOutcomeTag
-                outcomes={outcomes}
-                editingId={modal.outcome?.id ?? null}
-                value={modal.parentId}
-                onChange={setModalParentId}
+            hierarchy ? (
+              <HierarchyBreadcrumb
+                title={modalTitle(modal)}
+                start={hierarchy.start}
+                collections={hierarchyItems}
+                moves={hierarchy.moves}
+                onMove={moveInBreadcrumb}
               />
             ) : undefined
           }
@@ -1178,8 +1206,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
             <ImpactForm
               key={modal.impact?.id ?? 'new'}
               editing={modal.impact}
-              parent={modal.parent}
-              impacts={impacts}
+              parentFields={hierarchy.fields}
               targets={modal.impact ? targetsFor(targets, modal.impact, 'impact') : []}
               onAddTarget={() => openAdd(modal.impact, 'target', 'impact')}
               onEditTarget={(target) => openEditTarget(target, modal.impact, 'impact')}
@@ -1193,8 +1220,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
             <TeamForm
               key={modal.team?.id ?? 'new'}
               editing={modal.team}
-              parent={modal.parent}
-              teams={teams}
+              parentFields={hierarchy.fields}
               onSubmit={saveTeam}
               onCancel={() => setModal(null)}
               onDelete={() => removeTeam(modal.team)}
@@ -1234,6 +1260,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               draft={modal.draft}
               outcome={modal.parent}
               parentProject={modal.parentProject}
+              parentFields={hierarchy.fields}
               teams={teams}
               onSubmit={saveProject}
               onCancel={() => setModal(null)}
@@ -1244,12 +1271,10 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               editing={modal.outcome}
               draft={modal.draft}
               parent={modal.parent}
-              parentOutcomeId={modal.parentId}
+              parentFields={hierarchy.fields}
               teams={teams}
               outcomes={outcomes}
               projects={projects}
-              impacts={impacts}
-              impactId={modal.impactId}
               targets={modal.outcome ? targetsFor(targets, modal.outcome, 'outcome') : []}
               onAddTarget={() => openAdd(modal.outcome, 'target', 'outcome')}
               onEditTarget={(target) => openEditTarget(target, modal.outcome, 'outcome')}

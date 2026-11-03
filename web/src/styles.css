@@ -417,79 +417,105 @@ body:has(.side-panel) .jump-to-top {
   margin: 0;
 }
 
-/* Jira-style breadcrumb tag: sits where the modal title used to, and opens a
-   list to reassign the outcome's parent without leaving the modal. */
-.parent-tag {
+/* An open item's parents, root first, ending at its title. Clicking a crumb
+   opens a searchable list across the width of the head to swap that parent. */
+.crumbs {
   position: relative;
+  flex: 1;
+  min-width: 0;
 }
 
-.parent-tag-button {
+.crumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.crumbs li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.crumbs ol > li + li::before {
+  content: '›';
+  color: var(--muted);
+}
+
+.crumb {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 6px 10px 6px 12px;
-}
-
-.parent-tag-button:hover {
-  border-color: var(--accent);
-}
-
-.parent-tag-button svg {
-  color: var(--muted);
-}
-
-.parent-tag-label {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.parent-tag-value.muted {
-  color: var(--muted);
-}
-
-.parent-tag-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 20;
-  list-style: none;
-  margin: 0;
-  min-width: 220px;
-  max-height: 260px;
-  overflow-y: auto;
-  padding: 4px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 16px 40px rgb(0 0 0 / 0.2);
-}
-
-.parent-tag-menu button {
-  display: block;
-  width: 100%;
-  text-align: left;
+  gap: 2px;
+  min-width: 0;
+  padding: 3px 4px 3px 6px;
   background: transparent;
   color: var(--text);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.crumb:hover,
+.crumb[aria-expanded='true'] {
+  border-color: var(--border);
+  background: var(--bg);
+}
+
+.crumb svg {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  color: var(--muted);
+}
+
+.crumb-name {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crumb-add {
+  padding-right: 6px;
+  color: var(--muted);
+}
+
+.crumbs-hint {
+  margin: 4px 0 0;
+}
+
+.crumbs-menu .hint {
+  padding: 2px 4px;
+}
+
+.crumb-option button {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
   font-weight: 400;
   border: none;
   border-radius: 6px;
   padding: 7px 10px;
 }
 
-.parent-tag-menu button:hover {
+.crumb-option button:hover,
+.crumb-option[data-active='true'] button {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
-.parent-tag-menu li[aria-selected='true'] button {
+.crumb-option[aria-selected='true'] button {
   color: var(--accent);
   font-weight: 600;
 }

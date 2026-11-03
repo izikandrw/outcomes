@@ -8,26 +8,22 @@ const EMPTY = {
   name: '',
   description: '',
   team_id: '',
-  impact_id: '',
 };
 
-// Rendered inside the modal, which supplies the heading and close control —
-// the parent outcome is set via the clickable tag in the modal header, so
-// this form only owns the remaining fields. Only a top-level outcome (no
-// parent) links to an impact; children inherit it from their ancestor.
-// `editing` is null when creating, or the outcome being changed. `draft`
+// Rendered inside the modal, which supplies the heading and close control. The
+// parent (an outcome, or an impact for a top-level outcome) is set in the modal's
+// breadcrumb and arrives as `parentFields`, so this form only owns the remaining
+// fields. `editing` is null when creating, or the outcome being changed. `draft`
 // prefills name and description when creating one the insight collector
 // proposed.
 export default function OutcomeForm({
   editing,
   draft,
   parent,
-  parentOutcomeId,
+  parentFields,
   teams,
   outcomes = [],
   projects,
-  impacts = [],
-  impactId,
   targets = [],
   onAddTarget,
   onEditTarget,
@@ -48,7 +44,6 @@ export default function OutcomeForm({
         name: editing.name ?? '',
         description: editing.description ?? '',
         team_id: editing.team_id ?? '',
-        impact_id: editing.impact_id ?? '',
       });
       setProjectIds(new Set(projectsForOutcome(projects, editing).map((project) => String(project.id))));
     } else {
@@ -65,21 +60,20 @@ export default function OutcomeForm({
           : draft
             ? ''
             : current.team_id || (teams.length === 1 ? String(teams[0].id) : ''),
-        impact_id: impactId ? String(impactId) : '',
       }));
       setProjectIds(new Set());
     }
     setError(null);
     // projects is left out on purpose: a refetch mid-edit shouldn't wipe picks.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editing, draft, parent, impactId]);
+  }, [editing, draft, parent]);
 
   // A project already under this outcome's parent or child is carried through
   // it, so it isn't offered. One picked before this rule stays listed so it can
   // still be removed.
   const inLineage = projectsLinkedInLineage(outcomes, projects, {
     id: editing?.id,
-    parent_outcome_id: parentOutcomeId ?? null,
+    parent_outcome_id: parentFields.parent_outcome_id,
   });
   const linkable = projects.filter(
     (project) => !inLineage.has(String(project.id)) || projectIds.has(String(project.id))
@@ -104,8 +98,7 @@ export default function OutcomeForm({
         // folded into them, so clear it or a removed pick would keep showing.
         project_id: null,
         project_ids: [...projectIds].map(Number),
-        parent_outcome_id: parentOutcomeId ? Number(parentOutcomeId) : null,
-        impact_id: !parentOutcomeId && form.impact_id ? Number(form.impact_id) : null,
+        ...parentFields,
       });
       if (!editing) {
         setForm((current) => ({ ...EMPTY, team_id: current.team_id }));
@@ -158,21 +151,6 @@ export default function OutcomeForm({
         selected={projectIds}
         onChange={setProjectIds}
       />
-
-      {!parentOutcomeId && impacts.length > 0 && (
-        <label>
-          Impact
-          <select value={form.impact_id} onChange={(event) => update('impact_id', event.target.value)}>
-            <option value="">None</option>
-            {impacts.map((impact) => (
-              <option key={impact.id} value={impact.id}>
-                {impact.name}
-              </option>
-            ))}
-          </select>
-          <span className="hint">The business result this outcome is meant to drive.</span>
-        </label>
-      )}
 
       <TargetsSection
         targets={targets}

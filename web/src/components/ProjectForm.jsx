@@ -7,12 +7,23 @@ const EMPTY = { name: '', description: '', team_id: '', start_at: '', end_at: ''
 // `outcome` is given) or nested under another project (when `parentProject` is
 // given), or with neither (from the review queue, where it is linked to an
 // insight instead), or edits an existing one in place (when `editing` is
-// given). The team
+// given). The parent project is set in the modal's breadcrumb and arrives as
+// `parentFields`. The team
 // defaults to the parent's on create, since that is nearly always the same team,
 // and may be left empty when it isn't known yet.
 // `draft` prefills name and description when creating one the insight
 // collector proposed.
-export default function ProjectForm({ editing, draft, outcome, parentProject, teams, onSubmit, onCancel, onDelete }) {
+export default function ProjectForm({
+  editing,
+  draft,
+  outcome,
+  parentProject,
+  parentFields,
+  teams,
+  onSubmit,
+  onCancel,
+  onDelete,
+}) {
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -64,11 +75,8 @@ export default function ProjectForm({ editing, draft, outcome, parentProject, te
         team_id: form.team_id ? Number(form.team_id) : null,
         start_at: form.start_at ? new Date(form.start_at).toISOString() : null,
         end_at: form.end_at ? new Date(form.end_at).toISOString() : null,
-        ...(editing
-          ? {}
-          : parentProject
-            ? { parent_project_id: parentProject.id, outcome_ids: [] }
-            : { outcome_ids: outcome ? [outcome.id] : [] }),
+        ...parentFields,
+        ...(editing ? {} : { outcome_ids: outcome ? [outcome.id] : [] }),
       });
     } catch (err) {
       setError(err.message);
@@ -79,13 +87,9 @@ export default function ProjectForm({ editing, draft, outcome, parentProject, te
 
   return (
     <form className="outcome-form" onSubmit={submit}>
-      {!editing && (
+      {!editing && (outcome || !parentFields.parent_project_id) && (
         <p className="empty">
-          {parentProject ? (
-            <>
-              This project will be nested under <strong>{parentProject.name}</strong>.
-            </>
-          ) : outcome ? (
+          {outcome ? (
             <>
               This project will be linked to <strong>{outcome.name}</strong>.
             </>

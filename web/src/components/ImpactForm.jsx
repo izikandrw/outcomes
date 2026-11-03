@@ -2,15 +2,14 @@ import { useEffect, useState } from 'react';
 import AutoGrowTextarea from './AutoGrowTextarea.jsx';
 import TargetsSection from './TargetsSection.jsx';
 
-const EMPTY = { name: '', description: '', parent_impact_id: '' };
+const EMPTY = { name: '', description: '' };
 
-// Rendered inside the modal, which supplies the heading and close control.
-// `editing` is null when creating, or the impact being changed; `parent` is the
-// impact a new child hangs off, when added from the map.
+// Rendered inside the modal, whose breadcrumb sets the parent and supplies the
+// heading and close control; `parentFields` holds that parent. `editing` is null
+// when creating, or the impact being changed.
 export default function ImpactForm({
   editing,
-  parent,
-  impacts,
+  parentFields,
   targets = [],
   onAddTarget,
   onEditTarget,
@@ -29,20 +28,16 @@ export default function ImpactForm({
       setForm({
         name: editing.name ?? '',
         description: editing.description ?? '',
-        parent_impact_id: editing.parent_impact_id ? String(editing.parent_impact_id) : '',
       });
     } else {
-      setForm({ ...EMPTY, parent_impact_id: parent ? String(parent.id) : '' });
+      setForm(EMPTY);
     }
     setError(null);
-  }, [editing, parent]);
+  }, [editing]);
 
   function update(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
   }
-
-  // An impact can't sit under itself or anything beneath it.
-  const options = impacts.filter((impact) => !isSelfOrDescendant(impact, editing?.id, impacts));
 
   async function submit(event) {
     event.preventDefault();
@@ -54,7 +49,7 @@ export default function ImpactForm({
       await onSubmit({
         name: form.name.trim(),
         description: form.description.trim() || null,
-        parent_impact_id: form.parent_impact_id ? Number(form.parent_impact_id) : null,
+        ...parentFields,
       });
     } catch (err) {
       setError(err.message);
@@ -85,21 +80,6 @@ export default function ImpactForm({
         />
       </label>
 
-      <label>
-        Parent impact
-        <select
-          value={form.parent_impact_id}
-          onChange={(event) => update('parent_impact_id', event.target.value)}
-        >
-          <option value="">None (top-level impact)</option>
-          {options.map((impact) => (
-            <option key={impact.id} value={impact.id}>
-              {impact.name}
-            </option>
-          ))}
-        </select>
-      </label>
-
       <TargetsSection
         targets={targets}
         saved={Boolean(editing)}
@@ -126,16 +106,4 @@ export default function ImpactForm({
       </div>
     </form>
   );
-}
-
-function isSelfOrDescendant(candidate, editingId, impacts) {
-  if (!editingId) return false;
-  let current = candidate;
-  const seen = new Set();
-  while (current && !seen.has(current.id)) {
-    if (String(current.id) === String(editingId)) return true;
-    seen.add(current.id);
-    current = impacts.find((impact) => impact.id === current.parent_impact_id);
-  }
-  return false;
 }
