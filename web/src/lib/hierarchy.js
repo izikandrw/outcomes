@@ -1,4 +1,4 @@
-import { impactsForProject, projectsForOutcome, targetLabel } from './links.js';
+import { impactsForProject, linkBetween, projectsForOutcome, targetLabel } from './links.js';
 
 // The parent chain an open item's breadcrumb shows and edits. An item is named
 // by a ref, { kind, id }; `collections` maps each kind to its rows; and `moves`
@@ -6,13 +6,14 @@ import { impactsForProject, projectsForOutcome, targetLabel } from './links.js';
 // none). Nothing is written until the form is saved, so everything here reads
 // the hierarchy as it will be, with moves laid over what is stored.
 
-// What each kind can move under. Only an outcome crosses kinds: a top-level
-// outcome links to an impact. A target also sits in the tree, under the outcome,
-// impact or project it quantifies, but stays there: its breadcrumb only navigates.
+// What each kind can move under. An outcome and a project cross kinds: a top-level
+// outcome links to an impact, and a project nests under a project or drives an
+// outcome or impact. A target also sits in the tree, under the outcome, impact or
+// project it quantifies, but stays there: its breadcrumb only navigates.
 const PARENT_KINDS = {
   impact: ['impact'],
   outcome: ['impact', 'outcome'],
-  project: ['project'],
+  project: ['impact', 'outcome', 'project'],
   team: ['team'],
 };
 
@@ -73,7 +74,8 @@ function linkedParents(ref, collections) {
 
 // The next crumb up. A project with no parent project sits under what it drives,
 // as it does on the map. That link is not a parent: it is `linked`, and
-// storedParent and moves know nothing of it, so saving never writes it.
+// storedParent and moves know nothing of it, so saving leaves it as it is. Only a
+// new pick in the breadcrumb adds one, as a move to an outcome or impact.
 function nextUp(child, collections, moves) {
   const parent = parentOf(child, collections, moves);
   if (parent) return parent;
@@ -107,13 +109,24 @@ export function otherLinkedParents(start, collections, moves = {}) {
 }
 
 // What `child` may move under, by kind: anything but itself or what sits
-// beneath it, which would make it its own ancestor.
+// beneath it, which would make it its own ancestor. A project also skips the
+// outcomes and impacts it can't link to, by the rules dragging on the map follows.
 export function parentChoices(child, collections, moves = {}) {
+  const canLink = (kind, item) => {
+    const project = child.kind === 'project' && kind !== 'project' && find(child, collections);
+    if (!project) return true;
+    const { impact: impacts = [], outcome: outcomes = [], project: projects = [] } = collections;
+    return !linkBetween({ type: kind, data: item }, { type: 'project', data: project }, { impacts, outcomes, projects }).reason;
+  };
   return PARENT_KINDS[child.kind].map((kind) => ({
     kind,
     items: collections[kind].filter((item) => {
       const ref = { kind, id: item.id };
-      return !sameRef(ref, child) && !lineage(ref, collections, moves).some((ancestor) => sameRef(ancestor, child));
+      return (
+        !sameRef(ref, child) &&
+        !lineage(ref, collections, moves).some((ancestor) => sameRef(ancestor, child)) &&
+        canLink(kind, item)
+      );
     }),
   }));
 }
@@ -130,8 +143,13 @@ export function ancestorMoves(start, collections, moves = {}) {
     });
 }
 
-// The parent as the API's columns.
-export function parentFields(kind, parent) {
+// The parent as the API's fields. A project's outcome or impact is a link rather
+// than a column, added to the ones `item`, the row being moved, already has.
+export function parentFields(kind, parent, item) {
+  if (kind === 'project' && parent && parent.kind !== 'project') {
+    const links = `${parent.kind}_ids`;
+    return { parent_project_id: null, [links]: [...new Set([...(item?.[links] ?? []), parent.id].map(Number))] };
+  }
   if (kind === 'outcome') {
     return {
       parent_outcome_id: parent?.kind === 'outcome' ? parent.id : null,
@@ -155,7 +173,8 @@ export function modalHierarchy(modal) {
     start[modal.parentKind === 'impact' ? 'linkedImpactId' : 'linkedOutcomeId'] = modal.parent.id;
   }
   const moves = { [refKey(start)]: item ? storedParent(kind, item) : newItemParent(modal), ...modal.moves };
-  return { start, moves, editable: true, fields: parentFields(kind, moves[refKey(start)]) };
+  const parent = moves[refKey(start)];
+  return { start, moves, editable: true, parent, fields: parentFields(kind, parent, item) };
 }
 
 // The views below an item: a target and what hangs off one or off anything else.

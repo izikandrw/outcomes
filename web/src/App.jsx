@@ -366,7 +366,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
     for (const { child, parent } of ancestorMoves(hierarchy.start, hierarchyItems, hierarchy.moves)) {
       const { update, set, payload } = writes[child.kind];
       const item = hierarchyItems[child.kind].find((row) => String(row.id) === String(child.id));
-      const updated = await update(accountId, child.id, { ...payload(item), ...parentFields(child.kind, parent) });
+      const updated = await update(accountId, child.id, { ...payload(item), ...parentFields(child.kind, parent, item) });
       set((current) => current.map((row) => (row.id === updated.id ? updated : row)));
     }
   }
@@ -1336,6 +1336,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               impact={modal.parentKind === 'impact' ? modal.parent : null}
               parentProject={modal.parentProject}
               parentFields={hierarchy.fields}
+              stagedParent={hierarchy.parent}
               teams={teams}
               impacts={impacts}
               outcomes={outcomes}

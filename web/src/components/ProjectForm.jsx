@@ -11,8 +11,8 @@ const EMPTY = { name: '', description: '', team_id: '', start_at: '', end_at: ''
 // (when `outcome` or `impact` is given) or nested under another project (when
 // `parentProject` is given), or with none of them (from the review queue, where it is linked to an
 // insight instead), or edits an existing one in place (when `editing` is
-// given). The parent project is set in the modal's breadcrumb and arrives as
-// `parentFields`. The team
+// given). The parent is set in the modal's breadcrumb and arrives as
+// `parentFields`, with `stagedParent` saying which it is. The team
 // defaults to the parent's on create, since that is nearly always the same team,
 // and may be left empty when it isn't known yet.
 // `draft` prefills name and description when creating one the insight
@@ -24,6 +24,7 @@ export default function ProjectForm({
   impact,
   parentProject,
   parentFields,
+  stagedParent,
   teams,
   impacts = [],
   outcomes = [],
@@ -42,6 +43,7 @@ export default function ProjectForm({
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const defaultTeam = parentProject ?? outcome;
+  const stagedImpactId = stagedParent?.kind === 'impact' ? String(stagedParent.id) : null;
 
   useEffect(() => {
     if (editing) {
@@ -71,6 +73,20 @@ export default function ProjectForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing, draft, defaultTeam, impact]);
 
+  // An impact picked in the breadcrumb is ticked below until it's swapped for another.
+  useEffect(() => {
+    if (!stagedImpactId) return undefined;
+    setImpactIds((current) => new Set(current).add(stagedImpactId));
+    return () => {
+      if (editing?.impact_ids?.some((id) => String(id) === stagedImpactId)) return;
+      setImpactIds((current) => {
+        const next = new Set(current);
+        next.delete(stagedImpactId);
+        return next;
+      });
+    };
+  }, [stagedImpactId, editing]);
+
   // An impact already reached through an outcome this project drives is carried
   // by it, so it isn't offered. One picked before stays listed so it can go.
   const reached = editing ? impactsReachedThroughOutcomes(editing, outcomes, impacts) : new Set();
@@ -98,7 +114,7 @@ export default function ProjectForm({
         end_at: form.end_at ? new Date(form.end_at).toISOString() : null,
         ...parentFields,
         impact_ids: [...impactIds].map(Number),
-        ...(editing ? {} : { outcome_ids: outcome ? [outcome.id] : [] }),
+        ...(editing ? {} : { outcome_ids: [...(outcome ? [Number(outcome.id)] : []), ...(parentFields.outcome_ids ?? [])] }),
       });
     } catch (err) {
       setError(err.message);
@@ -109,7 +125,7 @@ export default function ProjectForm({
 
   return (
     <form className="outcome-form" onSubmit={submit}>
-      {!editing && (outcome || impact || !parentFields.parent_project_id) && (
+      {!editing && !stagedParent && (outcome || impact || !parentFields.parent_project_id) && (
         <p className="empty">
           {outcome || impact ? (
             <>

@@ -75,12 +75,12 @@ export default function HierarchyBreadcrumb({ heading, start, collections, moves
               <button
                 type="button"
                 className="crumb crumb-swap"
-                title={crumb.linked ? `Nest ${label(crumb.child)} under a project` : `Change the parent of ${label(crumb.child)}`}
+                title={crumb.linked ? `Add another parent to ${label(crumb.child)}` : `Change the parent of ${label(crumb.child)}`}
                 aria-haspopup="listbox"
                 aria-expanded={Boolean(isChoosing(crumb.child))}
                 aria-label={
                   crumb.linked
-                    ? `Nest ${label(crumb.child)} under a project`
+                    ? `Add another parent to ${label(crumb.child)}`
                     : `Change the parent of ${label(crumb.child)}, now ${crumb.name}`
                 }
                 onClick={() => toggle(crumb.child)}

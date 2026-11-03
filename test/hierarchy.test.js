@@ -232,3 +232,49 @@ test('an insight view of a project shows the project and everything above it', (
   const { start, moves } = modalHierarchy({ kind: 'entity-insights', entity: { id: '30' }, entityKind: 'project' });
   assert.deepEqual(names(lineage(start, withProjects, moves)), ['Revenue', 'ARR', 'Top', 'Mid', 'Driver']);
 });
+
+const projectChoices = (id) =>
+  Object.fromEntries(
+    parentChoices(projectRef(id), withProjects).map((group) => [group.kind, group.items.map((item) => item.name)]),
+  );
+
+test('a project with no parent can choose an impact, an outcome or a project', () => {
+  const choices = projectChoices('33');
+  assert.deepEqual(choices.impact, ['Revenue', 'ARR', 'Retention']);
+  assert.ok(choices.outcome.includes('Top'));
+  assert.deepEqual(choices.project, ['Driver', 'Sub', 'Old link']);
+});
+
+test('a project is not offered what it already reaches, as the map refuses', () => {
+  const choices = projectChoices('30');
+  assert.deepEqual(choices.impact, ['Retention']); // Revenue and ARR arrive through Mid.
+  assert.ok(!choices.outcome.includes('Mid')); // Already drives it.
+  assert.ok(!choices.outcome.includes('Top')); // An ancestor of Mid.
+  assert.ok(!choices.project.includes('Sub')); // Beneath it.
+});
+
+test('choosing an impact shows it above the project and adds a link on save', () => {
+  const project = { ...withProjects.project[3], impact_ids: ['3'] };
+  const { fields, moves, start, parent } = modalHierarchy({
+    kind: 'project',
+    project,
+    moves: { 'project-33': { kind: 'impact', id: '2' } },
+  });
+  assert.deepEqual(parent, { kind: 'impact', id: '2' });
+  assert.deepEqual(names(lineage(start, withProjects, moves)), ['Revenue', 'ARR']);
+  assert.deepEqual(fields, { parent_project_id: null, impact_ids: [3, 2] });
+  assert.deepEqual(ancestorMoves(start, withProjects, moves), []);
+});
+
+test('choosing an outcome adds to the outcomes a project drives, on a new project too', () => {
+  const outcome = { kind: 'outcome', id: '13' };
+  assert.deepEqual(parentFields('project', outcome, { outcome_ids: ['11'] }), { parent_project_id: null, outcome_ids: [11, 13] });
+  assert.deepEqual(parentFields('project', outcome), { parent_project_id: null, outcome_ids: [13] });
+});
+
+test('an ancestor project moved under an impact is saved as a link on that project', () => {
+  const moves = { 'project-30': { kind: 'project', id: '33' }, 'project-33': { kind: 'impact', id: '3' } };
+  const staged = ancestorMoves(projectRef('30'), withProjects, moves);
+  assert.deepEqual(staged, [{ child: projectRef('33'), parent: { kind: 'impact', id: '3' } }]);
+  assert.deepEqual(parentFields('project', staged[0].parent, withProjects.project[3]), { parent_project_id: null, impact_ids: [3] });
+});
