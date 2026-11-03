@@ -572,6 +572,13 @@ body:has(.side-panel) .jump-to-top {
   gap: 14px;
 }
 
+/* Fields keep their own height. A label grows by default, which in a form stretched
+   to the side panel's height would open gaps between them; the spare room belongs
+   above the buttons. */
+.outcome-form > label {
+  flex: none;
+}
+
 /* A form's buttons stay in reach however long it is. In the side panel they also
    sit at the bottom of the window when the form is short, so they don't move from
    one item to the next. The negative margins take the row out to the edges of
