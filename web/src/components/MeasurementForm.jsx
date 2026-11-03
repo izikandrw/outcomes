@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
 import { targetRange } from '../lib/links.js';
 
+// Today's calendar date where the user is, as YYYY-MM-DD.
+function localToday() {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
 // A measurement is a reading against one target: a value and when it applies,
 // which is not necessarily when it was entered. The unit is not asked for —
 // it belongs to the target, so every reading in a series counts the same thing.
@@ -34,9 +41,10 @@ export default function MeasurementForm({ outcome, targets, onSubmit, onCancel, 
       await onSubmit({
         target_id: Number(form.target_id),
         value: Number(form.value),
-        // datetime-local has no zone; the API stores TIMESTAMPTZ, so it is sent
-        // as an explicit instant rather than a bare local string.
-        measured_at: form.measured_at ? new Date(form.measured_at).toISOString() : null,
+        // A reading applies to a day, stored as UTC midnight (a date input's
+        // value parses as exactly that). Empty means the user's own today,
+        // which can differ from the UTC date, so it isn't left to the server.
+        measured_at: new Date(form.measured_at || localToday()).toISOString(),
       });
     } catch (err) {
       setError(err.message);
@@ -106,11 +114,11 @@ export default function MeasurementForm({ outcome, targets, onSubmit, onCancel, 
         <label>
           Measured at
           <input
-            type="datetime-local"
+            type="date"
             value={form.measured_at}
             onChange={(event) => update('measured_at', event.target.value)}
           />
-          <span className="hint">Leave empty to record it as now.</span>
+          <span className="hint">Leave empty to record it as today.</span>
         </label>
       </div>
 

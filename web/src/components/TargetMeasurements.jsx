@@ -7,14 +7,15 @@ import {
   targetRange,
 } from "../lib/links.js";
 
-// Readings are weekly-ish, so the time of day is enough; seconds are noise.
+// A reading applies to a day, stored as UTC midnight. Reading it back in local
+// time would show the day before for anyone west of UTC, so the calendar day is
+// rendered in the zone it was stored in.
 const formatMeasuredAt = (value) =>
-  new Date(value).toLocaleString(undefined, {
+  new Date(value).toLocaleDateString(undefined, {
     year: "numeric",
     month: "numeric",
     day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
+    timeZone: "UTC",
   });
 
 // Every reading taken against one target, newest first, so the latest number
@@ -162,6 +163,7 @@ const shortDate = (value) =>
     month: "short",
     day: "numeric",
     year: "numeric",
+    timeZone: "UTC",
   });
 
 // A trend needs at least two readings at different moments, so anything less
