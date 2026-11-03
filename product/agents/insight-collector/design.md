@@ -156,6 +156,7 @@ Existing rows default to `validated` because a person entered them. **Every plac
 | `PUT /insights/:id` | unchanged. Editing an unvalidated insight sets `edited_in_review`. Links that survive keep their rationale. |
 | `POST /insights/:id/validate` | approve (also undoes a rejection) |
 | `POST /insights/:id/reject` | `{ reason, note? }` |
+| `POST /insights/bulk-reject` | `{ ids, reason, note? }`: rejects those still unvalidated in one transaction, recording an event for each, and returns them |
 | `collection-runs` endpoints | milestone 4 |
 
 **Collector permissions** (`src/middleware/collectorScope.js` + the insights router): a `collector` user can GET anything in its account and POST insights, which are always created `unvalidated`. Every other write returns 403.

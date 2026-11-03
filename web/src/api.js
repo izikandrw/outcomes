@@ -155,6 +155,11 @@ export const rejectInsight = (accountId, insightId, reason, note) =>
     method: 'POST',
     body: JSON.stringify({ reason, note }),
   });
+export const bulkRejectInsights = (accountId, ids, reason, note) =>
+  request(`/accounts/${accountId}/insights/bulk-reject`, {
+    method: 'POST',
+    body: JSON.stringify({ ids, reason, note }),
+  });
 export const reopenInsight = (accountId, insightId) =>
   request(`/accounts/${accountId}/insights/${insightId}/reopen`, { method: 'POST' });
 export const deleteInsight = (accountId, insightId) =>

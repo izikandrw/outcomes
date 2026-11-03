@@ -486,6 +486,58 @@ router.post('/:insightId/reject', forbidCollector, (req, res, next) => {
   );
 });
 
+// Turns down many suggestions at once, in one transaction, recording each like a
+// single rejection. It takes the ids the reviewer saw, not "whatever is waiting",
+// so a suggestion that arrives meanwhile isn't rejected unseen, and it skips any
+// already reviewed, whose verdict stands. Responds with the insights it rejected.
+router.post('/bulk-reject', forbidCollector, async (req, res, next) => {
+  const { ids, reason, note } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0 || !ids.every((id) => /^\d{1,18}$/.test(String(id)))) {
+    return res.status(400).json({ error: 'ids must be a non-empty array of insight ids' });
+  }
+  if (!REJECTION_REASONS.includes(reason)) {
+    return res.status(400).json({ error: `reason must be one of: ${REJECTION_REASONS.join(', ')}` });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rows: before } = await client.query(
+      `${SELECT_INSIGHT} WHERE i.account_id = $1 AND i.id = ANY($2::bigint[]) AND i.status = 'unvalidated'
+       ORDER BY i.id FOR UPDATE OF i`,
+      [req.accountId, ids]
+    );
+    const waiting = before.map((insight) => insight.id);
+    await client.query(
+      `UPDATE insights SET status = 'rejected', rejection_reason = $3, review_note = $4,
+         reviewed_by = $5, reviewed_at = now(), updated_at = now()
+       WHERE account_id = $1 AND id = ANY($2::bigint[])`,
+      [req.accountId, waiting, reason, note || null, req.user.id]
+    );
+    const { rows: rejected } = await client.query(
+      `${SELECT_INSIGHT} WHERE i.account_id = $1 AND i.id = ANY($2::bigint[]) ORDER BY i.id`,
+      [req.accountId, waiting]
+    );
+    for (const [index, insight] of rejected.entries()) {
+      await recordEvent(client, {
+        accountId: req.accountId,
+        insightId: insight.id,
+        action: 'rejected',
+        actorId: req.user.id,
+        before: snapshotOf(before[index]),
+        after: snapshotOf(insight),
+      });
+    }
+    await client.query('COMMIT');
+    res.json(rejected);
+  } catch (err) {
+    if (client) await client.query('ROLLBACK').catch(() => {});
+    next(err);
+  } finally {
+    if (client) client.release();
+  }
+});
+
 // Undoes a review, approval or rejection: the insight goes back to the review
 // queue and stops counting as evidence.
 router.post('/:insightId/reopen', forbidCollector, (req, res, next) =>

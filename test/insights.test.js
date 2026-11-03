@@ -254,6 +254,57 @@ test('POST /:id/reject records the verdict with the insight before and after', a
   assert.equal(JSON.parse(event.params[5]).rejection_reason, 'wrong_link');
 });
 
+test('POST /bulk-reject rejects the insights still waiting and records each', async () => {
+  let reads = 0;
+  db.respond = (sql) => {
+    if (/^UPDATE insights/.test(sql)) return { rowCount: 2 };
+    if (/^SELECT i\.\*/.test(sql)) {
+      reads += 1;
+      const status = reads === 1 ? 'unvalidated' : 'rejected';
+      return { rows: [{ id: 5, status }, { id: 6, status }] };
+    }
+    return { rows: [] };
+  };
+  const res = await request('POST', '/bulk-reject', { ids: [5, 6, 7], reason: 'other', note: 'Cleared' });
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.body.map((insight) => insight.status), ['rejected', 'rejected']);
+
+  // Only what the reviewer saw and is still waiting, row-locked so a verdict can't slip in.
+  const read = db.calls.find((call) => /^SELECT i\.\*/.test(call.sql));
+  assert.match(read.sql, /i\.status = 'unvalidated'/);
+  assert.match(read.sql, /FOR UPDATE OF i/);
+  assert.deepEqual(read.params, [ACCOUNT_ID, [5, 6, 7]]);
+  // The insight 7 the read skipped is left out of the update.
+  const update = db.calls.find((call) => /^UPDATE insights/.test(call.sql));
+  assert.deepEqual(update.params, [ACCOUNT_ID, [5, 6], 'other', 'Cleared', 3]);
+
+  const events = eventInserts();
+  assert.deepEqual(events.map((event) => event.params[1]), [5, 6]);
+  assert.equal(events[0].params[2], 'rejected');
+  assert.equal(JSON.parse(events[0].params[4]).status, 'unvalidated');
+  assert.equal(JSON.parse(events[0].params[5]).status, 'rejected');
+  assert.ok(db.calls.some((call) => call.sql === 'COMMIT'));
+});
+
+test('POST /bulk-reject turns down bad input before touching the database', async () => {
+  for (const body of [
+    { reason: 'other' },
+    { ids: [], reason: 'other' },
+    { ids: ['5; DROP TABLE insights'], reason: 'other' },
+    { ids: [5], reason: 'because' },
+  ]) {
+    assert.equal((await request('POST', '/bulk-reject', body)).status, 400);
+  }
+  assert.equal(db.calls.length, 0);
+});
+
+test('POST /bulk-reject is not open to the collector', async () => {
+  role = 'collector';
+  const res = await request('POST', '/bulk-reject', { ids: [5], reason: 'other' });
+  assert.equal(res.status, 403);
+  assert.equal(db.calls.length, 0);
+});
+
 test('GET /:id/events lists the history of an insight in the account', async () => {
   db.respond = (sql) => {
     if (/^SELECT id FROM insights/.test(sql)) return { rows: [{ id: 5 }] };

@@ -4,6 +4,7 @@ import { insightFilterFields, matchesFilters } from '../lib/insightFilters.js';
 import { IMPACT_AREAS, INSIGHT_TYPES, REJECTION_REASONS, formatDollars, rejectionReasonLabel } from '../lib/links.js';
 import { isTypingTarget, reviewAction, reviewLegend, worksInField } from '../lib/reviewShortcuts.js';
 import useStuck from '../lib/useStuck.js';
+import ConfirmDialog from './ConfirmDialog.jsx';
 import FilterBar from './FilterBar.jsx';
 import CollectionRuns, { formatTime } from './CollectionRuns.jsx';
 import EvalCases from './EvalCases.jsx';
@@ -33,7 +34,10 @@ import {
 // click it, change it, and it saves. The Runs tab shows the collector's traces,
 // and the Eval set tab the cases picked from them. The whole queue works from
 // the keyboard (lib/reviewShortcuts.js): one card is always selected, and focus
-// sits on it, so J and K move and Tab walks into its fields.
+// sits on it, so J and K move and Tab walks into its fields. Reject all clears the
+// queue, or just what the filters leave showing. Its reason is Other, because the
+// evals read Not an insight and Inaccurate as a person's verdict on that one
+// suggestion (src/lib/evalCases.js), and this says nothing about any one of them.
 // `view` holds the tab, the open run and the filters ({ tab, run, filters }, a
 // null tab meaning Needs review), which the app keeps in the URL.
 const REVIEW_TABS = ['pending', 'rejected', 'runs', 'evals'];
@@ -47,6 +51,7 @@ export default function ReviewQueue({
   projects,
   onApprove,
   onReject,
+  onBulkReject,
   onUpdate,
   onUnlink,
   onCreateProposed,
@@ -61,6 +66,9 @@ export default function ReviewQueue({
   };
   const [lastRunAt, setLastRunAt] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
+  const [confirmingRejectAll, setConfirmingRejectAll] = useState(false);
+  const [rejectingAll, setRejectingAll] = useState(false);
+  const [rejectAllError, setRejectAllError] = useState(null);
   const lastIndex = useRef(0);
   const previousId = useRef(null);
   const listRef = useRef(null);
@@ -90,6 +98,23 @@ export default function ReviewQueue({
   const currentIndex = found >= 0 ? found : Math.min(lastIndex.current, ids.length - 1);
   const currentId = ids[currentIndex] ?? null;
   lastIndex.current = Math.max(currentIndex, 0);
+
+  // Filters on, it rejects only what they leave showing, and says so.
+  const narrowed = shown.length < inTab.length;
+  const suggestionsNoun = shown.length === 1 ? 'suggestion' : 'suggestions';
+
+  async function rejectAll() {
+    setConfirmingRejectAll(false);
+    setRejectingAll(true);
+    setRejectAllError(null);
+    try {
+      await onBulkReject(ids, 'other', 'Rejected with Reject all');
+    } catch (err) {
+      setRejectAllError(`Could not reject them: ${err.message}`);
+    } finally {
+      setRejectingAll(false);
+    }
+  }
 
   function focusCard(id, scroll = true) {
     const card = listRef.current?.querySelector(`[data-insight-id="${id}"]`);
@@ -174,7 +199,37 @@ export default function ReviewQueue({
             Eval set
           </button>
         </div>
+        {tab === 'pending' && shown.length > 0 && (
+          <button
+            type="button"
+            className="ghost danger"
+            disabled={rejectingAll}
+            onClick={() => setConfirmingRejectAll(true)}
+          >
+            {rejectingAll ? 'Rejecting…' : narrowed ? `Reject ${shown.length} shown` : `Reject all (${shown.length})`}
+          </button>
+        )}
       </div>
+      {rejectAllError && <p className="error">{rejectAllError}</p>}
+      {confirmingRejectAll && (
+        <ConfirmDialog
+          title={
+            shown.length === 1
+              ? 'Reject this suggestion?'
+              : narrowed
+                ? `Reject the ${shown.length} suggestions shown?`
+                : `Reject all ${shown.length} suggestions?`
+          }
+          message={`${
+            narrowed ? `The ${shown.length} ${suggestionsNoun} matching your filters` : 'Every suggestion waiting for review'
+          } will move to the Rejected tab with the reason Other. The collector won't suggest ${
+            shown.length === 1 ? 'it' : 'them'
+          } again. You can still approve ${shown.length === 1 ? 'it' : 'any of them'} from that tab, one at a time.`}
+          confirmLabel={`Reject ${shown.length}`}
+          onConfirm={rejectAll}
+          onCancel={() => setConfirmingRejectAll(false)}
+        />
+      )}
       {!['runs', 'evals'].includes(tab) && inTab.length > 0 && (
         <div
           ref={legendRef}

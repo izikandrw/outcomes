@@ -575,6 +575,17 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
     replaceInsight(await api.rejectInsight(accountId, insight.id, reason, note));
   }
 
+  async function bulkRejectInsights(ids, reason, note) {
+    const rejected = await api.bulkRejectInsights(accountId, ids, reason, note);
+    // Fewer came back when someone reviewed one meanwhile, so this list is stale.
+    if (rejected.length < ids.length) {
+      setInsights(await api.listInsights(accountId));
+      return;
+    }
+    const byId = new Map(rejected.map((insight) => [insight.id, insight]));
+    setInsights((current) => current.map((item) => byId.get(item.id) ?? item));
+  }
+
   async function reopenInsight(insight) {
     replaceInsight(await api.reopenInsight(accountId, insight.id));
   }
@@ -979,6 +990,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
                 projects={projects}
                 onApprove={approveInsight}
                 onReject={rejectInsight}
+                onBulkReject={bulkRejectInsights}
                 onUpdate={patchInsight}
                 onUnlink={unlinkInsight}
                 onCreateProposed={createFromProposal}
