@@ -18,6 +18,8 @@ import {
   coverageAmounts,
   coverageGap,
   coverageWidth,
+  formatCompact,
+  targetActual,
 } from '../lib/links.js';
 import { issuesFor, validateTree } from '../lib/validation.js';
 import { unlinkButtonPoint } from '../lib/edgeButton.js';
@@ -28,9 +30,10 @@ export const NODE_W = 160;
 export const NODE_H = 83;
 // Nodes with an insight pill straddle their bottom edge; lift the label to clear it.
 const LABEL_LIFT = 4;
-// An impact whose children can account for its target draws a bar along its
-// bottom edge; lift the label to clear it.
-const COVERAGE_LIFT = 9;
+// An impact whose children can account for its target draws planned and actual
+// bars along its bottom edge; lift the label to clear them.
+const COVERAGE_LIFT = 14;
+const COVERAGE_ROW_H = 12;
 export const H_GAP = 24; // between sibling subtrees
 export const V_GAP = 54; // between a node's bottom edge and its children's top edge
 export const LEVEL_H = NODE_H + V_GAP;
@@ -701,7 +704,7 @@ function ImpactNode({ impact, impacts, revealed, x, y, depth, targets, issues, o
         lift={coverage ? COVERAGE_LIFT : 0}
         onTargetClick={() => onViewTarget(quantified[0])}
       />
-      {coverage && <CoverageBar coverage={coverage} x={x} y={y} />}
+      {coverage && <CoverageBars coverage={coverage} target={quantified[0]} x={x} y={y} />}
       {revealed && <FullName node={{ type: 'impact', data: impact, x, y }} />}
       <IssueBadges x={x} y={y} issues={issues} onOpen={(rule) => onShowIssue(rule, impact)} />
 
@@ -961,39 +964,74 @@ function nodeLabel(name, quantified, reserved = 0) {
   return { lines: wrapLabel(name, MAX_CHARS, MAX_LINES - 1 - reserved), targetLine };
 }
 
-// How much of an impact's target its children account for, along the node's
-// bottom edge. The hover title carries the amounts the node has no room for.
-function CoverageBar({ coverage, x, y }) {
-  const inset = 10;
-  const labelW = 38;
-  const width = NODE_W - inset * 2 - labelW;
-  const left = x - NODE_W / 2 + inset;
-  const top = y + NODE_H - 15;
-  const percent = `${Math.round(coverage.share * 100)}%`;
+// Planned and actual against an impact's target, stacked along the node's bottom
+// edge. Planned is what its children's targets add up to, actual its own latest
+// reading. Both bars run from zero to the goal so one reads against the other,
+// and show amounts because a percentage from zero would disagree with "% of the
+// way", which counts from the baseline. The hover title spells each out.
+function CoverageBars({ coverage, target, x, y }) {
+  const actual = targetActual(target);
   const gap = coverageGap(coverage);
+  const rows = [
+    {
+      key: 'planned',
+      label: 'Planned',
+      value: coverage.covered,
+      width: coverageWidth(coverage),
+      title: `Planned: ${coverageAmounts(coverage)} from child impacts${gap ? `, ${gap}` : ''}`,
+    },
+    {
+      key: 'actual',
+      label: 'Actual',
+      value: actual?.covered,
+      width: actual ? coverageWidth(actual) : 0,
+      title: actual ? `Actual: ${coverageAmounts(actual)}` : 'Actual: no readings yet',
+    },
+  ];
+  const inset = 10;
+  const labelW = 42;
+  const valueW = 36;
+  const barW = NODE_W - inset * 2 - labelW - valueW;
+  const left = x - NODE_W / 2 + inset;
+  const bottom = y + NODE_H - 8;
   return (
     <g className="node-coverage">
-      <title>
-        {`${percent} accounted for by child impacts: ${coverageAmounts(coverage)}${gap ? `, ${gap}` : ''}`}
-      </title>
-      <rect className="node-coverage-track" x={left} y={top} width={width} height={5} rx={2.5} />
-      <rect
-        className="node-coverage-fill"
-        x={left}
-        y={top}
-        width={(width * coverageWidth(coverage)) / 100}
-        height={5}
-        rx={2.5}
-      />
-      <text
-        className="node-coverage-label"
-        x={x + NODE_W / 2 - inset}
-        y={top + 2.5}
-        textAnchor="end"
-        dominantBaseline="middle"
-      >
-        {percent}
-      </text>
+      {rows.map((row, index) => {
+        const middle = bottom - (rows.length - 1 - index) * COVERAGE_ROW_H - COVERAGE_ROW_H / 2;
+        return (
+          <g key={row.key} className={`node-coverage-row ${row.key}`}>
+            <title>{row.title}</title>
+            <text className="node-coverage-label" x={left} y={middle} dominantBaseline="middle">
+              {row.label}
+            </text>
+            <rect
+              className="node-coverage-track"
+              x={left + labelW}
+              y={middle - 2.5}
+              width={barW}
+              height={5}
+              rx={2.5}
+            />
+            <rect
+              className="node-coverage-fill"
+              x={left + labelW}
+              y={middle - 2.5}
+              width={(barW * row.width) / 100}
+              height={5}
+              rx={2.5}
+            />
+            <text
+              className="node-coverage-label"
+              x={x + NODE_W / 2 - inset}
+              y={middle}
+              textAnchor="end"
+              dominantBaseline="middle"
+            >
+              {formatCompact(row.value)}
+            </text>
+          </g>
+        );
+      })}
     </g>
   );
 }

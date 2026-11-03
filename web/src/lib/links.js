@@ -324,6 +324,14 @@ export function formatValue(value) {
   return String(Number(number.toFixed(2)));
 }
 
+// "1.2K" for places too narrow for the whole number.
+export function formatCompact(value) {
+  if (value == null) return '—';
+  const number = Number(value);
+  if (!Number.isFinite(number)) return String(value);
+  return new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(number);
+}
+
 // Insights are evidence attached to an outcome or a project; the join ids ride
 // along on each insight as outcome_ids / project_ids.
 export function insightsForOutcome(insights, outcome) {
@@ -507,7 +515,18 @@ export function childCoverage(impact, target, impacts, targets) {
   };
 }
 
-// The bar is clamped so an overshoot still draws; the percentage stays real.
+// Where a target's number stands now, in the shape of childCoverage so the two
+// read on one scale: the latest reading as a share of the goal, from zero. That
+// makes it a different figure from progressOf, which counts from the baseline.
+// Null when there is no reading yet or a goal of zero.
+export function targetActual(target) {
+  const goal = Number(target?.target_value);
+  if (target?.latest_value == null || !goal) return null;
+  const covered = Number(target.latest_value);
+  return { covered, goal, share: covered / goal, unit: target.unit };
+}
+
+// The bar is clamped so an overshoot still draws; the amount stays real.
 export function coverageWidth(coverage) {
   return Math.max(0, Math.min(1, coverage.share)) * 100;
 }

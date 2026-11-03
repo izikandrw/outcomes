@@ -1,9 +1,9 @@
 const { test, before } = require('node:test');
 const assert = require('node:assert/strict');
 
-let childCoverage, coverageWidth, coverageAmounts, coverageGap;
+let childCoverage, coverageWidth, coverageAmounts, coverageGap, targetActual, formatCompact;
 before(async () => {
-  ({ childCoverage, coverageWidth, coverageAmounts, coverageGap } = await import('../web/src/lib/links.js'));
+  ({ childCoverage, coverageWidth, coverageAmounts, coverageGap, targetActual, formatCompact } = await import('../web/src/lib/links.js'));
 });
 
 // Ids come back from the API as strings.
@@ -88,4 +88,26 @@ test('is null with no target, no children or a goal of zero', () => {
   assert.equal(childCoverage(impacts[0], undefined, impacts, []), null);
   assert.equal(childCoverage(impacts[1], target('11', '2', 100), impacts, []), null);
   assert.equal(childCoverage(impacts[0], target('10', '1', 0), impacts, []), null);
+});
+
+test('actual is the latest reading on the same zero-to-goal scale as planned', () => {
+  const actual = targetActual({ ...parent, baseline_value: 75, latest_value: '100' });
+  assert.equal(actual.covered, 100);
+  assert.equal(coverageAmounts(actual), '100 of 150 ARR ($M)');
+  assert.equal(coverageWidth(actual), (100 / 150) * 100);
+});
+
+test('actual overshoots with a clamped bar and is null with no reading or goal', () => {
+  const actual = targetActual({ ...parent, latest_value: 300 });
+  assert.equal(actual.share, 2);
+  assert.equal(coverageWidth(actual), 100);
+  assert.equal(targetActual(parent), null);
+  assert.equal(targetActual(undefined), null);
+  assert.equal(targetActual({ ...parent, target_value: 0, latest_value: 5 }), null);
+});
+
+test('compact amounts stay short enough for a map node', () => {
+  assert.equal(formatCompact('100'), '100');
+  assert.equal(formatCompact(12500), '12.5K');
+  assert.equal(formatCompact(null), '—');
 });

@@ -1153,8 +1153,8 @@ button.small {
   stroke-width: 2;
 }
 
-/* How much of an impact's target its child impacts account for. These repeat
-   the selectors above because every rect in an impact node inherits its box. */
+/* Planned and actual against an impact's target. These repeat the selectors
+   above because every rect in an impact node inherits its box. */
 .tree-node.impact rect.node-coverage-track,
 .tree-node.impact:hover rect.node-coverage-track {
   fill: color-mix(in srgb, var(--impact) 20%, transparent);
@@ -1167,8 +1167,12 @@ button.small {
   stroke: none;
 }
 
+.tree-node.impact .node-coverage-row.planned rect.node-coverage-fill {
+  fill: color-mix(in srgb, var(--impact) 50%, transparent);
+}
+
 .tree-node.impact text.node-coverage-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
