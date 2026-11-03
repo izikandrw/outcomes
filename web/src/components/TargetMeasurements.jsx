@@ -195,8 +195,9 @@ const shortDate = (value) =>
   });
 
 // A trend needs at least two readings at different moments, so anything less
-// is left as the table alone. The target value is drawn as a dashed line and
-// kept inside the y-range, so the gap still left to travel is always visible.
+// is left as the table alone. The baseline and target values are drawn as dashed
+// lines and kept inside the y-range, so the start and the gap still left to
+// travel are always visible.
 function MeasurementChart({ target, series }) {
   const points = series
     .map((reading) => ({
@@ -208,9 +209,8 @@ function MeasurementChart({ target, series }) {
   if (points.length < 2 || points[0].t === points.at(-1).t) return null;
 
   const goal = Number(target.target_value);
-  const values = Number.isFinite(goal)
-    ? [...points.map((p) => p.v), goal]
-    : points.map((p) => p.v);
+  const baseline = Number(target.baseline_value);
+  const values = [...points.map((p) => p.v), goal, baseline].filter(Number.isFinite);
   let lo = Math.min(...values);
   let hi = Math.max(...values);
   if (lo === hi) {
@@ -262,17 +262,32 @@ function MeasurementChart({ target, series }) {
           </text>
         </g>
       ))}
-      {Number.isFinite(goal) && (
-        <line
-          className="chart-goal"
-          x1={PAD.left}
-          x2={W - PAD.right}
-          y1={y(goal)}
-          y2={y(goal)}
-        >
-          <title>{`Target ${formatValue(goal)} ${target.unit}`}</title>
-        </line>
-      )}
+      {[
+        { value: baseline, label: "Baseline", className: "chart-baseline" },
+        { value: goal, label: "Target", className: "chart-goal" },
+      ]
+        .filter((line) => Number.isFinite(line.value))
+        .map((line) => (
+          <g key={line.label}>
+            <title>{`${line.label}: ${formatValue(line.value)} ${target.unit}`}</title>
+            <line
+              className={line.className}
+              x1={PAD.left}
+              x2={W - PAD.right}
+              y1={y(line.value)}
+              y2={y(line.value)}
+            />
+            {/* The dashed line is too thin and gappy to hover, so an invisible
+                wider one catches the pointer for the tooltip. */}
+            <line
+              className="chart-line-hit"
+              x1={PAD.left}
+              x2={W - PAD.right}
+              y1={y(line.value)}
+              y2={y(line.value)}
+            />
+          </g>
+        ))}
       <path className="chart-line" d={path} />
       {points.map((p) => (
         <circle

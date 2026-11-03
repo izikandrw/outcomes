@@ -2670,6 +2670,19 @@ button.team-chip.link:hover {
   stroke-dasharray: 5 4;
 }
 
+.chart-baseline {
+  stroke: var(--muted);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+
+.chart-line-hit {
+  stroke: transparent;
+  stroke-width: 12;
+  pointer-events: stroke;
+  cursor: help;
+}
+
 /* Native <details>, collapsed by default so the chart leads. */
 .measurement-accordion > summary,
 .roadmap-unscheduled-toggle > summary,
