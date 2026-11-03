@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { ancestorMoves, lineage, nameOf, parentChoices, refKey } from '../lib/hierarchy.js';
 import { selectedFirst } from '../lib/selectedFirst.js';
+import { ChevronDownIcon } from './icons.jsx';
 
 const GROUP_LABELS = { impact: 'Impacts', outcome: 'Outcomes', project: 'Projects', team: 'Teams' };
 
 // Sits where the modal title was: the item's ancestors, root first, then the
-// title. Clicking a crumb opens a searchable list to swap it for another, and
-// the leading + adds a parent above the top. Swaps only show here until the form
-// is saved, so Cancel undoes them.
-export default function HierarchyBreadcrumb({ title, start, collections, moves, onMove }) {
+// title. Clicking a crumb opens that ancestor. Given `onMove`, hovering or
+// focusing a crumb also shows a caret opening a searchable list to swap it for
+// another, and the leading + adds a parent above the top. Swaps only show here until the form is
+// saved, so Cancel undoes them.
+export default function HierarchyBreadcrumb({ title, start, collections, moves, onMove, onOpen }) {
   // The ref whose parent the open menu is choosing.
   const [choosingFor, setChoosingFor] = useState(null);
   const ref = useRef(null);
@@ -35,11 +37,11 @@ export default function HierarchyBreadcrumb({ title, start, collections, moves, 
 
   const chain = lineage(start, collections, moves);
   const top = chain[0] ? { kind: chain[0].kind, id: chain[0].id } : start;
-  const canAddAbove = parentChoices(top, collections, moves).some((group) => group.items.length > 0);
+  const canAddAbove = onMove && parentChoices(top, collections, moves).some((group) => group.items.length > 0);
   const isChoosing = (child) => choosingFor && refKey(choosingFor) === refKey(child);
   const toggle = (child) => setChoosingFor(isChoosing(child) ? null : child);
   const label = (child) => nameOf(child, collections) ?? `this ${child.kind}`;
-  const staged = ancestorMoves(start, collections, moves);
+  const staged = onMove ? ancestorMoves(start, collections, moves) : [];
 
   return (
     <nav className="crumbs" aria-label="Hierarchy" ref={ref}>
@@ -62,15 +64,25 @@ export default function HierarchyBreadcrumb({ title, start, collections, moves, 
           <li key={refKey(crumb)}>
             <button
               type="button"
-              className="crumb"
-              title={crumb.name}
-              aria-haspopup="listbox"
-              aria-expanded={Boolean(isChoosing(crumb.child))}
-              aria-label={`${crumb.name}: change the parent of ${label(crumb.child)}`}
-              onClick={() => toggle(crumb.child)}
+              className="crumb crumb-link"
+              title={`Open ${crumb.name}`}
+              onClick={() => onOpen({ kind: crumb.kind, id: crumb.id })}
             >
               <span className="crumb-name">{crumb.name}</span>
             </button>
+            {onMove && (
+              <button
+                type="button"
+                className="crumb crumb-swap"
+                title={`Change the parent of ${label(crumb.child)}`}
+                aria-haspopup="listbox"
+                aria-expanded={Boolean(isChoosing(crumb.child))}
+                aria-label={`Change the parent of ${label(crumb.child)}, now ${crumb.name}`}
+                onClick={() => toggle(crumb.child)}
+              >
+                <ChevronDownIcon />
+              </button>
+            )}
           </li>
         ))}
         <li aria-current="page">

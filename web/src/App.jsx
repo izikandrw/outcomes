@@ -219,6 +219,18 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   const moveInBreadcrumb = (child, parent) =>
     setModal((current) => current && { ...current, moves: { ...current.moves, [refKey(child)]: parent } });
 
+  // A breadcrumb's way back up the tree. Anything unsaved in the open form goes,
+  // as it does when another card is clicked.
+  function openAncestor({ kind, id }) {
+    const item = hierarchyItems[kind].find((row) => String(row.id) === String(id));
+    if (!item) return;
+    if (kind === 'outcome') openEdit(item);
+    else if (kind === 'impact') openEditImpact(item);
+    else if (kind === 'project') openEditProject(item);
+    else if (kind === 'target') viewTarget(item);
+    else setModal({ kind: 'team', team: item });
+  }
+
   function changePage(next) {
     setPage(next);
     setIssueFilter(null);
@@ -328,7 +340,8 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
 
   const inSidePanel = page === 'map' && modal != null && opensFromCard(modal);
   const ModalSurface = inSidePanel ? SidePanel : Modal;
-  const hierarchyItems = { impact: impacts, outcome: outcomes, project: projects, team: teams };
+  const hierarchyItems = { impact: impacts, outcome: outcomes, project: projects, team: teams, target: targets };
+  const modalView = modal && `${modal.kind}-${(modal[modal.kind] ?? modal.target)?.id ?? 'new'}`;
   const hierarchy = modalHierarchy(modal);
 
   // Swaps made further up the breadcrumb change those items, not the one open,
@@ -1163,7 +1176,8 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
       {modal && (
         <ModalSurface
           // One card replacing another starts fresh: its own values, at the top.
-          key={inSidePanel ? `${modal.kind}-${(modal[modal.kind] ?? modal.target)?.id ?? 'new'}` : 'modal'}
+          key={inSidePanel ? modalView : 'modal'}
+          view={modalView}
           title={modalTitle(modal)}
           wide={modal.kind === 'entity-insights'}
           header={
@@ -1173,7 +1187,8 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
                 start={hierarchy.start}
                 collections={hierarchyItems}
                 moves={hierarchy.moves}
-                onMove={moveInBreadcrumb}
+                onMove={hierarchy.editable ? moveInBreadcrumb : undefined}
+                onOpen={openAncestor}
               />
             ) : undefined
           }

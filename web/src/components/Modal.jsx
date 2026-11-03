@@ -10,22 +10,28 @@ export const FIRST_FIELD =
 // focus trapping and Esc handling rather than us reimplementing them.
 // `header`, when given, replaces the plain text title in the head (e.g. a
 // clickable tag) — `title` still supplies the accessible name either way.
-export default function Modal({ title, header, wide, onClose, children }) {
+// `view` names what it shows: when that changes it starts again from the top.
+export default function Modal({ title, header, wide, view, onClose, children }) {
   const ref = useRef(null);
 
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog.open) dialog.showModal();
-    // React's autoFocus fires while the dialog is still closed (display: none),
-    // so it misses and showModal() then lands on the close button. Put the
-    // cursor in the form's first field instead.
-    dialog.querySelector(FIRST_FIELD)?.focus();
     document.body.classList.add('modal-open');
     return () => {
       document.body.classList.remove('modal-open');
       if (dialog.open) dialog.close();
     };
   }, []);
+
+  // React's autoFocus fires while the dialog is still closed (display: none), so
+  // it misses and showModal() then lands on the close button. Put the cursor in
+  // the form's first field instead.
+  useEffect(() => {
+    const dialog = ref.current;
+    dialog.scrollTop = 0;
+    dialog.querySelector(FIRST_FIELD)?.focus();
+  }, [view]);
 
   // Esc fires `cancel`; close through React so the dialog is unmounted rather
   // than left open-but-hidden in the DOM.
