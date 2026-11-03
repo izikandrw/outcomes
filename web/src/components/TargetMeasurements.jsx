@@ -35,25 +35,30 @@ export default function TargetMeasurements({ target, measurements, onAddReading,
     }
   }
 
+  const addReadingButton = (
+    <button type="button" className="ghost with-icon small add-reading" onClick={() => onAddReading(target)}>
+      <PlusIcon />
+      Add reading
+    </button>
+  );
+
   return (
     <div className="target-measurements">
       <p className="target-measurements-range">
         <EditableRange target={target} onUpdateTarget={onUpdateTarget} />
       </p>
-      <div className="target-measurements-actions">
-        <button type="button" className="ghost with-icon small" onClick={() => onAddReading(target)}>
-          <PlusIcon />
-          Add reading
-        </button>
-      </div>
       <MeasurementChart target={target} series={series} />
       {deleteError && <p className="error">{deleteError}</p>}
       {readings.length === 0 ? (
-        <p className="empty no-targets">No readings yet.</p>
+        <div className="measurement-readings-empty">
+          <p className="empty no-targets">No readings yet.</p>
+          {addReadingButton}
+        </div>
       ) : (
         <details className="measurement-accordion" open>
           <summary>
             {readings.length} reading{readings.length === 1 ? "" : "s"}
+            {addReadingButton}
           </summary>
           <div className="table-scroll">
             <table className="measurement-table">

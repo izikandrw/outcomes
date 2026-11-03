@@ -2704,10 +2704,14 @@ button.team-chip.link:hover {
   transform: rotate(90deg);
 }
 
-.target-measurements-actions {
+.measurement-readings-empty {
   display: flex;
-  justify-content: flex-end;
-  margin-bottom: 8px;
+  align-items: center;
+  gap: 8px;
+}
+
+.add-reading {
+  margin-left: auto;
 }
 
 /* In-place editing of a target's range pill: each part reads as text until hovered. */
