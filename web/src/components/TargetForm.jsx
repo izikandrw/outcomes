@@ -173,7 +173,7 @@ export default function TargetForm({ outcome, parentKind = 'outcome', editing, o
       <label>
         Description
         <textarea
-          rows={2}
+          rows={8}
           value={form.description}
           placeholder="Where does this number come from?"
           onChange={(event) => update('description', event.target.value)}
