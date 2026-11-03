@@ -16,6 +16,7 @@ import {
   targetRange,
 } from '../lib/links.js';
 import { issuesFor, validateTree } from '../lib/validation.js';
+import { unlinkButtonPoint } from '../lib/edgeButton.js';
 import { useZoom, ZoomControls } from './Zoom.jsx';
 import { SuggestedIcon } from './icons.jsx';
 
@@ -57,6 +58,7 @@ function readShowSuggested() {
 }
 
 const isSuggestedId = (id) => String(id).startsWith('suggested:');
+const HOVER_GRACE_MS = 200;
 
 // Top-down node-link diagram: each node is centred over the block its children
 // occupy, so sibling subtrees never overlap however wide they fan out.
@@ -139,8 +141,9 @@ export default function OutcomeTree({
   // shows a button to break the link.
   const [hoverEdge, setHoverEdge] = useState(null);
   const hoverEnds = hoverEdge?.ends;
-  // Clearing waits a tick so the pointer can cross from a line onto its
-  // remove button (drawn apart, above the nodes) without the button vanishing.
+  // Clearing waits a moment so the pointer can cross from a line onto its
+  // remove button (drawn apart, above the nodes), or wobble off a thin line on
+  // the way there, without the button vanishing.
   const hoverTimer = useRef(null);
   const hoverOn = (edge) => {
     clearTimeout(hoverTimer.current);
@@ -148,7 +151,7 @@ export default function OutcomeTree({
   };
   const hoverOff = () => {
     clearTimeout(hoverTimer.current);
-    hoverTimer.current = setTimeout(() => setHoverEdge(null));
+    hoverTimer.current = setTimeout(() => setHoverEdge(null), HOVER_GRACE_MS);
   };
   const unlink = (edge) => {
     clearTimeout(hoverTimer.current);
@@ -1001,6 +1004,11 @@ function layout(outcomes, projects, impacts) {
       bestCrossings = crossings;
     }
   }
+  // A line to a suggested node can't be hovered, so it can't take the hover away.
+  const hoverable = best.edges.filter((edge) => !isSuggestedId(edge.from.id) && !isSuggestedId(edge.to.id));
+  for (const edge of best.edges) {
+    edge.button = unlinkButtonPoint(edge.d, hoverable.filter((other) => other !== edge).map((other) => other.d));
+  }
   return best;
 }
 
@@ -1275,7 +1283,6 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth, weights) {
   }
 
   spreadLanes(edges);
-  for (const edge of edges) edge.button = pathMidpoint(edge.d);
 
   return {
     nodes,
@@ -1293,32 +1300,6 @@ export function elbowPath(x1, y1, x2, y2) {
   if (x1 === x2) return `M${x1} ${y1} V${y2}`;
   const midY = (y1 + y2) / 2;
   return `M${x1} ${y1} V${midY} H${x2} V${y2}`;
-}
-
-// The point halfway along a connector, where its remove button sits.
-export function pathMidpoint(d) {
-  const points = [];
-  let x = 0;
-  let y = 0;
-  for (const [, cmd, args] of d.matchAll(/([MVH])([^MVH]*)/g)) {
-    const values = args.trim().split(/\s+/).map(Number);
-    if (cmd === 'M') [x, y] = values;
-    else if (cmd === 'V') y = values[0];
-    else x = values[0];
-    points.push([x, y]);
-  }
-  const lengths = points.slice(1).map(([px, py], i) => Math.abs(px - points[i][0]) + Math.abs(py - points[i][1]));
-  let remaining = lengths.reduce((sum, length) => sum + length, 0) / 2;
-  for (let i = 0; i < lengths.length; i += 1) {
-    if (remaining <= lengths[i]) {
-      const t = lengths[i] ? remaining / lengths[i] : 0;
-      const [x1, y1] = points[i];
-      const [x2, y2] = points[i + 1];
-      return { x: x1 + (x2 - x1) * t, y: y1 + (y2 - y1) * t };
-    }
-    remaining -= lengths[i];
-  }
-  return { x, y };
 }
 
 // Connectors from different sources can jog sideways at the same (or nearly
