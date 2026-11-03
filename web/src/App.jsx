@@ -1333,14 +1333,14 @@ function modalTitle({ kind, rule, outcome, parent, target, project, team, impact
   if (kind === 'account') return 'Account settings';
   if (kind === 'members') return 'Members';
   if (kind === 'issue') return `${rule.emoji} ${rule.title}`;
-  if (kind === 'impact') return impact ? `Edit impact #${impact.id}` : parent ? 'New child impact' : 'New impact';
+  if (kind === 'impact') return impact ? `Impact #${impact.id}` : parent ? 'New child impact' : 'New impact';
   if (kind === 'entity-insights') return `Insights · ${entity.name}`;
-  if (kind === 'team') return team ? `Edit team #${team.id}` : 'New team';
-  if (kind === 'target') return target ? `Edit target #${target.id}` : 'New target';
+  if (kind === 'team') return team ? `Team #${team.id}` : 'New team';
+  if (kind === 'target') return target ? `Target #${target.id}` : 'New target';
   if (kind === 'measurement') return 'New measurement';
   if (kind === 'target-measurements') return targetLabel(target);
-  if (kind === 'project') return project ? `Edit project #${project.id}` : 'New project';
-  if (outcome) return `Edit outcome #${outcome.id}`;
+  if (kind === 'project') return project ? `Project #${project.id}` : 'New project';
+  if (outcome) return `Outcome #${outcome.id}`;
   return parent ? 'New child outcome' : 'New outcome';
 }
 

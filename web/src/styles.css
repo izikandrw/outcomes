@@ -417,8 +417,9 @@ body:has(.side-panel) .jump-to-top {
   margin: 0;
 }
 
-/* An open item's parents, root first, ending at its title. Clicking a crumb
-   opens a searchable list across the width of the head to swap that parent. */
+/* An open item's parents, root first, with its title on the line below. Each
+   parent is a chevron pointing at the next, so the shape alone shows the order.
+   Clicking one opens a searchable list across the width of the head to swap it. */
 .crumbs {
   position: relative;
   flex: 1;
@@ -429,7 +430,7 @@ body:has(.side-panel) .jump-to-top {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 2px 4px;
+  gap: 4px 2px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -437,41 +438,40 @@ body:has(.side-panel) .jump-to-top {
 
 .crumbs li {
   display: flex;
-  align-items: center;
-  gap: 4px;
   min-width: 0;
 }
 
-.crumbs ol > li + li::before {
-  content: '›';
-  color: var(--muted);
+.crumbs li[aria-current] {
+  flex-basis: 100%;
+  margin-top: 4px;
 }
 
 .crumb {
+  --point: 9px;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
   min-width: 0;
-  padding: 3px 4px 3px 6px;
-  background: transparent;
+  padding: 5px calc(var(--point) + 8px);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--text);
-  border: 1px solid transparent;
-  border-radius: 6px;
+  border: none;
+  border-radius: 0;
   font-size: 13px;
   font-weight: 500;
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--point)) 0,
+    100% 50%,
+    calc(100% - var(--point)) 100%,
+    0 100%,
+    var(--point) 50%
+  );
 }
 
 .crumb:hover,
+.crumb:focus-visible,
 .crumb[aria-expanded='true'] {
-  border-color: var(--border);
-  background: var(--bg);
-}
-
-.crumb svg {
-  flex: none;
-  width: 12px;
-  height: 12px;
-  color: var(--muted);
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
 }
 
 .crumb-name {
@@ -481,9 +481,15 @@ body:has(.side-panel) .jump-to-top {
   white-space: nowrap;
 }
 
+/* Not part of the chain yet, so a plain pill rather than a chevron. */
 .crumb-add {
-  padding-right: 6px;
+  padding: 5px 10px;
+  margin-right: 2px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 999px;
   color: var(--muted);
+  clip-path: none;
 }
 
 .crumbs-hint {

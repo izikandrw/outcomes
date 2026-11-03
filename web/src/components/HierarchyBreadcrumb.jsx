@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ancestorMoves, lineage, nameOf, parentChoices, refKey } from '../lib/hierarchy.js';
 import { selectedFirst } from '../lib/selectedFirst.js';
-import { ChevronDownIcon } from './icons.jsx';
 
 const GROUP_LABELS = { impact: 'Impacts', outcome: 'Outcomes', project: 'Projects', team: 'Teams' };
 
@@ -71,7 +70,6 @@ export default function HierarchyBreadcrumb({ title, start, collections, moves, 
               onClick={() => toggle(crumb.child)}
             >
               <span className="crumb-name">{crumb.name}</span>
-              <ChevronDownIcon />
             </button>
           </li>
         ))}
