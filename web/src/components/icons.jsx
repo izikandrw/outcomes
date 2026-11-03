@@ -59,6 +59,13 @@ export const TreeIcon = () => (
   </Icon>
 );
 
+export const LinkIcon = () => (
+  <Icon>
+    <path d="M6.75 9.25a2.5 2.5 0 0 0 3.54 0l2.25-2.25a2.5 2.5 0 0 0-3.54-3.54l-.75.75" />
+    <path d="M9.25 6.75a2.5 2.5 0 0 0-3.54 0L3.46 9a2.5 2.5 0 0 0 3.54 3.54l.75-.75" />
+  </Icon>
+);
+
 export const CloseIcon = () => (
   <Icon>
     <path d="M4.25 4.25l7.5 7.5M11.75 4.25l-7.5 7.5" />

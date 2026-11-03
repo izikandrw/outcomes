@@ -6,11 +6,11 @@ import { PencilIcon } from './icons.jsx';
 const GROUP_LABELS = { impact: 'Impacts', outcome: 'Outcomes', project: 'Projects', team: 'Teams' };
 
 // Sits where the modal title was: the item's ancestors, root first, then the
-// title. Clicking a crumb opens that ancestor. Given `onMove`, hovering or
+// heading. Clicking a crumb opens that ancestor. Given `onMove`, hovering or
 // focusing a crumb also shows a pencil opening a searchable list to swap it for
 // another, and the leading + adds a parent above the top. Swaps only show here until the form is
 // saved, so Cancel undoes them.
-export default function HierarchyBreadcrumb({ title, start, collections, moves, onMove, onOpen }) {
+export default function HierarchyBreadcrumb({ heading, start, collections, moves, onMove, onOpen }) {
   // The ref whose parent the open menu is choosing.
   const [choosingFor, setChoosingFor] = useState(null);
   const ref = useRef(null);
@@ -91,7 +91,7 @@ export default function HierarchyBreadcrumb({ title, start, collections, moves, 
           </li>
         ))}
         <li aria-current="page">
-          <h2>{title}</h2>
+          <h2>{heading}</h2>
         </li>
       </ol>
 

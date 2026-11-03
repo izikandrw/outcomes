@@ -80,3 +80,18 @@ export function itemOfModal(modal) {
   }
   return null;
 }
+
+// The query string to share for the item a modal shows, or null if it isn't one
+// existing item. Only what opens the item: the sharer's search and filters stay
+// theirs. A team's link is its home, and an insight only opens on its own page;
+// anything else opens over the page it was copied from.
+export function shareSearchOfModal(modal, { page, teamId }) {
+  const { kind } = modal;
+  const pageView = emptyPageView();
+  if (kind === 'team') {
+    return modal.team ? buildSearch({ page: 'team', teamId: String(modal.team.id), pageView }) : null;
+  }
+  const item = kind === 'target' && modal.target ? { kind, id: String(modal.target.id) } : itemOfModal(modal);
+  if (!item) return null;
+  return buildSearch({ page: item.kind === 'insight' ? 'insights' : page, teamId, item, pageView });
+}

@@ -14,6 +14,7 @@ import Members from './components/Members.jsx';
 import Modal from './components/Modal.jsx';
 import SidePanel from './components/SidePanel.jsx';
 import OutcomeForm from './components/OutcomeForm.jsx';
+import CopyLinkLabel from './components/CopyLinkLabel.jsx';
 import HierarchyBreadcrumb from './components/HierarchyBreadcrumb.jsx';
 import { ancestorMoves, modalHierarchy, parentFields, refKey } from './lib/hierarchy.js';
 import ProjectForm from './components/ProjectForm.jsx';
@@ -33,7 +34,7 @@ import Roadmap from './components/Roadmap.jsx';
 import TopNav from './components/TopNav.jsx';
 import { PlusIcon } from './components/icons.jsx';
 import { formatValue, insightsForOutcome, insightsForProject, isEvidence, targetLabel, targetsFor } from './lib/links.js';
-import { buildSearch, emptyPageView, itemOfModal, readUrl } from './lib/urlState.js';
+import { buildSearch, emptyPageView, itemOfModal, readUrl, shareSearchOfModal } from './lib/urlState.js';
 import { flaggedBy, ruleById, validateTree } from './lib/validation.js';
 
 const STORED_PAGE = 'outcomes.page';
@@ -343,6 +344,9 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   const hierarchyItems = { impact: impacts, outcome: outcomes, project: projects, team: teams, target: targets };
   const modalView = modal && `${modal.kind}-${(modal[modal.kind] ?? modal.target)?.id ?? 'new'}`;
   const hierarchy = modalHierarchy(modal);
+  const shareSearch = modal && shareSearchOfModal(modal, { page, teamId });
+  const modalHeading =
+    modal && (shareSearch ? <CopyLinkLabel label={modalTitle(modal)} search={shareSearch} /> : modalTitle(modal));
 
   // Swaps made further up the breadcrumb change those items, not the one open,
   // so each save writes them first. A failure throws to the form like any other,
@@ -1184,14 +1188,16 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
           header={
             hierarchy ? (
               <HierarchyBreadcrumb
-                title={modalTitle(modal)}
+                heading={modalHeading}
                 start={hierarchy.start}
                 collections={hierarchyItems}
                 moves={hierarchy.moves}
                 onMove={hierarchy.editable ? moveInBreadcrumb : undefined}
                 onOpen={openAncestor}
               />
-            ) : undefined
+            ) : (
+              <h2>{modalHeading}</h2>
+            )
           }
           onClose={() => setModal(null)}
         >

@@ -417,6 +417,47 @@ body:has(.side-panel) .jump-to-top {
   margin: 0;
 }
 
+/* An item's label: looks like the heading it is, and shows it's a link only on
+   hover or keyboard focus. Clicking copies the link. */
+.copy-link {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 10px;
+}
+
+.copy-link a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.copy-link a svg {
+  flex: none;
+  opacity: 0;
+}
+
+.copy-link a:hover,
+.copy-link a:focus-visible {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.copy-link a:hover svg,
+.copy-link a:focus-visible svg {
+  opacity: 1;
+}
+
+.copy-link-status {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--muted);
+}
+
 /* An open item's parents, root first, with its title on the line below. Each
    parent is a chevron pointing at the next, so the shape alone shows the order.
    Clicking one opens it. Where parents can be changed, hovering or focusing one
