@@ -26,8 +26,8 @@ const FRAMEWORK = [
     entity: 'outcome',
     page: 'outcomes',
     title: 'Outcomes',
-    question: 'What change in behavior would serve both?',
-    body: 'Group insights into changes in what people do, then connect each outcome to the impact it could drive. Name the behavior, not the thing you would build.',
+    question: 'What do customers want to see happen?',
+    body: 'Group insights into the results customers are after, then connect each outcome to the impact it could drive. Name what the customer gets, not the metric you want or the thing you would build.',
   },
   {
     entity: 'prioritize',
@@ -49,7 +49,7 @@ const FRAMEWORK = [
 // one below it.
 const EXAMPLE = [
   { entity: 'impact', kind: 'Impact', text: 'Grow revenue by 20% this year', note: 'the business result' },
-  { entity: 'outcome', kind: 'Outcome', text: 'New admins connect their data in their first session', note: 'the change in behavior' },
+  { entity: 'outcome', kind: 'Outcome', text: 'Customers see their own data in the product on day one', note: 'the result the customer wants' },
   { entity: 'project', kind: 'Project', text: 'Guided data connection in onboarding', note: 'the work that ships' },
 ];
 
@@ -132,7 +132,7 @@ read -rs OUTCOMES_PASSWORD`;
         <h2>How to use Outcomes</h2>
         <p>
           The business wants revenue. Customers want their problems solved. Product work gets stuck when those look like
-          a choice. Outcomes are the bridge: a change in what customers do that serves them and moves the business.
+          a choice. Outcomes are the bridge: a result customers want that also moves the business.
         </p>
       </div>
 
