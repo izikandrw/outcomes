@@ -2606,6 +2606,17 @@ button.team-chip.link:hover {
   text-align: right;
 }
 
+/* Shrinks to the delete button; tight padding keeps rows at their text height. */
+.measurement-table .row-actions {
+  width: 1%;
+  padding: 3px 0 3px 6px;
+  text-align: right;
+}
+
+.measurement-table .icon-button {
+  padding: 5px;
+}
+
 .target-measurements-range {
   margin: 0 0 12px;
   text-align: center;

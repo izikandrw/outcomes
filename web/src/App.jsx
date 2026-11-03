@@ -18,7 +18,7 @@ import HierarchyBreadcrumb from './components/HierarchyBreadcrumb.jsx';
 import { ancestorMoves, modalHierarchy, parentFields, refKey } from './lib/hierarchy.js';
 import ProjectForm from './components/ProjectForm.jsx';
 import ProjectList from './components/ProjectList.jsx';
-import TargetMeasurements from './components/TargetMeasurements.jsx';
+import TargetMeasurements, { formatMeasuredAt } from './components/TargetMeasurements.jsx';
 import TargetForm from './components/TargetForm.jsx';
 import TeamForm from './components/TeamForm.jsx';
 import TeamHome from './components/TeamHome.jsx';
@@ -32,7 +32,7 @@ import ReviewQueue from './components/ReviewQueue.jsx';
 import Roadmap from './components/Roadmap.jsx';
 import TopNav from './components/TopNav.jsx';
 import { PlusIcon } from './components/icons.jsx';
-import { insightsForOutcome, insightsForProject, isEvidence, targetLabel, targetsFor } from './lib/links.js';
+import { formatValue, insightsForOutcome, insightsForProject, isEvidence, targetLabel, targetsFor } from './lib/links.js';
 import { buildSearch, emptyPageView, itemOfModal, readUrl } from './lib/urlState.js';
 import { flaggedBy, ruleById, validateTree } from './lib/validation.js';
 
@@ -459,15 +459,29 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   async function saveMeasurement(measurement) {
     const created = await api.createMeasurement(accountId, measurement);
     setMeasurements((current) => [...current, created]);
-    // latest_value and measurement_count are derived server-side, so the target
-    // rows go stale the moment a reading lands. A failed refresh is not a
-    // failed save, so it only leaves progress stale rather than surfacing.
+    await refreshTargets();
+    closeMeasurement();
+  }
+
+  // Stays on the readings table, so the rest of the series can be checked or
+  // cleared. A failed delete throws for the table to show beside the row.
+  async function removeMeasurement(target, reading) {
+    const description = `${formatValue(reading.value)} ${target.unit} on ${formatMeasuredAt(reading.measured_at)}`;
+    if (!(await askConfirm('Delete reading?', `The reading of ${description} will be permanently deleted.`))) return;
+    await api.deleteMeasurement(accountId, reading.id);
+    setMeasurements((current) => current.filter((item) => item.id !== reading.id));
+    await refreshTargets();
+  }
+
+  // latest_value and measurement_count are derived server-side, so the target
+  // rows go stale the moment a reading changes. A failed refresh is not a failed
+  // save, so it only leaves progress stale rather than surfacing.
+  async function refreshTargets() {
     try {
       setTargets(await api.listTargets(accountId));
     } catch {
       /* empty */
     }
-    closeMeasurement();
   }
 
   const closeMeasurement = () =>
@@ -1230,6 +1244,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               target={targets.find((item) => item.id === modal.target.id) ?? modal.target}
               measurements={measurements}
               onAddReading={addReading}
+              onDeleteReading={removeMeasurement}
               onUpdateTarget={async (existing, body) => {
                 const updated = await api.updateTarget(accountId, existing.id, body);
                 setTargets((current) => current.map((item) => (item.id === updated.id ? updated : item)));

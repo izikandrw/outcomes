@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { COMMON_UNITS } from "./TargetForm.jsx";
-import { PlusIcon } from './icons.jsx';
+import { PlusIcon, TrashIcon } from './icons.jsx';
 import {
   formatValue,
   measurementsForTarget,
@@ -10,7 +10,7 @@ import {
 // A reading applies to a day, stored as UTC midnight. Reading it back in local
 // time would show the day before for anyone west of UTC, so the calendar day is
 // rendered in the zone it was stored in.
-const formatMeasuredAt = (value) =>
+export const formatMeasuredAt = (value) =>
   new Date(value).toLocaleDateString(undefined, {
     year: "numeric",
     month: "numeric",
@@ -21,9 +21,19 @@ const formatMeasuredAt = (value) =>
 // Every reading taken against one target, newest first, so the latest number
 // is the first thing seen. The unit lives on the target, so it heads the value
 // column rather than repeating on every row.
-export default function TargetMeasurements({ target, measurements, onAddReading, onUpdateTarget }) {
+export default function TargetMeasurements({ target, measurements, onAddReading, onDeleteReading, onUpdateTarget }) {
   const series = measurementsForTarget(measurements, target);
   const readings = [...series].reverse();
+  const [deleteError, setDeleteError] = useState(null);
+
+  async function deleteReading(reading) {
+    setDeleteError(null);
+    try {
+      await onDeleteReading(target, reading);
+    } catch (err) {
+      setDeleteError(`Could not delete: ${err.message}`);
+    }
+  }
 
   return (
     <div className="target-measurements">
@@ -37,6 +47,7 @@ export default function TargetMeasurements({ target, measurements, onAddReading,
         </button>
       </div>
       <MeasurementChart target={target} series={series} />
+      {deleteError && <p className="error">{deleteError}</p>}
       {readings.length === 0 ? (
         <p className="empty no-targets">No readings yet.</p>
       ) : (
@@ -50,6 +61,7 @@ export default function TargetMeasurements({ target, measurements, onAddReading,
                 <tr>
                   <th>Measured at</th>
                   <th className="num">Value ({target.unit})</th>
+                  <th className="row-actions" aria-label="Actions" />
                 </tr>
               </thead>
               <tbody>
@@ -57,6 +69,17 @@ export default function TargetMeasurements({ target, measurements, onAddReading,
                   <tr key={reading.id}>
                     <td>{formatMeasuredAt(reading.measured_at)}</td>
                     <td className="num">{formatValue(reading.value)}</td>
+                    <td className="row-actions">
+                      <button
+                        type="button"
+                        className="icon-button danger"
+                        title="Delete reading"
+                        aria-label={`Delete reading of ${formatValue(reading.value)} ${target.unit} on ${formatMeasuredAt(reading.measured_at)}`}
+                        onClick={() => deleteReading(reading)}
+                      >
+                        <TrashIcon />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

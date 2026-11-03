@@ -99,6 +99,8 @@ export const createMeasurement = (accountId, measurement) =>
     method: 'POST',
     body: JSON.stringify(measurement),
   });
+export const deleteMeasurement = (accountId, measurementId) =>
+  request(`/accounts/${accountId}/measurements/${measurementId}`, { method: 'DELETE' });
 
 export const listImpacts = (accountId) => request(`/accounts/${accountId}/impacts`);
 export const createImpact = (accountId, impact) =>
