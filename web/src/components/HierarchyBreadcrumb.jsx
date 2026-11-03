@@ -9,7 +9,7 @@ const GROUP_LABELS = { impact: 'Impacts', outcome: 'Outcomes', project: 'Project
 // heading. Clicking a crumb opens that ancestor. Given `onMove`, hovering or
 // focusing a crumb also shows a pencil opening a searchable list to swap it for
 // another, and the leading + adds a parent above the top. Swaps only show here until the form is
-// saved, so Cancel undoes them.
+// saved, so Cancel undoes them. Without a `heading`, the last crumb names what's open.
 export default function HierarchyBreadcrumb({ heading, start, collections, moves, onMove, onOpen }) {
   // The ref whose parent the open menu is choosing.
   const [choosingFor, setChoosingFor] = useState(null);
@@ -90,9 +90,11 @@ export default function HierarchyBreadcrumb({ heading, start, collections, moves
             )}
           </li>
         ))}
-        <li aria-current="page">
-          <h2>{heading}</h2>
-        </li>
+        {heading && (
+          <li aria-current="page">
+            <h2>{heading}</h2>
+          </li>
+        )}
       </ol>
 
       {alsoDrives.length > 0 && (

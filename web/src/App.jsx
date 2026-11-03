@@ -348,6 +348,9 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   const shareSearch = modal && shareSearchOfModal(modal, { page, teamId });
   const modalHeading =
     modal && (shareSearch ? <CopyLinkLabel label={modalTitle(modal)} search={shareSearch} /> : modalTitle(modal));
+  // An item's insights sit under its own crumb, which already names it. A
+  // suggested item has no crumbs, so there the heading is all that names it.
+  const crumbsNameIt = modal?.kind === 'entity-insights' && !modal.entity.suggested;
 
   // Swaps made further up the breadcrumb change those items, not the one open,
   // so each save writes them first. A failure throws to the form like any other,
@@ -1205,7 +1208,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
           header={
             hierarchy ? (
               <HierarchyBreadcrumb
-                heading={modalHeading}
+                heading={crumbsNameIt ? null : modalHeading}
                 start={hierarchy.start}
                 collections={hierarchyItems}
                 moves={hierarchy.moves}
