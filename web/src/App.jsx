@@ -1148,7 +1148,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
           {!loading && issueBanner(page === 'map' ? impacts : outcomes)}
           {loading ? (
             <p className="empty">Loading…</p>
-          ) : outcomes.length === 0 && !(page === 'map' && impacts.length > 0) ? (
+          ) : outcomes.length === 0 && !(page === 'map' && (impacts.length > 0 || projects.length > 0)) ? (
             <EmptyOutcomes onCreate={openCreate} />
           ) : flagged?.length === 0 ? null : page === 'map' ? (
             // Filtered to impacts with an issue, the map draws just those impacts.

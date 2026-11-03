@@ -1087,7 +1087,8 @@ function NodeText({ x, y, lines, targetLine, lift = 0, onTargetClick }) {
 
 // Places impacts on the top row, then outcomes as a node-link tree, then hangs each project as a node
 // under the first outcome (in list order) it drives, under its parent project
-// when it has one, or under an impact it serves directly when it has neither. A
+// when it has one, or under an impact it serves directly when it has neither.
+// A project with no parent at all is a root of its own. A
 // project linked to more than one outcome or impact is still drawn once — the
 // others it drives get a cross-edge to that same node instead of a duplicate.
 // A project shared by several outcomes is drawn under the deepest of them, so
@@ -1385,6 +1386,13 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth, weights) {
   for (const root of byWeight('outcome', roots)) {
     if (placed.has(root.id)) continue;
     const position = place({ kind: 'outcome', data: root }, rootDepth, left);
+    left = position.right + H_GAP * 2;
+  }
+  // Last, so only a project nothing above claimed starts its own tree here,
+  // level with the outcomes no impact claims.
+  for (const root of byWeight('project', projects.filter((project) => !nestedUnder(project)))) {
+    if (placedProjects.has(root.id)) continue;
+    const position = place({ kind: 'project', data: root }, rootDepth, left);
     left = position.right + H_GAP * 2;
   }
 
