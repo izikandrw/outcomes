@@ -6,7 +6,7 @@
 //   OUTCOMES_API_TOKEN  a session token, or
 //   OUTCOMES_EMAIL + OUTCOMES_PASSWORD  to sign in (re-done when a token expires), or
 //   OUTCOMES_DEV_LOGIN=true  to use the API's local-only /auth/dev-login
-const API_URL = (process.env.OUTCOMES_API_URL || 'http://localhost:3000').replace(/\/$/, '');
+export const API_URL = (process.env.OUTCOMES_API_URL || 'http://localhost:3000').replace(/\/$/, '');
 
 let session = process.env.OUTCOMES_API_TOKEN ? { token: process.env.OUTCOMES_API_TOKEN } : null;
 

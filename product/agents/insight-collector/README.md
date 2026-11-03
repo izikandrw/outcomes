@@ -52,6 +52,6 @@ Milestones 1 and 2 can run in parallel. Don't skip 1: it's what lets you tell wh
 ### Running v0
 
 1. `npm run dev` (API) and `npm run web`.
-2. `npm run collector`, then run the `claude mcp add outcomes-collector …` command it prints, and restart Claude Code.
+2. `npm run collector`, then run the `claude mcp add outcomes-collector …` command it prints, and restart Claude Code. Without database access, an admin can use the MCP server's `create_collector_login` tool instead (`mcp/README.md`).
 3. In this repo: *"collect insights from agent-insight-collector/samples/feedback-log.csv"* (or your own export). Claude Code loads the `collect-insights` skill.
 4. Review the suggestions on the app's **Review** page.

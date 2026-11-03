@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const { requireAdmin } = require('../middleware/requireAuth');
 const { newInviteToken, hashInviteToken } = require('../lib/auth');
+const { issueCollectorLogin } = require('../lib/collectorLogin');
 
 const router = express.Router();
 
@@ -68,6 +69,24 @@ router.post('/users/:userId/password-reset', requireAdmin, async (req, res, next
     next(err);
   } finally {
     client.release();
+  }
+});
+
+// Creates the account's insight collector login. The password is returned once,
+// here. An existing collector stays signed in unless { replace: true } asks for
+// a new password, which signs it out.
+router.post('/collector', requireAdmin, async (req, res, next) => {
+  try {
+    const login = await issueCollectorLogin(pool, req.accountId, { replace: req.body?.replace === true });
+    if (!login) {
+      return res.status(409).json({
+        error: 'this account already has a collector; pass replace: true to issue a new password and sign the current one out',
+      });
+    }
+    res.set('Cache-Control', 'no-store');
+    res.status(login.created ? 201 : 200).json({ account_id: req.accountId, ...login });
+  } catch (err) {
+    next(err);
   }
 });
 

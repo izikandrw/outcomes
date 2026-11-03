@@ -8,7 +8,7 @@ Every resource has `list_*`, `get_*`, `create_*`, `update_*` and `delete_*`, exc
 
 | resource | notes |
 | --- | --- |
-| account | `get_account` and `update_account` (name, logo) act on the signed-in account; updating needs an admin |
+| account | `get_account` and `update_account` (name, logo) act on the signed-in account; updating needs an admin. `create_collector_login` is below |
 | teams | `logo` on `create_team` / `update_team`; leaving it out of an update keeps the current one |
 | impacts | nest via `parent_impact_id` |
 | outcomes | `impact_id` only on top-level outcomes; nesting an outcome drops it |
@@ -27,7 +27,9 @@ New resources go in `src/tools/` and are registered in `src/server.js`; `src/too
 
 ## The insight collector's toolset
 
-`OUTCOMES_TOOLSET=collector` registers only `list_outcomes`, `get_outcome`, `list_projects`, `get_project`, `list_insights`, `get_insight`, `suggest_insight`, and the run-trace tools `start_collection_run`, `record_document` and `finish_collection_run`: what the insight collector agent (`product/agents/insight-collector/`, skill `.claude/skills/collect-insights/`) needs to read the account and suggest insights. Pair it with the account's `collector` user, which the API holds to the same limits: `npm run collector` creates that user and prints the `claude mcp add outcomes-collector …` command.
+`OUTCOMES_TOOLSET=collector` registers only `list_outcomes`, `get_outcome`, `list_projects`, `get_project`, `list_insights`, `get_insight`, `suggest_insight`, and the run-trace tools `start_collection_run`, `record_document` and `finish_collection_run`: what the insight collector agent (`product/agents/insight-collector/`, skill `.claude/skills/collect-insights/`) needs to read the account and suggest insights. Pair it with the account's `collector` user, which the API holds to the same limits.
+
+To create that user, an admin can use the `create_collector_login` tool, which acts on the account the server is signed in to. It saves the password to `~/.outcomes/collector-<account id>.env` (mode 600; `OUTCOMES_CREDENTIALS_DIR` moves it) and returns a command that registers the server from that file, so the password stays out of the conversation. It refuses to touch an existing collector unless `replace` is true, because a new password signs the old one out. The tool sits on the API's admin-only `POST /accounts/:id/collector`, which returns the password once. With database access, `npm run collector` does the same and prints the `claude mcp add outcomes-collector …` command.
 
 ## Run
 

@@ -7,12 +7,13 @@
 //   npm run collector -- --account "Acme"   for another account
 //
 // Running it again for the same account issues a new password and signs out
-// the old one. Runs against whatever DATABASE_URL points at.
+// the old one. Runs against whatever DATABASE_URL points at. Without database
+// access, an admin can use POST /accounts/:id/collector or the MCP server's
+// create_collector_login tool instead.
 require('dotenv').config();
-const crypto = require('crypto');
 const path = require('path');
 const pool = require('../src/db');
-const { hashPassword } = require('../src/lib/auth');
+const { issueCollectorLogin } = require('../src/lib/collectorLogin');
 
 const DEV_EMAIL = 'isaac.stennett@gmail.com';
 
@@ -40,19 +41,11 @@ async function findAccount(name) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const account = await findAccount(args.account);
-  const email = `collector+${account.id}@outcomes.invalid`;
-  const password = crypto.randomBytes(18).toString('base64url');
-
-  const { rows } = await pool.query(
-    `INSERT INTO users (account_id, email, password_hash, role) VALUES ($1, $2, $3, 'collector')
-     ON CONFLICT (lower(email)) DO UPDATE SET password_hash = EXCLUDED.password_hash, password_changed_at = now()
-     RETURNING (xmax = 0) AS created`,
-    [account.id, email, hashPassword(password)]
-  );
+  const { email, password, created } = await issueCollectorLogin(pool, account.id, { replace: true });
 
   const server = path.join(__dirname, '..', 'mcp', 'src', 'server.js');
   const apiUrl = process.env.OUTCOMES_API_URL || `http://localhost:${process.env.PORT || 3000}`;
-  console.log(`${rows[0].created ? 'Created' : 'Issued a new password for'} the insight collector of "${account.name}" (id ${account.id}).`);
+  console.log(`${created ? 'Created' : 'Issued a new password for'} the insight collector of "${account.name}" (id ${account.id}).`);
   console.log('\nRegister it with Claude Code (the API must be running):\n');
   console.log(
     `claude mcp add outcomes-collector -e OUTCOMES_TOOLSET=collector -e OUTCOMES_API_URL=${apiUrl} ` +

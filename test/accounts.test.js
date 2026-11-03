@@ -109,3 +109,71 @@ test('PUT /:id on another account is not found', async () => {
   assert.equal(res.status, 404);
   assert.equal(update(), undefined);
 });
+
+const COLLECTOR_EMAIL = `collector+${ACCOUNT_ID}@outcomes.invalid`;
+const insertCollector = () => db.calls.find((call) => /^INSERT INTO users/.test(call.sql));
+const updateCollector = () => db.calls.find((call) => /^UPDATE users/.test(call.sql));
+
+test('POST /:id/collector creates a collector and returns its password once, storing only a hash', async () => {
+  db.respond = (sql) => (/^INSERT INTO users/.test(sql) ? { rows: [{ id: 9 }] } : {});
+
+  const res = await request('POST', `/${ACCOUNT_ID}/collector`, {});
+
+  assert.equal(res.status, 201);
+  assert.equal(res.body.email, COLLECTOR_EMAIL);
+  assert.equal(res.body.created, true);
+  assert.equal(res.body.account_id, ACCOUNT_ID);
+  assert.ok(res.body.password.length >= 20);
+  const { sql, params } = insertCollector();
+  assert.match(sql, /'collector'/);
+  assert.equal(params[0], ACCOUNT_ID);
+  assert.equal(params[1], COLLECTOR_EMAIL);
+  assert.ok(!params.includes(res.body.password));
+});
+
+test('POST /:id/collector leaves an existing collector signed in', async () => {
+  const res = await request('POST', `/${ACCOUNT_ID}/collector`, {});
+
+  assert.equal(res.status, 409);
+  assert.equal(res.body.password, undefined);
+  assert.equal(updateCollector(), undefined);
+});
+
+test('POST /:id/collector only replaces when replace is exactly true', async () => {
+  const res = await request('POST', `/${ACCOUNT_ID}/collector`, { replace: 'yes' });
+
+  assert.equal(res.status, 409);
+  assert.equal(updateCollector(), undefined);
+});
+
+test('POST /:id/collector with replace issues a new password for this account’s collector', async () => {
+  db.respond = (sql) => (/^UPDATE users/.test(sql) ? { rowCount: 1 } : {});
+
+  const res = await request('POST', `/${ACCOUNT_ID}/collector`, { replace: true });
+
+  assert.equal(res.status, 200);
+  assert.equal(res.body.created, false);
+  assert.ok(res.body.password);
+  const { sql, params } = updateCollector();
+  assert.match(sql, /password_changed_at = now\(\)/);
+  assert.match(sql, /role = 'collector'/);
+  assert.deepEqual(params.slice(1), [COLLECTOR_EMAIL, ACCOUNT_ID]);
+  assert.ok(!params.includes(res.body.password));
+});
+
+test('POST /:id/collector is admin only, and closed to the collector itself', async () => {
+  for (const denied of ['member', 'collector']) {
+    role = denied;
+    const res = await request('POST', `/${ACCOUNT_ID}/collector`, { replace: true });
+    assert.equal(res.status, 403);
+  }
+  assert.equal(insertCollector(), undefined);
+  assert.equal(updateCollector(), undefined);
+});
+
+test('POST /:id/collector on another account is not found', async () => {
+  const res = await request('POST', '/8/collector', {});
+
+  assert.equal(res.status, 404);
+  assert.equal(insertCollector(), undefined);
+});

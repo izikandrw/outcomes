@@ -25,7 +25,7 @@ Use the **`outcomes-collector`** MCP server. It signs in as the account's collec
 
 Every run is traced: people read the trace in the app's Runs view to find your mistakes and pick eval cases, so the trace has to show every document you read, including the ones you passed over, and why. This is version **collect-insights v5** of these instructions.
 
-If only the `outcomes` server is connected, it signs in as the user, not the collector. Stop and tell them to run `npm run collector` and register the `outcomes-collector` server it prints. Never use `create_insight`, `update_*` or `delete_*` for this job, and never create outcomes or projects: propose them (step 7).
+If only the `outcomes` server is connected, it signs in as the user, not the collector. Don't collect with it. Set up the collector instead: call its `create_collector_login` (needs an admin; ask before passing `replace`, which signs out the current collector), run the `register_command` it returns, and tell them to restart Claude Code, since a new server only appears in a new session. The password goes to a private file: never print it or pass it on the command line yourself. If they aren't an admin, ask them to run `npm run collector` with database access. Never use `create_insight`, `update_*` or `delete_*` for this job, and never create outcomes or projects: propose them (step 7).
 
 ## What counts as an insight
 
