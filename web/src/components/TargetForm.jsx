@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import AutoGrowTextarea from './AutoGrowTextarea.jsx';
 import { formatValue } from '../lib/links.js';
 
 // Suggestions only: the unit stays free text, so anything typed is accepted.
@@ -172,8 +173,7 @@ export default function TargetForm({ outcome, parentKind = 'outcome', editing, o
 
       <label>
         Description
-        <textarea
-          rows={8}
+        <AutoGrowTextarea
           value={form.description}
           placeholder="Where does this number come from?"
           onChange={(event) => update('description', event.target.value)}

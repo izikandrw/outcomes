@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import AutoGrowTextarea from './AutoGrowTextarea.jsx';
 
 const EMPTY = { name: '', description: '', team_id: '', start_at: '', end_at: '' };
 
@@ -106,8 +107,7 @@ export default function ProjectForm({ editing, draft, outcome, parentProject, te
 
       <label>
         Description
-        <textarea
-          rows={8}
+        <AutoGrowTextarea
           value={form.description}
           placeholder="What will this ship?"
           onChange={(event) => update('description', event.target.value)}

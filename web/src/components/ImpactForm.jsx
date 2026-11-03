@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import AutoGrowTextarea from './AutoGrowTextarea.jsx';
 import TargetsSection from './TargetsSection.jsx';
 
 const EMPTY = { name: '', description: '', parent_impact_id: '' };
@@ -77,8 +78,7 @@ export default function ImpactForm({
 
       <label>
         Description
-        <textarea
-          rows={8}
+        <AutoGrowTextarea
           value={form.description}
           placeholder="Why does this matter to the business?"
           onChange={(event) => update('description', event.target.value)}

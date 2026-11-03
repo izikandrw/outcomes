@@ -226,6 +226,12 @@ textarea {
   resize: vertical;
 }
 
+/* Sized to its text by AutoGrowTextarea, so there's nothing to drag or scroll. */
+textarea.auto-grow {
+  resize: none;
+  overflow: hidden;
+}
+
 input:focus,
 select:focus,
 textarea:focus {
@@ -492,6 +498,44 @@ body:has(.side-panel) .jump-to-top {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+/* A form's buttons stay in reach however long it is. In the side panel they also
+   sit at the bottom of the window when the form is short, so they don't move from
+   one item to the next. The negative margins take the row out to the edges of
+   .modal-body, whose padding the text would otherwise show through as it scrolls. */
+.side-panel,
+.modal {
+  --form-footer-height: 66px;
+  scroll-padding-bottom: var(--form-footer-height);
+}
+
+.side-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.side-panel > .modal-body,
+.side-panel > .modal-body > .outcome-form {
+  flex: 1 0 auto;
+}
+
+.modal-body > .outcome-form > .form-actions {
+  position: sticky;
+  bottom: 0;
+  margin: auto -18px -18px;
+  padding: 12px 18px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+/* Directly above the buttons, or a failed save could say why out of sight. */
+.modal-body > .outcome-form > .error {
+  position: sticky;
+  bottom: var(--form-footer-height);
+  margin: 0;
+  padding-block: 6px;
+  background: var(--surface);
 }
 
 body.modal-open {

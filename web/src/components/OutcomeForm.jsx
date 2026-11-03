@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import AutoGrowTextarea from './AutoGrowTextarea.jsx';
 import MultiSelect from './MultiSelect.jsx';
 import TargetsSection from './TargetsSection.jsx';
 import { projectsForOutcome, projectsLinkedInLineage } from '../lib/links.js';
@@ -131,8 +132,7 @@ export default function OutcomeForm({
 
       <label>
         Description
-        <textarea
-          rows={8}
+        <AutoGrowTextarea
           value={form.description}
           placeholder="What does success look like?"
           onChange={(event) => update('description', event.target.value)}
