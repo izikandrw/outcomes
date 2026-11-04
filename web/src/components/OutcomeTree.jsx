@@ -16,7 +16,7 @@ import {
   teamsOnOutcome,
   teamsOnProject,
   formatQuarter,
-  targetRange,
+  targetSummary,
   childCoverage,
   coverageAmounts,
   coverageGap,
@@ -975,13 +975,13 @@ function linkHint({ parent, child, moves }) {
 }
 
 // An outcome, impact or project states its targets inside its own node: the name takes
-// up to three lines and the last line is its first target's numbers, with "+N"
+// up to three lines and the last line is its first target's name and numbers, with "+N"
 // when it owns more. Without targets the name gets all four lines. `reserved`
 // is how many lines something else drawn in the node needs.
 function nodeLabel(name, quantified, reserved = 0) {
   if (quantified.length === 0) return { lines: wrapLabel(name), targetLine: null };
   const extra = quantified.length > 1 ? ` +${quantified.length - 1}` : '';
-  const [targetLine] = wrapLabel(`${targetRange(quantified[0])}${extra}`, MAX_CHARS, 1);
+  const [targetLine] = wrapLabel(`${targetSummary(quantified[0], MAX_CHARS - extra.length)}${extra}`, MAX_CHARS, 1);
   return { lines: wrapLabel(name, MAX_CHARS, MAX_LINES - 1 - reserved), targetLine };
 }
 

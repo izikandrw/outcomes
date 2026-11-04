@@ -39,6 +39,17 @@ export function targetRange(target) {
   return `${formatValue(target.baseline_value)} → ${formatValue(target.target_value)} ${target.unit}`;
 }
 
+// "ARR: 0 → 1 $": the range with the target's name in front, for a space limited
+// to `maxChars`. The numbers are what must survive, so a name that won't fit is
+// dropped rather than letting the range be clipped, and so is one the unit already
+// says, as in "ARR: 0 → 1 ARR ($M)".
+export function targetSummary(target, maxChars = Infinity) {
+  const range = targetRange(target);
+  if (!target.name || unitKey(target.unit).includes(unitKey(target.name))) return range;
+  const named = `${target.name}: ${range}`;
+  return named.length <= maxChars ? named : range;
+}
+
 // Targets and readings hang off an outcome, an impact or a project; `kind` says
 // which the entity is.
 export function targetsFor(targets, entity, kind) {
