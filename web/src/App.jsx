@@ -33,13 +33,15 @@ import ReviewQueue from './components/ReviewQueue.jsx';
 import Roadmap from './components/Roadmap.jsx';
 import TopNav from './components/TopNav.jsx';
 import GuidePage from './components/GuidePage.jsx';
-import { PlusIcon } from './components/icons.jsx';
+import { IssuesIcon, PlusIcon } from './components/icons.jsx';
 import { formatValue, insightsForOutcome, insightsForProject, isEvidence, targetLabel, targetsFor } from './lib/links.js';
 import { buildSearch, emptyPageView, itemOfModal, readUrl, shareSearchOfModal } from './lib/urlState.js';
 import { flaggedBy, ruleById, validateTree } from './lib/validation.js';
 
 const STORED_PAGE = 'outcomes.page';
 const STORED_TEAM = 'outcomes.team';
+// Whether the map draws issue badges and outlines; on until turned off.
+const STORED_MAP_ISSUES = 'outcomes.mapIssues';
 // Where a header issue count takes you, by the kind of thing its rule applies to.
 const ISSUE_PAGES = { impact: 'impacts', outcome: 'outcomes', project: 'projects' };
 
@@ -86,6 +88,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   // Which team the 'team' page shows: that page is a team's home, reached by
   // clicking a team card or a team badge.
   const [teamId, setTeamId] = useState(() => initialUrl.teamId || localStorage.getItem(STORED_TEAM));
+  const [showMapIssues, setShowMapIssues] = useState(() => localStorage.getItem(STORED_MAP_ISSUES) !== '0');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   // Once the header scrolls out of view a compact copy of the nav pins to the top.
@@ -371,6 +374,10 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
     }
   }
 
+  function toggleMapIssues() {
+    localStorage.setItem(STORED_MAP_ISSUES, showMapIssues ? '0' : '1');
+    setShowMapIssues(!showMapIssues);
+  }
   const issueRule = issueFilter ? ruleById(issueFilter) : null;
   const flagged = issueRule ? flaggedBy(issueRule, { impacts, outcomes, projects, insights: evidence }) : null;
   const issueBanner = (all) =>
@@ -1177,6 +1184,20 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
           {(page === 'map' || loading || outcomes.length === 0 || flagged?.length === 0) && (
             <div className="list-head">
               <div className="actions">
+                {/* A map filtered to one issue always shows it, so there's nothing to hide. */}
+                {page === 'map' && !issueRule && (
+                  <div className="view-toggle" role="group" aria-label="Issues on the map">
+                    <button
+                      type="button"
+                      aria-pressed={showMapIssues}
+                      onClick={toggleMapIssues}
+                      title={`${showMapIssues ? 'Hide' : 'Show'} the issue badges and red outlines on the map.`}
+                    >
+                      <IssuesIcon />
+                      Issues
+                    </button>
+                  </div>
+                )}
                 {page === 'map' && (
                   <button type="button" className="with-icon btn-impact" onClick={openCreateImpact}>
                     <PlusIcon />
@@ -1205,6 +1226,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
               targets={targets}
               insights={evidence}
               suggestions={flagged ? [] : suggestions}
+              showIssues={showMapIssues || Boolean(issueRule)}
               onShowInsights={showInsights}
               selectedKey={inSidePanel && openItem ? `${openItem.kind}-${openItem.id}` : null}
               onEdit={openEdit}

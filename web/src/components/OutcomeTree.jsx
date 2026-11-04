@@ -84,6 +84,7 @@ export default function OutcomeTree({
   targets,
   insights,
   suggestions = [],
+  showIssues = true,
   selectedKey,
   onEdit,
   onEditImpact,
@@ -149,6 +150,9 @@ export default function OutcomeTree({
     )
   );
   const validation = validateTree({ outcomes, projects, insights, impacts });
+  // Hidden issues still count in the header; only the map stops drawing them.
+  const issuesOf = (node) =>
+    showIssues && !node.data.suggested ? issuesFor(validation, node.type, node.data) : [];
   // { entity, kind, left, top } — kind is 'outcome' or 'impact'. Anchored in
   // viewport coordinates so the menu is never clipped by the scroll container.
   const [menu, setMenu] = useState(null);
@@ -422,7 +426,7 @@ export default function OutcomeTree({
                 impact={node.data}
                 coverageData={coverageData}
                 revealed={keyOf(node) === revealKey}
-                issues={issuesFor(validation, 'impact', node.data)}
+                issues={issuesOf(node)}
                 targets={targets}
                 onEdit={onEditImpact}
                 onViewTarget={onViewTarget}
@@ -441,7 +445,7 @@ export default function OutcomeTree({
                 insightCount={insightsForProject(insights, node.data).length}
                 suggestedCount={suggestedOf(node)}
                 insightDollars={dollarsOf(node)}
-                issues={node.data.suggested ? [] : issuesFor(validation, 'project', node.data)}
+                issues={issuesOf(node)}
                 onShowInsights={onShowInsights}
                 onEdit={node.data.suggested ? onOpenSuggested : onEditProject}
                 coverageData={coverageData}
@@ -461,7 +465,7 @@ export default function OutcomeTree({
                 insightCount={insightsForOutcome(insights, node.data).length}
                 suggestedCount={suggestedOf(node)}
                 insightDollars={dollarsOf(node)}
-                issues={node.data.suggested ? [] : issuesFor(validation, 'outcome', node.data)}
+                issues={issuesOf(node)}
                 onShowInsights={onShowInsights}
                 onEdit={node.data.suggested ? onOpenSuggested : onEdit}
                 onViewTarget={onViewTarget}

@@ -37,6 +37,14 @@ export const SuggestedIcon = () => (
   </Icon>
 );
 
+// A warning triangle: something on the map breaks a delivery rule.
+export const IssuesIcon = () => (
+  <Icon>
+    <path d="M8 2.75 14 13H2z" />
+    <path d="M8 6.75v2.75M8 11.25v.01" />
+  </Icon>
+);
+
 export const PencilIcon = () => (
   <Icon>
     <path d="M11.1 2.9a1.55 1.55 0 0 1 2.2 2.2L6.1 12.3l-2.9.8.8-2.9z" />
