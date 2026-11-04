@@ -1,9 +1,9 @@
 const { test, before } = require('node:test');
 const assert = require('node:assert/strict');
 
-let targetSummary;
+let targetSummary, targetBody;
 before(async () => {
-  ({ targetSummary } = await import('../web/src/lib/links.js'));
+  ({ targetSummary, targetBody } = await import('../web/src/lib/links.js'));
 });
 
 const target = (name, unit, baseline_value = 0, target_value = 1) => ({ name, unit, baseline_value, target_value });
@@ -33,4 +33,46 @@ test('skips a name the unit already says', () => {
 
 test('has no limit unless given one', () => {
   assert.equal(targetSummary(target('Estimated contribution', '$')), 'Estimated contribution: 0 → 1 $');
+});
+
+const saved = {
+  id: '7',
+  account_id: '1',
+  outcome_id: null,
+  impact_id: null,
+  project_id: '3',
+  name: 'ARR',
+  description: 'From the finance sheet',
+  unit: '$',
+  baseline_value: '70',
+  target_value: '138',
+  baseline_at: '2026-01-01T00:00:00.000Z',
+  due_at: null,
+  latest_value: '90',
+  measurement_count: 2,
+};
+
+test('saving a description sends the rest of the target back unchanged', () => {
+  assert.deepEqual(targetBody(saved, { description: 'Booked ARR only' }), {
+    outcome_id: null,
+    impact_id: null,
+    project_id: '3',
+    name: 'ARR',
+    description: 'Booked ARR only',
+    unit: '$',
+    baseline_value: 70,
+    target_value: 138,
+    baseline_at: '2026-01-01T00:00:00.000Z',
+    due_at: null,
+  });
+});
+
+test('a description can be cleared', () => {
+  assert.equal(targetBody(saved, { description: null }).description, null);
+});
+
+test('editing the range keeps the description', () => {
+  const body = targetBody(saved, { target_value: 200 });
+  assert.equal(body.description, 'From the finance sheet');
+  assert.equal(body.target_value, 200);
 });

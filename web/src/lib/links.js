@@ -50,6 +50,24 @@ export function targetSummary(target, maxChars = Infinity) {
   return named.length <= maxChars ? named : range;
 }
 
+// The API takes whole targets, so editing one field in place sends the rest back
+// unchanged, with `changes` on top.
+export function targetBody(target, changes = {}) {
+  const next = { ...target, ...changes };
+  return {
+    outcome_id: next.outcome_id ?? null,
+    impact_id: next.impact_id ?? null,
+    project_id: next.project_id ?? null,
+    name: next.name ?? null,
+    description: next.description ?? null,
+    unit: next.unit,
+    baseline_value: Number(next.baseline_value),
+    target_value: Number(next.target_value),
+    baseline_at: next.baseline_at ?? null,
+    due_at: next.due_at ?? null,
+  };
+}
+
 // Targets and readings hang off an outcome, an impact or a project; `kind` says
 // which the entity is.
 export function targetsFor(targets, entity, kind) {

@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { COMMON_UNITS } from "./TargetForm.jsx";
+import { InlineText } from "./InlineFields.jsx";
 import { PlusIcon, TrashIcon } from './icons.jsx';
 import {
   formatValue,
   measurementsForTarget,
-  targetRange,
+  targetBody,
 } from "../lib/links.js";
 
 // A reading applies to a day, stored as UTC midnight. Reading it back in local
@@ -25,6 +26,16 @@ export default function TargetMeasurements({ target, measurements, onAddReading,
   const series = measurementsForTarget(measurements, target);
   const readings = [...series].reverse();
   const [deleteError, setDeleteError] = useState(null);
+  const [descriptionError, setDescriptionError] = useState(null);
+
+  async function saveDescription(description) {
+    setDescriptionError(null);
+    try {
+      await onUpdateTarget(target, targetBody(target, { description: description || null }));
+    } catch (err) {
+      setDescriptionError(`Could not save: ${err.message}`);
+    }
+  }
 
   async function deleteReading(reading) {
     setDeleteError(null);
@@ -44,6 +55,16 @@ export default function TargetMeasurements({ target, measurements, onAddReading,
 
   return (
     <div className="target-measurements">
+      <p className="target-description">
+        <InlineText
+          value={target.description ?? ""}
+          label="Description"
+          placeholder="Add a description"
+          multiline
+          onCommit={saveDescription}
+        />
+      </p>
+      {descriptionError && <p className="error">{descriptionError}</p>}
       <p className="target-measurements-range">
         <EditableRange target={target} onUpdateTarget={onUpdateTarget} />
       </p>
@@ -112,24 +133,14 @@ function EditableRange({ target, onUpdateTarget }) {
     if (!text || (numeric && !Number.isFinite(Number(text)))) {
       return setError(numeric ? "Must be a number." : "Unit is required.");
     }
-    const next = { ...target, [name]: numeric ? Number(text) : text };
-    if (Number(next.baseline_value) === Number(next.target_value)) {
+    const next = { [name]: numeric ? Number(text) : text };
+    const { baseline_value, target_value } = { ...target, ...next };
+    if (Number(baseline_value) === Number(target_value)) {
       return setError("Baseline and target can't be the same.");
     }
     setError(null);
     try {
-      await onUpdateTarget(target, {
-        outcome_id: target.outcome_id ?? null,
-        impact_id: target.impact_id ?? null,
-        project_id: target.project_id ?? null,
-        name: target.name ?? null,
-        description: target.description ?? null,
-        unit: next.unit,
-        baseline_value: Number(next.baseline_value),
-        target_value: Number(next.target_value),
-        baseline_at: target.baseline_at ?? null,
-        due_at: target.due_at ?? null,
-      });
+      await onUpdateTarget(target, targetBody(target, next));
     } catch (err) {
       setError(err.message);
     }

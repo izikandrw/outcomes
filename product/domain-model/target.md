@@ -12,6 +12,8 @@ An outcome can carry more than one target. A behavior change that moves exactly 
 
 A target is part of what it quantifies, not a separate thing beside it. It is created, edited and shown inside its outcome, impact or project, and it has no life of its own: "Grow Revenue" measured as 1000 → 1200 ARR is one impact with one target, not an impact and a second "Revenue Growth" that happen to be linked. For that reason a target's name is optional. When it has none, its unit labels it; a name is only worth giving when the parent has several targets and they need telling apart.
 
+A target can carry a description: what the number means and where it comes from, for whoever reads it later. It is optional, and is shown and edited in place above the target's readings.
+
 A target can be wrong, and revising one is normal. It should be a deliberate edit rather than a quiet one, because the baseline is the record of what the team believed when it started.
 
 A target is not a project. It says how far a number has to move, never what will be built to move it. If a statement describes work, it belongs to a project. A project's own target says what that work has to reach, e.g. "the self-serve checkout brings in $200K of ARR".

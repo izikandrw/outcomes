@@ -2879,6 +2879,11 @@ button.team-chip.link:hover {
   padding: 4px 14px;
 }
 
+.target-description {
+  margin: 0 0 12px;
+  white-space: pre-wrap;
+}
+
 .measurement-chart {
   display: block;
   width: 100%;
@@ -3131,23 +3136,23 @@ button.team-chip.link:hover {
 
 /* Fields edit in place: they read as plain text or tags, and outline on hover
    to show a click edits them. */
-:is(.review-card, .insight-card, .project-row) .inline-edit {
+:is(.review-card, .insight-card, .project-row, .target-measurements) .inline-edit {
   cursor: text;
   border-radius: 6px;
   outline: 1px solid transparent;
   outline-offset: 2px;
 }
 
-:is(.review-card, .insight-card, .project-row) .inline-edit:hover,
-:is(.review-card, .insight-card, .project-row) .inline-edit:focus-visible {
+:is(.review-card, .insight-card, .project-row, .target-measurements) .inline-edit:hover,
+:is(.review-card, .insight-card, .project-row, .target-measurements) .inline-edit:focus-visible {
   outline-color: var(--border);
 }
 
-:is(.review-card, .insight-card, .project-row) .inline-edit:focus-visible {
+:is(.review-card, .insight-card, .project-row, .target-measurements) .inline-edit:focus-visible {
   outline-color: var(--accent);
 }
 
-:is(.review-card, .insight-card, .project-row) .inline-edit.empty:not(.tag) {
+:is(.review-card, .insight-card, .project-row, .target-measurements) .inline-edit.empty:not(.tag) {
   color: var(--muted);
   font-style: italic;
 }
@@ -3162,12 +3167,12 @@ button.team-chip.link:hover {
   overflow-wrap: anywhere;
 }
 
-:is(.review-card, .insight-card, .project-row) .cell-input {
+:is(.review-card, .insight-card, .project-row, .target-measurements) .cell-input {
   font: inherit;
   color: inherit;
 }
 
-:is(.review-card, .insight-card, .project-row) .inline-input {
+:is(.review-card, .insight-card, .project-row, .target-measurements) .inline-input {
   width: 100%;
   padding: 2px 6px;
   margin: -3px 0 -3px -7px;
@@ -3176,7 +3181,7 @@ button.team-chip.link:hover {
   background: var(--surface);
 }
 
-:is(.review-card, .insight-card, .project-row) textarea.inline-input {
+:is(.review-card, .insight-card, .project-row, .target-measurements) textarea.inline-input {
   display: block;
   resize: none;
   overflow: hidden;

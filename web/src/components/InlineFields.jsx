@@ -387,6 +387,8 @@ export function InlineText({ value, label, display, placeholder = '', type = 'te
       event.currentTarget.blur();
     }
     if (event.key === 'Escape') {
+      // Inside a modal, Esc would otherwise close the dialog as well as the edit.
+      event.preventDefault();
       cancelled.current = true;
       restoreFocus.current = true;
       event.currentTarget.blur();
