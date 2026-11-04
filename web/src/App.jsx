@@ -468,15 +468,34 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   }
 
   async function removeImpact(impact) {
-    if (!(await askConfirm('Delete impact?', deleteWarning(impact.name, 'impact_id', impact.id)))) return;
+    const isIt = (id) => String(id) === String(impact.id);
+    const hasChildren =
+      impacts.some((item) => isIt(item.parent_impact_id)) ||
+      outcomes.some((item) => isIt(item.impact_id)) ||
+      projects.some((item) => (item.impact_ids ?? []).some(isIt));
+    const warning = `${deleteWarning(impact.name, 'impact_id', impact.id)}${
+      hasChildren ? ' What sits under it stays, without this parent.' : ''
+    }`;
+    if (!(await askConfirm('Delete impact?', warning))) return;
     try {
       await api.deleteImpact(accountId, impact.id);
-      setImpacts((current) => current.filter((item) => item.id !== impact.id));
+      setImpacts((current) =>
+        current
+          .filter((item) => !isIt(item.id))
+          .map((item) => (isIt(item.parent_impact_id) ? { ...item, parent_impact_id: null } : item))
+      );
+      setOutcomes((current) => current.map((item) => (isIt(item.impact_id) ? { ...item, impact_id: null } : item)));
+      setProjects((current) =>
+        current.map((item) =>
+          (item.impact_ids ?? []).some(isIt)
+            ? { ...item, impact_ids: item.impact_ids.filter((id) => !isIt(id)) }
+            : item
+        )
+      );
       dropTargetsOf('impact_id', impact.id);
       setModal(null);
       setError(null);
     } catch (err) {
-      // 409 when a child impact or outcome still points at it.
       setError(`Could not delete: ${err.message}`);
       setModal(null);
     }

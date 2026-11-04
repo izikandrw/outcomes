@@ -81,9 +81,12 @@ router.put('/:impactId', async (req, res, next) => {
 router.delete('/:impactId', async (req, res, next) => {
   try {
     // Its targets and their readings go with it. Child impacts and linked outcomes
-    // still pointing here raise 23503, which app.js turns into a 409. project_impacts
-    // rows cascade.
-    if (!(await deleteWithTargets('impacts', 'impact_id', req.params.impactId, req.accountId))) {
+    // stay and lose this parent; project_impacts rows cascade, so linked projects stay too.
+    const detach = [
+      ['impacts', 'parent_impact_id'],
+      ['outcomes', 'impact_id'],
+    ];
+    if (!(await deleteWithTargets('impacts', 'impact_id', req.params.impactId, req.accountId, detach))) {
       return res.status(404).json({ error: 'impact not found' });
     }
     res.status(204).send();

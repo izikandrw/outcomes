@@ -7,7 +7,8 @@ export function registerImpactTools(server) {
     collection: 'impacts',
     singular: 'impact',
     idField: 'impact_id',
-    deleteNote: ' Its targets and their readings are deleted with it.',
+    deleteNote:
+      ' Its targets and their readings are deleted with it. Child impacts, linked outcomes and linked projects are kept and just lose the link to it.',
     listDescription:
       'List every impact (business result) in the account. Impacts nest via parent_impact_id; top-level outcomes link to them via impact_id.',
   });
