@@ -789,14 +789,22 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
     }
   }
 
-  // Breaks the link a map line draws: a child outcome loses its parent, a
-  // project loses its parent project or one driven outcome or impact.
+  // Breaks the link a map line draws: a child impact or outcome loses its parent,
+  // a project loses its parent project or one driven outcome or impact.
   async function unlink({ from, to }) {
     // An open form holds the links as they were, and saving would restore them.
     setModal(null);
     const same = (a, b) => String(a) === String(b);
     try {
-      if (to.kind === 'outcome') {
+      if (to.kind === 'impact') {
+        const child = impacts.find((item) => same(item.id, to.id));
+        const updated = await api.updateImpact(accountId, child.id, {
+          name: child.name,
+          description: child.description,
+          parent_impact_id: null,
+        });
+        setImpacts((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      } else if (to.kind === 'outcome') {
         const child = outcomes.find((item) => same(item.id, to.id));
         // Whether its line came from a parent outcome or an impact, both go.
         const updated = await api.updateOutcome(accountId, child.id, {
