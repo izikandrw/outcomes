@@ -1856,9 +1856,10 @@ button.tag.insight-badge.suggested {
 
 /* Columns are a set width rather than fitting their contents, so they stay put
    as the rows change: between Verified, Suggested and All, between one outcome's
-   insights and another's, and when a field is edited. Each is wide enough for its
-   longest value; the Insight column takes what's left, and on a narrow window the
-   table scrolls sideways rather than squeezing it. */
+   insights and another's, and when a field is edited. Each is just wide enough for
+   its longest value, except Source, which truncates with the whole source on hover;
+   the Insight column takes what's left, and on a narrow window the table scrolls
+   sideways rather than squeezing it. */
 .insight-table {
   width: 100%;
   min-width: 74rem;
@@ -1868,13 +1869,20 @@ button.tag.insight-badge.suggested {
 }
 
 .insight-table th:nth-child(1) { width: 7rem; }
-.insight-table th:nth-child(2) { width: 5rem; }
-.insight-table th:nth-child(4) { width: 10rem; }
-.insight-table th:nth-child(5) { width: 7.5rem; }
-.insight-table th:nth-child(6) { width: 6.75rem; }
-.insight-table th:nth-child(7) { width: 11rem; }
+.insight-table th:nth-child(2) { width: 4.25rem; }
+.insight-table th:nth-child(4) { width: 9.5rem; }
+.insight-table th:nth-child(5) { width: 7rem; }
+.insight-table th:nth-child(6) { width: 6.25rem; }
+.insight-table th:nth-child(7) { width: 7.5rem; }
 .insight-table th:nth-child(8) { width: 9.25rem; }
 .insight-table th:nth-child(9) { width: 2.5rem; }
+
+/* The runs and eval tables share the class but have different columns. */
+.runs-table th:nth-child(2) { width: 5rem; }
+.runs-table th:nth-child(4) { width: 10rem; }
+.runs-table th:nth-child(5) { width: 7.5rem; }
+.runs-table th:nth-child(6) { width: 6.75rem; }
+.runs-table th:nth-child(7) { width: 11rem; }
 
 .insight-table th,
 .insight-table td {
