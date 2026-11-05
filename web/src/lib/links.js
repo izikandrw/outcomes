@@ -96,6 +96,62 @@ export function outcomesForProject(outcomes, project) {
   return outcomes.filter((outcome) => projectsForOutcome([project], outcome).length > 0);
 }
 
+// Where the map hangs an outcome that has nothing above it but drives a project
+// that does: under that project, instead of as a stray root in the row above it.
+// Returns the outcomes and projects that reach an impact, and which project (the
+// first in list order) each such outcome hangs under. Only ones that reach an
+// impact take outcomes, so the map can't draw a loop and lose its nodes.
+export function outcomesUnderProjects(outcomes, projects, impacts) {
+  const outcomeById = new Map(outcomes.map((outcome) => [String(outcome.id), outcome]));
+  const projectById = new Map(projects.map((project) => [String(project.id), project]));
+  const impactIds = new Set(impacts.map((impact) => String(impact.id)));
+
+  const rootOf = (outcome) => {
+    const seen = new Set();
+    let at = outcome;
+    while (!seen.has(String(at.id))) {
+      seen.add(String(at.id));
+      const parent = outcomeById.get(String(at.parent_outcome_id));
+      if (!parent) return at;
+      at = parent;
+    }
+    return null; // a parent cycle the API doesn't reject
+  };
+  const anchoredOutcomes = new Set(
+    outcomes
+      .filter((outcome) => {
+        const root = rootOf(outcome);
+        return root != null && impactIds.has(String(root.impact_id));
+      })
+      .map((outcome) => String(outcome.id))
+  );
+
+  const reachesImpact = (project) => {
+    const seen = new Set();
+    for (let at = project; at && !seen.has(String(at.id)); at = projectById.get(String(at.parent_project_id))) {
+      seen.add(String(at.id));
+      if (projectById.has(String(at.parent_project_id))) continue;
+      if ((at.impact_ids ?? []).some((id) => impactIds.has(String(id)))) return true;
+      return outcomes.some(
+        (outcome) =>
+          anchoredOutcomes.has(String(outcome.id)) && projectsForOutcome([at], outcome).length > 0
+      );
+    }
+    return false;
+  };
+  const anchoredProjects = new Set(projects.filter(reachesImpact).map((project) => String(project.id)));
+
+  const underProject = new Map(); // outcome.id -> project it hangs under
+  for (const outcome of outcomes) {
+    if (anchoredOutcomes.has(String(outcome.id)) || outcomeById.has(String(outcome.parent_outcome_id))) continue;
+    const project = projectsForOutcome(projects, outcome).find((candidate) =>
+      anchoredProjects.has(String(candidate.id))
+    );
+    if (project) underProject.set(String(outcome.id), project);
+  }
+  return { anchoredOutcomes, anchoredProjects, underProject };
+}
+
 // An outcome earns its place once something carries it forward: a child
 // outcome narrowing it further, or a project driving it. Neither means it's a
 // dead end — either it should have one, or it shouldn't exist as its own node.

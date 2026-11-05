@@ -816,7 +816,8 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   }
 
   // Breaks the link a map line draws: a child impact or outcome loses its parent,
-  // a project loses its parent project or one driven outcome or impact.
+  // a project loses its parent project or one driven outcome or impact. An outcome
+  // drawn under the project it drives has its line run down, but it's the same link.
   async function unlink({ from, to }) {
     // An open form holds the links as they were, and saving would restore them.
     setModal(null);
@@ -830,7 +831,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
           parent_impact_id: null,
         });
         setImpacts((current) => current.map((item) => (item.id === updated.id ? updated : item)));
-      } else if (to.kind === 'outcome') {
+      } else if (to.kind === 'outcome' && from.kind !== 'project') {
         const child = outcomes.find((item) => same(item.id, to.id));
         // Whether its line came from a parent outcome or an impact, both go.
         const updated = await api.updateOutcome(accountId, child.id, {
@@ -839,7 +840,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
           impact_id: null,
         });
         setOutcomes((current) => current.map((item) => (item.id === updated.id ? updated : item)));
-      } else if (from.kind === 'project') {
+      } else if (from.kind === 'project' && to.kind === 'project') {
         const child = projects.find((item) => same(item.id, to.id));
         const updated = await api.updateProject(accountId, child.id, {
           ...projectPayload(child),
@@ -854,8 +855,9 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
         });
         setProjects((current) => current.map((item) => (item.id === updated.id ? updated : item)));
       } else {
-        const project = projects.find((item) => same(item.id, to.id));
-        const outcome = outcomes.find((item) => same(item.id, from.id));
+        const [projectEnd, outcomeEnd] = from.kind === 'project' ? [from, to] : [to, from];
+        const project = projects.find((item) => same(item.id, projectEnd.id));
+        const outcome = outcomes.find((item) => same(item.id, outcomeEnd.id));
         const updated = await api.updateProject(accountId, project.id, {
           ...projectPayload(project),
           outcome_ids: (project.outcome_ids ?? []).filter((id) => !same(id, outcome.id)).map(Number),

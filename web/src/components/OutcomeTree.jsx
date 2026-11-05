@@ -6,6 +6,7 @@ import {
   totalDollarImpact,
   formatDollars,
   outcomesForImpact,
+  outcomesUnderProjects,
   projectsForOutcome,
   suggestedEntities,
   projectsForImpact,
@@ -1092,7 +1093,9 @@ function NodeText({ x, y, lines, targetLine, lift = 0, onTargetClick }) {
 // Places impacts on the top row, then outcomes as a node-link tree, then hangs each project as a node
 // under the first outcome (in list order) it drives, under its parent project
 // when it has one, or under an impact it serves directly when it has neither.
-// A project with no parent at all goes in a row along the bottom of the map. A
+// A project with no parent at all goes in a row along the bottom of the map. An
+// outcome with no parent that drives a project already connected to an impact
+// hangs under that project. A
 // project linked to more than one outcome or impact is still drawn once — the
 // others it drives get a cross-edge to that same node instead of a duplicate.
 // A project shared by several outcomes is drawn under the deepest of them, so
@@ -1221,11 +1224,24 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth, weights) {
     projectsByParent.get(key).push(project);
   }
 
+  const { anchoredOutcomes, anchoredProjects, underProject } = outcomesUnderProjects(outcomes, projects, impacts);
+  const outcomesByProject = new Map(); // project.id -> outcome[] hanging under it
+  for (const outcome of outcomes) {
+    const project = underProject.get(String(outcome.id));
+    if (!project) continue;
+    const key = String(project.id);
+    if (!outcomesByProject.has(key)) outcomesByProject.set(key, []);
+    outcomesByProject.get(key).push(outcome);
+  }
+
   const primaryOutcomeOf = new Map(); // project.id -> outcome.id it's drawn under
   const depthOf = (outcomeId) => outcomeDepth.get(outcomeId) ?? 0;
   for (const outcome of outcomes) {
     for (const project of projectsForOutcome(projects, outcome)) {
       if (nestedUnder(project)) continue;
+      // A project connected to an impact stays on that route, or an outcome
+      // hanging beneath it could end up above it too.
+      if (anchoredProjects.has(String(project.id)) && !anchoredOutcomes.has(String(outcome.id))) continue;
       const current = primaryOutcomeOf.get(project.id);
       if (current !== undefined && depthOf(outcome.id) <= depthOf(current)) continue;
       primaryOutcomeOf.set(project.id, outcome.id);
@@ -1306,10 +1322,16 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth, weights) {
       ];
     } else if (item.kind === 'project') {
       placedProjects.add(entity.id);
-      children = byWeight(
-        'project',
-        (projectsByParent.get(String(entity.id)) ?? []).filter((child) => !placedProjects.has(child.id))
-      ).map((child) => ({ kind: 'project', data: child }));
+      children = [
+        ...byWeight(
+          'project',
+          (projectsByParent.get(String(entity.id)) ?? []).filter((child) => !placedProjects.has(child.id))
+        ).map((child) => ({ kind: 'project', data: child })),
+        ...byWeight(
+          'outcome',
+          (outcomesByProject.get(String(entity.id)) ?? []).filter((child) => !placed.has(child.id))
+        ).map((child) => ({ kind: 'outcome', data: child })),
+      ];
     } else {
       placed.add(entity.id);
       const childOutcomes = byWeight(
@@ -1412,6 +1434,7 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth, weights) {
   for (const outcome of outcomes) {
     for (const project of projectsForOutcome(projects, outcome)) {
       if (String(primaryOutcomeOf.get(project.id)) === String(outcome.id)) continue;
+      if (underProject.get(String(outcome.id)) === project) continue; // already its tree line
       const from = outcomeNodeById.get(outcome.id);
       const to = projectNodeById.get(project.id);
       if (!from || !to) continue;
