@@ -1,23 +1,35 @@
 const crypto = require('crypto');
 
-// One link that signs anyone who opens it in as a single guest user, so a person
-// can try an account without signing up. Off unless both env vars are set:
-//   SHARE_LINK_TOKEN    the secret in the link, /?share=<token>
-//   SHARE_LINK_USER_ID  the user it signs in as, who must be a member
-// Removing that user ends every session the link has started.
+// Links that sign anyone who opens them in as a guest user, so a person can try
+// an account without signing up. Each link is a secret token, /?share=<token>,
+// and the user it signs in as, who must be a member. Off unless env vars set them:
+//   SHARE_LINK_TOKEN, SHARE_LINK_USER_ID  one link
+//   SHARE_LINKS                           more, as <token>:<userId>,<token>:<userId>
+// Removing a link's user ends every session that link has started.
 const MIN_TOKEN_LENGTH = 32;
 
 const digest = (value) => crypto.createHash('sha256').update(String(value)).digest();
 
-const guestUserId = () => process.env.SHARE_LINK_USER_ID || null;
+function links() {
+  const more = (process.env.SHARE_LINKS || '').split(',').map((link) => {
+    const [token, userId] = link.trim().split(':');
+    return { token, userId };
+  });
+  return [{ token: process.env.SHARE_LINK_TOKEN, userId: process.env.SHARE_LINK_USER_ID }, ...more];
+}
 
 // The user a link's token signs in as, or null if the token is wrong or the link is off.
 function shareLinkUserId(token) {
-  const secret = process.env.SHARE_LINK_TOKEN;
-  if (!secret || secret.length < MIN_TOKEN_LENGTH || !guestUserId()) return null;
-  return crypto.timingSafeEqual(digest(token), digest(secret)) ? guestUserId() : null;
+  const link = links().find(
+    (candidate) =>
+      candidate.userId &&
+      candidate.token &&
+      candidate.token.length >= MIN_TOKEN_LENGTH &&
+      crypto.timingSafeEqual(digest(token), digest(candidate.token))
+  );
+  return link ? link.userId : null;
 }
 
-const isShareLinkUser = (user) => guestUserId() !== null && String(user.id) === guestUserId();
+const isShareLinkUser = (user) => links().some((link) => link.userId && String(user.id) === link.userId);
 
 module.exports = { shareLinkUserId, isShareLinkUser };

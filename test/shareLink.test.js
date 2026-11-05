@@ -44,6 +44,7 @@ after(() => new Promise((resolve) => server.close(resolve)));
 beforeEach(() => {
   process.env.SHARE_LINK_TOKEN = TOKEN;
   process.env.SHARE_LINK_USER_ID = String(GUEST.id);
+  delete process.env.SHARE_LINKS;
   viewer = { id: GUEST.id, email: GUEST.email, role: 'member', accountId: '7' };
   // The route's query only returns members, so this answers the way it would.
   db.respond = (sql, params) =>
@@ -78,6 +79,31 @@ test('the link is off unless both env vars are set, and a short token does not c
 test('a user id that is not a member gets no session, so the link cannot hand out an admin', async () => {
   process.env.SHARE_LINK_USER_ID = '1';
   assert.equal((await open(TOKEN)).status, 404);
+});
+
+test('SHARE_LINKS adds links to other accounts, and the first link keeps working', async () => {
+  const other = { ...GUEST, id: 14, account_id: '5', account_name: 'opiniion' };
+  const otherToken = 'c'.repeat(40);
+  process.env.SHARE_LINKS = `${otherToken}:${other.id}`;
+  db.respond = (sql, params) =>
+    ({ [GUEST.id]: { rows: [GUEST] }, [other.id]: { rows: [other] } })[params[0]] || { rows: [] };
+
+  assert.equal((await (await open(otherToken)).json()).account.id, '5');
+  assert.equal((await (await open(TOKEN)).json()).account.id, '7');
+  assert.equal((await open('d'.repeat(40))).status, 404);
+});
+
+test('SHARE_LINKS ignores a short token or one with no user', async () => {
+  process.env.SHARE_LINKS = `short:${GUEST.id},${'c'.repeat(40)},${'e'.repeat(40)}:`;
+  assert.equal((await open('short')).status, 404);
+  assert.equal((await open('c'.repeat(40))).status, 404);
+  assert.equal((await open('e'.repeat(40))).status, 404);
+});
+
+test('a guest from SHARE_LINKS cannot list the account users either', async () => {
+  process.env.SHARE_LINKS = `${'c'.repeat(40)}:14`;
+  viewer = { id: 14, email: 'guest+5@outcomes.invalid', role: 'member', accountId: '5' };
+  assert.equal((await fetch(`${base}/accounts/5/users`)).status, 403);
 });
 
 test("the guest cannot list the account's users, anyone else can", async () => {
