@@ -1212,6 +1212,12 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
                   <PlusIcon />
                   New outcome
                 </button>
+                {page === 'map' && (
+                  <button type="button" className="with-icon btn-project" onClick={openCreateProject}>
+                    <PlusIcon />
+                    New project
+                  </button>
+                )}
               </div>
             </div>
           )}
