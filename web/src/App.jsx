@@ -28,6 +28,7 @@ import OutcomeList from './components/OutcomeList.jsx';
 import IssueCounts, { IssueFilter } from './components/IssueCounts.jsx';
 import IssueExplainer from './components/IssueExplainer.jsx';
 import JumpToTop from './components/JumpToTop.jsx';
+import MapLegend from './components/MapLegend.jsx';
 import OutcomeTree from './components/OutcomeTree.jsx';
 import ReviewQueue from './components/ReviewQueue.jsx';
 import Roadmap from './components/Roadmap.jsx';
@@ -1185,6 +1186,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
           {/* The outcome list carries New outcome in its own toolbar. */}
           {(page === 'map' || loading || outcomes.length === 0 || flagged?.length === 0) && (
             <div className="list-head">
+              {page === 'map' && !issueRule && <MapLegend />}
               <div className="actions">
                 {/* A map filtered to one issue always shows it, so there's nothing to hide. */}
                 {page === 'map' && !issueRule && (

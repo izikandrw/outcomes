@@ -145,6 +145,98 @@ main {
   margin-left: auto;
 }
 
+/* What the map means, for a first-time reader. Each item wears its map card's colour. */
+.map-legend {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  min-width: 0;
+}
+
+.map-legend-chain {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.map-legend-item {
+  --legend-color: var(--muted);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin: 0;
+  padding: 5px 10px;
+  border: 1px solid color-mix(in srgb, var(--legend-color) 45%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--legend-color) 12%, var(--surface));
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+
+.map-legend-item strong {
+  color: var(--legend-color);
+}
+
+.map-legend-item span {
+  color: var(--muted);
+}
+
+.map-legend-item.tone-impact {
+  --legend-color: var(--impact);
+}
+
+.map-legend-item.tone-outcome {
+  --legend-color: var(--outcome);
+}
+
+.map-legend-item.tone-project {
+  --legend-color: var(--project);
+}
+
+.map-legend-item.tone-insight {
+  --legend-color: var(--target);
+  border-style: dashed;
+}
+
+/* When the buttons wrap under the legend they stay on the right, where the map keeps them. */
+.map-legend + .actions {
+  margin-left: auto;
+}
+
+/* The arrow from each level to the next, centred in the gap between them. */
+.map-legend-chain .map-legend-item + .map-legend-item::before {
+  content: '→';
+  position: absolute;
+  top: 50%;
+  left: -17px;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+/* Too narrow for one row: stack the levels in order, since a wrapped arrow points at nothing. */
+@media (max-width: 760px) {
+  .map-legend,
+  .map-legend-chain {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .map-legend-chain {
+    gap: 8px;
+  }
+
+  .map-legend-chain .map-legend-item + .map-legend-item::before {
+    content: none;
+  }
+}
+
 .view-toggle {
   display: inline-flex;
   border: 1px solid var(--border);
