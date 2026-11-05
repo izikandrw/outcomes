@@ -65,7 +65,7 @@ router.get('/:runId', async (req, res, next) => {
       [req.accountId, documents.map((doc) => doc.id)]
     );
     for (const doc of documents) doc.eval_cases = cases.filter((entry) => String(entry.run_document_id) === String(doc.id));
-    const events = await listEvents(pool, req.accountId, insights.map((insight) => insight.id));
+    const events = await listEvents(pool, req.accountId, insights.map((insight) => insight.id), req.user);
     for (const insight of insights) insight.events = events.filter((event) => String(event.insight_id) === String(insight.id));
     res.json({ ...run, documents, insights });
   } catch (err) {

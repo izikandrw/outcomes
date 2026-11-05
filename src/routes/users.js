@@ -3,6 +3,7 @@ const pool = require('../db');
 const { requireAdmin } = require('../middleware/requireAuth');
 const { newInviteToken, hashInviteToken } = require('../lib/auth');
 const { issueCollectorLogin } = require('../lib/collectorLogin');
+const { isShareLinkUser } = require('../lib/shareLink');
 
 const router = express.Router();
 
@@ -11,6 +12,8 @@ const RESET_HOURS = 24;
 const ROLES = ['admin', 'member'];
 
 router.get('/users', async (req, res, next) => {
+  // Whoever opens a share link has no business reading the account's email addresses.
+  if (isShareLinkUser(req.user)) return res.status(403).json({ error: 'not available from a share link' });
   try {
     const { rows } = await pool.query(
       'SELECT id, email, role, created_at FROM users WHERE account_id = $1 ORDER BY id',

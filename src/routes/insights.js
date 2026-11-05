@@ -556,7 +556,7 @@ router.get('/:insightId/events', async (req, res, next) => {
     if (!(await belongsToAccount('insights', req.params.insightId, req.accountId))) {
       return res.status(404).json({ error: 'insight not found' });
     }
-    res.json(await listEvents(pool, req.accountId, [req.params.insightId]));
+    res.json(await listEvents(pool, req.accountId, [req.params.insightId], req.user));
   } catch (err) {
     next(err);
   }

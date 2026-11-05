@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const pool = require('../db');
 const { hashPassword, verifyPassword, signToken, hashInviteToken } = require('../lib/auth');
 const { requireAuth } = require('../middleware/requireAuth');
+const { shareLinkUserId } = require('../lib/shareLink');
 
 const router = express.Router();
 
@@ -68,6 +69,25 @@ router.post('/login', async (req, res, next) => {
     if (!user || typeof password !== 'string' || !verifyPassword(password, user.password_hash)) {
       return res.status(401).json({ error: 'incorrect email or password' });
     }
+    res.json(session(user, { id: user.account_id, name: user.account_name, logo: user.account_logo }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// A share link: signs in as the account's guest user, with no credentials. Only
+// ever a member, so a wrong SHARE_LINK_USER_ID can't hand out an admin.
+router.post('/share/:token', async (req, res, next) => {
+  const userId = shareLinkUserId(req.params.token);
+  if (!userId) return res.status(404).json({ error: 'this link is invalid or has been turned off' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT u.*, a.name AS account_name, a.logo AS account_logo FROM users u JOIN accounts a ON a.id = u.account_id
+       WHERE u.id = $1 AND u.role = 'member'`,
+      [userId]
+    );
+    const user = rows[0];
+    if (!user) return res.status(404).json({ error: 'this link is invalid or has been turned off' });
     res.json(session(user, { id: user.account_id, name: user.account_name, logo: user.account_logo }));
   } catch (err) {
     next(err);

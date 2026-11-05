@@ -1,3 +1,5 @@
+const { isShareLinkUser } = require('./shareLink');
+
 // Every change to an insight is recorded in insight_events with the insight as
 // it was before and after, so what the collector originally suggested survives
 // a reviewer's edits. The difference between the two is what the collector got
@@ -29,8 +31,9 @@ async function recordEvent(executor, { accountId, insightId, action, actorId, be
   );
 }
 
-// Events with who made them, oldest first, for the insights given.
-async function listEvents(executor, accountId, insightIds) {
+// Events with who made them, oldest first, for the insights given. Someone who
+// came in through a share link sees only their own email on them.
+async function listEvents(executor, accountId, insightIds, viewer) {
   if (insightIds.length === 0) return [];
   const { rows } = await executor.query(
     `SELECT e.id, e.insight_id, e.action, e.before, e.after, e.details, e.created_at,
@@ -40,7 +43,8 @@ async function listEvents(executor, accountId, insightIds) {
       ORDER BY e.insight_id, e.created_at, e.id`,
     [accountId, insightIds]
   );
-  return rows;
+  if (!viewer || !isShareLinkUser(viewer)) return rows;
+  return rows.map((row) => (String(row.actor_id) === String(viewer.id) ? row : { ...row, actor_email: null }));
 }
 
 module.exports = { snapshotOf, recordEvent, listEvents };

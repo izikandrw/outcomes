@@ -13,6 +13,12 @@ export const getToken = () => localStorage.getItem(STORED_TOKEN);
 export const setToken = (token) =>
   token ? localStorage.setItem(STORED_TOKEN, token) : localStorage.removeItem(STORED_TOKEN);
 
+// A share link's token, kept so the guest gets back in once the session it started expires.
+const STORED_SHARE_TOKEN = 'outcomes.shareToken';
+export const getShareToken = () => localStorage.getItem(STORED_SHARE_TOKEN);
+export const setShareToken = (token) =>
+  token ? localStorage.setItem(STORED_SHARE_TOKEN, token) : localStorage.removeItem(STORED_SHARE_TOKEN);
+
 // Fired when the API rejects our token, so the app can drop back to sign-in.
 export const UNAUTHORIZED_EVENT = 'outcomes:unauthorized';
 
@@ -40,6 +46,7 @@ const json = (method, body) => ({ method, body: JSON.stringify(body) });
 export const getMe = () => request('/auth/me');
 export const login = (email, password) => request('/auth/login', json('POST', { email, password }));
 export const devLogin = () => request('/auth/dev-login', { method: 'POST' });
+export const openShareLink = (token) => request(`/auth/share/${encodeURIComponent(token)}`, { method: 'POST' });
 export const signup = (body) => request('/auth/signup', json('POST', body));
 export const getInvite = (token) => request(`/auth/invites/${token}`);
 export const acceptInvite = (token, password) =>
