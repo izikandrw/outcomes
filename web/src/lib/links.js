@@ -34,12 +34,22 @@ export function targetLabel(target) {
   return target.name || target.unit;
 }
 
-// "1000 → 1200 ARR": the numbers a target stands for.
+// "1000 → 1200 users", "$1000 → $1200", "40% → 60%": the numbers a target stands
+// for. A symbol is written on both numbers; a word unit once, at the end.
 export function targetRange(target) {
-  return `${formatValue(target.baseline_value)} → ${formatValue(target.target_value)} ${target.unit}`;
+  return formatRange(target.baseline_value, target.target_value, target.unit);
 }
 
-// "ARR: 0 → 1 $": the range with the target's name in front, for a space limited
+export function formatRange(from, to, unit) {
+  const symbol = String(unit ?? '').trim();
+  if (PREFIX_UNITS.has(symbol) || TIGHT_SUFFIX_UNITS.has(symbol)) {
+    return `${formatQuantity(from, symbol)} → ${formatQuantity(to, symbol)}`;
+  }
+  const range = `${formatValue(from)} → ${formatValue(to)}`;
+  return symbol ? `${range} ${symbol}` : range;
+}
+
+// "ARR: $0 → $1": the range with the target's name in front, for a space limited
 // to `maxChars`. The numbers are what must survive, so a name that won't fit is
 // dropped rather than letting the range be clipped, and so is one the unit already
 // says, as in "ARR: 0 → 1 ARR ($M)".
@@ -459,6 +469,19 @@ export function formatValue(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return String(value);
   return String(Number(number.toFixed(2)));
+}
+
+// Currency symbols are written before the number ("$1200"), percent flush after
+// it ("40%"), and every other unit after it with a space ("1200 users").
+const PREFIX_UNITS = new Set(['$', '€', '£', '¥', '₹']);
+const TIGHT_SUFFIX_UNITS = new Set(['%']);
+
+export function formatQuantity(value, unit) {
+  const number = formatValue(value);
+  const symbol = String(unit ?? '').trim();
+  if (PREFIX_UNITS.has(symbol)) return `${symbol}${number}`;
+  if (TIGHT_SUFFIX_UNITS.has(symbol)) return `${number}${symbol}`;
+  return symbol ? `${number} ${symbol}` : number;
 }
 
 // "1.2K" for places too narrow for the whole number.

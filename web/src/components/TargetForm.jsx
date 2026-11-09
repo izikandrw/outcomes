@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import AutoGrowTextarea from './AutoGrowTextarea.jsx';
-import { formatValue } from '../lib/links.js';
+import { formatRange } from '../lib/links.js';
 
 // Suggestions only: the unit stays free text, so anything typed is accepted.
 export const COMMON_UNITS = ['$', '%', 'hours', 'days', 'users', 'customers', 'tickets', 'points'];
@@ -84,7 +84,7 @@ export default function TargetForm({ outcome, parentKind = 'outcome', editing, o
 
   const preview =
     form.baseline_value !== '' && form.target_value !== ''
-      ? `${formatValue(form.baseline_value)} → ${formatValue(form.target_value)} ${form.unit.trim() || 'units'}`
+      ? formatRange(form.baseline_value, form.target_value, form.unit.trim() || 'units')
       : null;
 
   return (

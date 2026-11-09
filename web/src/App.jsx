@@ -35,7 +35,7 @@ import Roadmap from './components/Roadmap.jsx';
 import TopNav from './components/TopNav.jsx';
 import GuidePage from './components/GuidePage.jsx';
 import { IssuesIcon, PlusIcon } from './components/icons.jsx';
-import { formatValue, insightsForOutcome, insightsForProject, isEvidence, targetLabel, targetsFor } from './lib/links.js';
+import { formatQuantity, insightsForOutcome, insightsForProject, isEvidence, targetLabel, targetsFor } from './lib/links.js';
 import { buildSearch, emptyPageView, itemOfModal, readUrl, shareSearchOfModal } from './lib/urlState.js';
 import { flaggedBy, ruleById, validateTree } from './lib/validation.js';
 
@@ -531,7 +531,7 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
   // Stays on the readings table, so the rest of the series can be checked or
   // cleared. A failed delete throws for the table to show beside the row.
   async function removeMeasurement(target, reading) {
-    const description = `${formatValue(reading.value)} ${target.unit} on ${formatMeasuredAt(reading.measured_at)}`;
+    const description = `${formatQuantity(reading.value, target.unit)} on ${formatMeasuredAt(reading.measured_at)}`;
     if (!(await askConfirm('Delete reading?', `The reading of ${description} will be permanently deleted.`))) return;
     await api.deleteMeasurement(accountId, reading.id);
     setMeasurements((current) => current.filter((item) => item.id !== reading.id));

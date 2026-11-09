@@ -3,6 +3,7 @@ import { COMMON_UNITS } from "./TargetForm.jsx";
 import { InlineText } from "./InlineFields.jsx";
 import { PlusIcon, TrashIcon } from './icons.jsx';
 import {
+  formatQuantity,
   formatValue,
   measurementsForTarget,
   targetBody,
@@ -100,7 +101,7 @@ export default function TargetMeasurements({ target, measurements, onAddReading,
                         type="button"
                         className="icon-button danger"
                         title="Delete reading"
-                        aria-label={`Delete reading of ${formatValue(reading.value)} ${target.unit} on ${formatMeasuredAt(reading.measured_at)}`}
+                        aria-label={`Delete reading of ${formatQuantity(reading.value, target.unit)} on ${formatMeasuredAt(reading.measured_at)}`}
                         onClick={() => deleteReading(reading)}
                       >
                         <TrashIcon />
@@ -252,7 +253,7 @@ function MeasurementChart({ target, series }) {
       className="measurement-chart"
       viewBox={`0 0 ${W} ${H}`}
       role="img"
-      aria-label={`Line chart of ${points.length} readings, ${formatValue(points[0].v)} to ${formatValue(points.at(-1).v)} ${target.unit}`}
+      aria-label={`Line chart of ${points.length} readings, ${formatQuantity(points[0].v, target.unit)} to ${formatQuantity(points.at(-1).v, target.unit)}`}
     >
       {ticks.map((tick) => (
         <g key={tick}>
@@ -281,7 +282,7 @@ function MeasurementChart({ target, series }) {
         .filter((line) => Number.isFinite(line.value))
         .map((line) => (
           <g key={line.label}>
-            <title>{`${line.label}: ${formatValue(line.value)} ${target.unit}`}</title>
+            <title>{`${line.label}: ${formatQuantity(line.value, target.unit)}`}</title>
             <line
               className={line.className}
               x1={PAD.left}
@@ -309,7 +310,7 @@ function MeasurementChart({ target, series }) {
           cy={y(p.v)}
           r="3.5"
         >
-          <title>{`${formatValue(p.v)} ${target.unit} · ${formatMeasuredAt(p.t)}`}</title>
+          <title>{`${formatQuantity(p.v, target.unit)} · ${formatMeasuredAt(p.t)}`}</title>
         </circle>
       ))}
       <text className="chart-label" x={PAD.left} y={H - 8} textAnchor="start">
