@@ -1279,17 +1279,44 @@ button.small {
   fill: color-mix(in srgb, var(--project) 55%, var(--surface));
 }
 
-/* The first target's numbers, drawn on the last line of its owner's node. */
+/* Each target as a small chip hanging just under its owner's node, joined to
+   it by a short stub. Connectors to the owner's children run behind them. */
+.tree-target-stub {
+  fill: none;
+  stroke: color-mix(in srgb, var(--target) 45%, var(--surface));
+  stroke-width: 1.5;
+}
+
 .tree-node-target {
+  cursor: pointer;
+}
+
+.tree-node-target rect {
+  fill: color-mix(in srgb, var(--target) 12%, var(--surface));
+  stroke: color-mix(in srgb, var(--target) 50%, transparent);
+  stroke-width: 1.25;
+}
+
+.tree-node-target text {
   font-size: 11px;
   font-weight: 600;
   fill: var(--target);
   font-variant-numeric: tabular-nums;
-  cursor: pointer;
 }
 
-.tree-node-target:hover {
-  text-decoration: underline;
+.tree-node-target:hover rect,
+.tree-node-target.selected rect {
+  fill: color-mix(in srgb, var(--target) 22%, var(--surface));
+  stroke: var(--target);
+}
+
+.tree-node-target:focus-visible {
+  outline: none;
+}
+
+.tree-node-target:focus-visible rect {
+  stroke: var(--target);
+  stroke-width: 2;
 }
 
 /* Impacts sit above the outcomes that drive them: the business result the

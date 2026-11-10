@@ -48,6 +48,20 @@ const BADGE_REACH = 11;
 const LINE_CLEARANCE = 8;
 // How far a cross-link's vertical run keeps from the sides of nodes it passes.
 const CHANNEL_CLEARANCE = 4;
+// Each target hangs just under the node it measures, as a chip of its own. The
+// chips are narrower than the node so the connector down to the node's children
+// can run behind them, and they start clear of the pills on the node's bottom
+// edge. A row of nodes with targets grows by its tallest stack, so the
+// connectors below still bend in open space.
+const TARGET_W = NODE_W - 24;
+const TARGET_H = 22;
+const TARGET_GAP = 4;
+const TARGET_TOP = BADGE_REACH + 5;
+const TARGET_CHARS = 20;
+
+export function targetStackHeight(count) {
+  return count === 0 ? 0 : TARGET_TOP + count * TARGET_H + (count - 1) * TARGET_GAP;
+}
 export const LINE_H = 15;
 // A revealed name's lines level with the insight pill start past its right
 // end: how near a line's centre can come to the pill's before it must, and the
@@ -126,8 +140,8 @@ export default function OutcomeTree({
   }
   const coverageData = { impacts: allImpacts, outcomes, projects, targets };
   const { nodes, edges, width, height: treeHeight } = useMemo(
-    () => layout(mapOutcomes, mapProjects, impacts),
-    [mapOutcomes, mapProjects, impacts]
+    () => layout(mapOutcomes, mapProjects, impacts, targets),
+    [mapOutcomes, mapProjects, impacts, targets]
   );
   // Room below the bottom row for a long name's overlay.
   const dollarsOf = (node) =>
@@ -421,6 +435,14 @@ export default function OutcomeTree({
               }
               onMouseLeave={() => setRevealKey(null)}
             >
+            {/* Before the node, so a revealed full name covers them. */}
+            <TargetChips
+              owned={targetsFor(targets, node.data, node.type)}
+              x={node.x}
+              y={node.y}
+              selectedKey={selectedKey}
+              onViewTarget={onViewTarget}
+            />
             {node.type === 'impact' ? (
               <ImpactNode
                 key={`impact-${node.data.id}`}
@@ -612,7 +634,7 @@ function OutcomeNode({
 }) {
   const quantified = targetsForOutcome(coverageData.targets, outcome);
   const coverage = childCoverage('outcome', outcome, quantified[0], coverageData);
-  const { lines, targetLine } = nodeLabel(outcome.name, quantified, coverage ? 1 : 0);
+  const lines = nodeLabel(outcome.name, coverage ? 1 : 0);
   const className = [
     'tree-node',
     outcome.suggested ? 'suggested' : outcome.parent_outcome_id == null && 'root',
@@ -642,9 +664,7 @@ function OutcomeNode({
         x={x}
         y={y}
         lines={lines}
-        targetLine={targetLine}
         lift={coverage ? COVERAGE_LIFT : LABEL_LIFT}
-        onTargetClick={() => onViewTarget(quantified[0])}
       />
       {coverage && <CoverageBars coverage={coverage} target={quantified[0]} x={x} y={y} />}
 
@@ -705,7 +725,7 @@ function SuggestedTitle({ entity, noun }) {
 function ImpactNode({ impact, coverageData, revealed, x, y, depth, issues, onShowIssue, onEdit, onViewTarget, onOpenMenu }) {
   const quantified = targetsForImpact(coverageData.targets, impact);
   const coverage = childCoverage('impact', impact, quantified[0], coverageData);
-  const { lines, targetLine } = nodeLabel(impact.name, quantified, coverage ? 1 : 0);
+  const lines = nodeLabel(impact.name, coverage ? 1 : 0);
 
   return (
     <g
@@ -727,9 +747,7 @@ function ImpactNode({ impact, coverageData, revealed, x, y, depth, issues, onSho
         x={x}
         y={y}
         lines={lines}
-        targetLine={targetLine}
         lift={coverage ? COVERAGE_LIFT : 0}
-        onTargetClick={() => onViewTarget(quantified[0])}
       />
       {coverage && <CoverageBars coverage={coverage} target={quantified[0]} x={x} y={y} />}
       {revealed && <FullName node={{ type: 'impact', data: impact, x, y }} />}
@@ -894,7 +912,7 @@ function ProjectNode({
   const quarter = formatQuarter(project.end_at);
   const quantified = targetsForProject(coverageData.targets, project);
   const coverage = childCoverage('project', project, quantified[0], coverageData);
-  const { lines, targetLine } = nodeLabel(project.name, quantified, coverage ? 1 : 0);
+  const lines = nodeLabel(project.name, coverage ? 1 : 0);
 
   return (
     <g
@@ -919,9 +937,7 @@ function ProjectNode({
         x={x}
         y={y}
         lines={lines}
-        targetLine={targetLine}
         lift={coverage ? COVERAGE_LIFT : LABEL_LIFT}
-        onTargetClick={() => onViewTarget(quantified[0])}
       />
       {coverage && <CoverageBars coverage={coverage} target={quantified[0]} x={x} y={y} />}
 
@@ -979,15 +995,58 @@ function linkHint({ parent, child, moves }) {
   return `${moves ? 'Move' : 'Put'} ${childName} under ${parentName}`;
 }
 
-// An outcome, impact or project states its targets inside its own node: the name takes
-// up to three lines and the last line is its first target's name and numbers, with "+N"
-// when it owns more. Without targets the name gets all four lines. `reserved`
-// is how many lines something else drawn in the node needs.
-function nodeLabel(name, quantified, reserved = 0) {
-  if (quantified.length === 0) return { lines: wrapLabel(name), targetLine: null };
-  const extra = quantified.length > 1 ? ` +${quantified.length - 1}` : '';
-  const [targetLine] = wrapLabel(`${targetSummary(quantified[0], MAX_CHARS - extra.length)}${extra}`, MAX_CHARS, 1);
-  return { lines: wrapLabel(name, MAX_CHARS, MAX_LINES - 1 - reserved), targetLine };
+// A node's name lines. Its targets hang below it as chips of their own, so the
+// name has the whole node. `reserved` is how many lines something else drawn
+// in the node needs.
+function nodeLabel(name, reserved = 0) {
+  return wrapLabel(name, MAX_CHARS, MAX_LINES - reserved);
+}
+
+// The targets an outcome, impact or project owns, stacked just under it like
+// children. A short stub joins them to the node; any connector from the node
+// down to its own children runs behind them. Clicking one opens its
+// measurements.
+function TargetChips({ owned, x, y, selectedKey, onViewTarget }) {
+  if (owned.length === 0) return null;
+  const top = y + NODE_H + TARGET_TOP;
+  const chipY = (index) => top + index * (TARGET_H + TARGET_GAP);
+  return (
+    <g className="tree-targets">
+      <path className="tree-target-stub" d={`M${x} ${y + NODE_H} V${chipY(owned.length - 1) + TARGET_H / 2}`} />
+      {owned.map((target, index) => {
+        const open = () => onViewTarget(target);
+        const [label] = wrapLabel(targetSummary(target, TARGET_CHARS), TARGET_CHARS, 1);
+        return (
+          <g
+            key={target.id}
+            className={['tree-node-target', selectedKey === `target-${target.id}` && 'selected']
+              .filter(Boolean)
+              .join(' ')}
+            role="button"
+            tabIndex={0}
+            aria-label={`Target: ${targetSummary(target)}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              open();
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                event.stopPropagation();
+                open();
+              }
+            }}
+          >
+            <title>{`${targetSummary(target)}\nClick to see its measurements.`}</title>
+            <rect x={x - TARGET_W / 2} y={chipY(index)} width={TARGET_W} height={TARGET_H} rx="6" />
+            <text x={x} y={chipY(index) + TARGET_H / 2} textAnchor="middle" dominantBaseline="central">
+              {label}
+            </text>
+          </g>
+        );
+      })}
+    </g>
+  );
 }
 
 // Planned and actual against a node's target, stacked along its bottom edge.
@@ -1062,27 +1121,11 @@ function CoverageBars({ coverage, target, x, y }) {
   );
 }
 
-// Clicking the target line opens that target's measurements instead of the
-// node's edit form; with several targets it is the first one, the one shown.
-function NodeText({ x, y, lines, targetLine, lift = 0, onTargetClick }) {
-  const all = targetLine ? [...lines, targetLine] : lines;
+function NodeText({ x, y, lines, lift = 0 }) {
   return (
     <text x={x} y={y + NODE_H / 2 - lift} textAnchor="middle" dominantBaseline="middle">
-      {all.map((line, index) => (
-        <tspan
-          key={index}
-          className={targetLine && index === all.length - 1 ? 'tree-node-target' : undefined}
-          onClick={
-            targetLine && index === all.length - 1
-              ? (event) => {
-                  event.stopPropagation();
-                  onTargetClick();
-                }
-              : undefined
-          }
-          x={x}
-          dy={index === 0 ? -((all.length - 1) * LINE_H) / 2 : LINE_H}
-        >
+      {lines.map((line, index) => (
+        <tspan key={index} x={x} dy={index === 0 ? -((lines.length - 1) * LINE_H) / 2 : LINE_H}>
           {line}
         </tspan>
       ))}
@@ -1104,24 +1147,36 @@ function NodeText({ x, y, lines, targetLine, lift = 0, onTargetClick }) {
 // first pass finds them and a second places the projects accordingly.
 // Siblings then get reordered a few times to cut down crossing lines, and the
 // layout with the fewest crossings wins.
+// Rows are spaced evenly, except that a row whose nodes own targets grows by
+// its tallest stack of target chips. Depths don't depend on that, so the order
+// is settled first and the rows stretched in a last pass.
 const ORDER_PASSES = 4;
 
-function layout(outcomes, projects, impacts) {
-  const first = layoutPass(outcomes, projects, impacts, new Map(), new Map());
+function layout(outcomes, projects, impacts, targets = []) {
+  const stackOf = (kind, entity) => targetStackHeight(targetsFor(targets, entity, kind).length);
+  const pass = (outcomeDepth, weights, rows = rowsFor()) =>
+    layoutPass(outcomes, projects, impacts, outcomeDepth, weights, rows, stackOf);
+  const first = pass(new Map(), new Map());
   const outcomeDepth = new Map(
     first.nodes.filter((node) => node.type === 'outcome').map((node) => [node.data.id, node.depth])
   );
-  let best = layoutPass(outcomes, projects, impacts, outcomeDepth, new Map());
+  let bestWeights = new Map();
+  let best = pass(outcomeDepth, bestWeights);
   let bestCrossings = countCrossings(best.edges);
   let current = best;
-  for (let pass = 0; pass < ORDER_PASSES && bestCrossings > 0; pass += 1) {
-    current = layoutPass(outcomes, projects, impacts, outcomeDepth, siblingWeights(current));
+  for (let round = 0; round < ORDER_PASSES && bestCrossings > 0; round += 1) {
+    const weights = siblingWeights(current);
+    current = pass(outcomeDepth, weights);
     const crossings = countCrossings(current.edges);
     if (crossings < bestCrossings) {
       best = current;
+      bestWeights = weights;
       bestCrossings = crossings;
     }
   }
+  const extra = [];
+  for (const node of best.nodes) extra[node.depth] = Math.max(extra[node.depth] ?? 0, node.stack);
+  if (extra.some(Boolean)) best = pass(outcomeDepth, bestWeights, rowsFor(extra));
   // A line to a suggested node can't be hovered, so it can't take the hover away.
   const hoverable = best.edges.filter((edge) => !isSuggestedId(edge.from.id) && !isSuggestedId(edge.to.id));
   for (const edge of best.edges) {
@@ -1203,7 +1258,27 @@ function countCrossings(edges) {
   return crossings;
 }
 
-function layoutPass(outcomes, projects, impacts, outcomeDepth, weights) {
+// Where each row starts: evenly spaced, plus the target stack hanging under
+// every row above it.
+function rowsFor(extra = []) {
+  const tops = [PAD];
+  return {
+    extra: (depth) => extra[depth] ?? 0,
+    top(depth) {
+      while (tops.length <= depth) {
+        const above = tops.length - 1;
+        tops.push(tops[above] + LEVEL_H + (extra[above] ?? 0));
+      }
+      return tops[depth];
+    },
+  };
+}
+
+// Where a connector into a node at `y2` jogs sideways: in the open part of the
+// gap above it, below any target chips hanging off the row above.
+const jogAbove = (y2) => y2 - (V_GAP - 3) / 2;
+
+function layoutPass(outcomes, projects, impacts, outcomeDepth, weights, rows, stackOf) {
   const byParent = new Map();
   for (const outcome of outcomes) {
     const key = outcome.parent_outcome_id ?? null;
@@ -1292,8 +1367,9 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth, weights) {
 
   function place(item, depth, left, parent = null) {
     maxDepth = Math.max(maxDepth, depth);
-    const y = PAD + depth * LEVEL_H;
+    const y = rows.top(depth);
     const entity = item.data;
+    const stack = stackOf(item.kind, entity);
 
     let children;
     if (item.kind === 'impact') {
@@ -1369,7 +1445,7 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth, weights) {
       x = (childPositions[0].x + childPositions[childPositions.length - 1].x) / 2;
     }
 
-    nodes.push({ type: item.kind, data: entity, x, y, depth, parent });
+    nodes.push({ type: item.kind, data: entity, x, y, depth, parent, stack });
     const lowered = childPositions.filter((child) => child.lowered);
     // Lowered projects sit right of every outcome subtree, so a trunk over
     // their centre drops through the outcome row without touching a node.
@@ -1378,8 +1454,8 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth, weights) {
       edges.push({
         key: `${item.kind}-${entity.id}-${child.kind}-${child.id}`,
         d: child.lowered
-          ? loweredPath(x, y + NODE_H, trunkX, child.x, child.y - 3)
-          : elbowPath(x, y + NODE_H, child.x, child.y - 3),
+          ? loweredPath(x, y + NODE_H, y + NODE_H + stack, trunkX, child.x, child.y - 3)
+          : elbowPath(x, y + NODE_H, child.x, child.y - 3, jogAbove(child.y - 3)),
         kind: child.kind,
         ends: [`${item.kind}-${entity.id}`, `${child.kind}-${child.id}`],
         from: { kind: item.kind, id: entity.id },
@@ -1440,7 +1516,7 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth, weights) {
       if (!from || !to) continue;
       edges.push({
         key: `${outcome.id}-project-${project.id}-cross`,
-        d: crossLinkPath(from, to, nodes, channels),
+        d: crossLinkPath(from, to, nodes, channels, rows),
         kind: 'project',
         ends: [`outcome-${outcome.id}`, `project-${project.id}`],
         from: { kind: 'outcome', id: outcome.id },
@@ -1460,7 +1536,7 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth, weights) {
       if (!from || !to) continue;
       edges.push({
         key: `impact-${impact.id}-project-${project.id}-cross`,
-        d: crossLinkPath(from, to, nodes, channels),
+        d: crossLinkPath(from, to, nodes, channels, rows),
         kind: 'project',
         ends: [`impact-${impact.id}`, `project-${project.id}`],
         from: { kind: 'impact', id: impact.id },
@@ -1475,7 +1551,7 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth, weights) {
     nodes,
     edges,
     width: Math.max(Math.max(left, rowLeft) - H_GAP * 2 + PAD, NODE_W + PAD * 2),
-    height: PAD * 2 + maxDepth * LEVEL_H + NODE_H,
+    height: rows.top(maxDepth) + NODE_H + rows.extra(maxDepth) + PAD,
   };
 }
 
@@ -1483,9 +1559,8 @@ function layoutPass(outcomes, projects, impacts, outcomeDepth, weights) {
 // only in the empty gap between rows, then drops straight into the child.
 // A straight diagonal here would cross through whichever sibling sits between
 // the parent's centred x (averaged over all its children) and this one.
-export function elbowPath(x1, y1, x2, y2) {
+export function elbowPath(x1, y1, x2, y2, midY = (y1 + y2) / 2) {
   if (x1 === x2) return `M${x1} ${y1} V${y2}`;
-  const midY = (y1 + y2) / 2;
   return `M${x1} ${y1} V${midY} H${x2} V${y2}`;
 }
 
@@ -1544,11 +1619,12 @@ export function spreadLanes(edges) {
 }
 
 // Connector into a project two rows down: jogs sideways a quarter into the
-// first gap, above the child outcomes' bracket so it never crosses their
-// drops, runs down the trunk past the outcome row, then fans out in the gap
-// above the projects as a bracket of its own.
-function loweredPath(x1, y1, trunkX, x2, y2) {
-  return `M${x1} ${y1} V${y1 + V_GAP / 4} H${trunkX} V${y2 - V_GAP / 2} H${x2} V${y2}`;
+// first gap, below the parent's own target chips and above the child outcomes'
+// bracket so it never crosses their drops, runs down the trunk past the
+// outcome row, then fans out in the gap above the projects as a bracket of its
+// own.
+function loweredPath(x1, y1, below, trunkX, x2, y2) {
+  return `M${x1} ${y1} V${below + V_GAP / 4} H${trunkX} V${y2 - V_GAP / 2} H${x2} V${y2}`;
 }
 
 // A project cross-linked from an outcome it isn't primarily drawn under sits
@@ -1564,24 +1640,28 @@ function loweredPath(x1, y1, trunkX, x2, y2) {
 // their nodes, so it never runs behind a box: straight down from the source if
 // that column is clear, else straight down into the target, else through the
 // nearest gap between nodes.
-function crossLinkPath(from, to, nodes, channels) {
+function crossLinkPath(from, to, nodes, channels, rows) {
   const rowsOverlap = from.y < to.y + NODE_H && to.y < from.y + NODE_H;
   if (rowsOverlap) {
-    const dipY = Math.max(from.y, to.y) + NODE_H + BADGE_REACH + LINE_CLEARANCE;
+    // Under both boxes and whatever hangs off them: pills, or target chips.
+    const clearBelow = (node) => node.y + NODE_H + Math.max(BADGE_REACH, node.stack);
+    const dipY = Math.max(clearBelow(from), clearBelow(to)) + LINE_CLEARANCE;
     return `M${from.x} ${from.y + NODE_H} V${dipY} H${to.x} V${to.y + NODE_H + 3}`;
   }
   const down = from.y < to.y;
   const between = nodes.filter((node) => (node.y - from.y) * (node.y - to.y) < 0);
   if (between.length === 0) {
     return down
-      ? elbowPath(from.x, from.y + NODE_H, to.x, to.y - 3)
-      : elbowPath(from.x, from.y - 3, to.x, to.y + NODE_H + 3);
+      ? elbowPath(from.x, from.y + NODE_H, to.x, to.y - 3, jogAbove(to.y - 3))
+      : elbowPath(from.x, from.y - 3, to.x, to.y + NODE_H + 3, jogAbove(from.y - 3));
   }
 
+  // The open middle of the gap under a row, below its target chips.
+  const gapBelow = (node) => rows.top(node.depth + 1) - V_GAP / 2;
   const startY = down ? from.y + NODE_H : from.y - 3;
   const endY = down ? to.y - 3 : to.y + NODE_H + 3;
-  const startGap = down ? from.y + NODE_H + V_GAP / 2 : from.y - V_GAP / 2;
-  const endGap = down ? to.y - V_GAP / 2 : to.y + NODE_H + V_GAP / 2;
+  const startGap = down ? gapBelow(from) : from.y - V_GAP / 2;
+  const endGap = down ? to.y - V_GAP / 2 : gapBelow(to);
   const group = `outcome-${from.data.id}`;
   const [top, bottom] = [Math.min(startGap, endGap), Math.max(startGap, endGap)];
 
@@ -1630,7 +1710,7 @@ function isTruncated(lines) {
 function nodeLines(node, coverageData) {
   const quantified = targetsFor(coverageData.targets, node.data, node.type);
   const coverage = childCoverage(node.type, node.data, quantified[0], coverageData);
-  return nodeLabel(node.data.name, quantified, coverage ? 1 : 0).lines;
+  return nodeLabel(node.data.name, coverage ? 1 : 0);
 }
 
 // Where each line of a node's whole name goes, and how tall its overlay is. The
