@@ -10,7 +10,7 @@ export function registerImpactTools(server) {
     deleteNote:
       ' Its targets and their readings are deleted with it. Child impacts, linked outcomes and linked projects are kept and just lose the link to it.',
     listDescription:
-      'List every impact (business result) in the account. Impacts nest via parent_impact_id; top-level outcomes link to them via impact_id.',
+      'List every impact (business result: revenue up or costs down) in the account. Impacts nest via parent_impact_id; top-level outcomes link to them via impact_id.',
   });
 
   server.registerTool(
@@ -18,9 +18,11 @@ export function registerImpactTools(server) {
     {
       title: 'Create impact',
       description:
-        'Create an impact: the business result we want, e.g. "Grow revenue 20% this year". Put the numbers on it with create_target.',
+        'Create an impact: a result that grows the business, revenue up or costs down, counted in money or a direct proxy (ARR, net revenue retention, win rate, churned revenue, support cost). E.g. "Grow revenue 20% this year", "Cut support cost per account 15%". ' +
+        'Not an impact: a change in what customers do ("Admins invite a teammate in their first session" is an outcome; create it with create_outcome under the impact it drives), or something the team ships, funds or adopts ("Launch the public API" is a project). ' +
+        'If a candidate doesn\'t move revenue or cost by itself, ask what business result it leads to and make that the impact. Put the numbers on it with create_target.',
       inputSchema: {
-        name: z.string().min(1),
+        name: z.string().min(1).describe('The business result, e.g. "Grow enterprise ARR 20%". Not a customer behavior or a deliverable.'),
         description: z.string().optional(),
         parent_impact_id: id.optional().describe('Optional parent impact, e.g. a revenue goal split by segment'),
       },

@@ -1,9 +1,20 @@
 # Definition
 
-Impact is the business impact we wish to make.
+A result that grows the business: revenue up or costs down. It is written from the company's side and counted in money or a direct proxy for it, such as ARR, net revenue retention, win rate, churned revenue, or support or infrastructure cost. A test: would the CFO or the board track it?
+
+An impact is not something customers do, and not something the team ships. "Admins invite a teammate in their first session" is a change in customer behavior, so it's an outcome that drives an impact. "Launch the public API" or "Get the API funded for production" is a project milestone. "Customers stop over-granting admin access" is an outcome; the impact it drives might be "Win more enterprise deals that require least-privilege access." If a statement doesn't move revenue or cost by itself, it isn't an impact yet; ask what business result it leads to.
+
+Risk counts when it's stated as money, such as revenue at risk from churn or the cost of security incidents.
 
 # Examples
-* Grow Revenue by 20% this year.
+* Grow revenue by 20% this year.
+* Raise net revenue retention from 105% to 112%.
+* Cut support cost per account by 15%.
+
+# Not impacts
+* Ship the public API. (a project)
+* Customers integrate the API into their BI pipelines. (an outcome)
+* Five teams adopt the new framework. (an outcome, or a project's target)
 
 # Relationships
 

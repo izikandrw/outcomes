@@ -11,7 +11,16 @@ import { registerTargetTools, registerMeasurementTools } from './tools/targets.j
 import { registerHealthTools } from './tools/health.js';
 import { registerRunTools } from './tools/runs.js';
 
-const server = new McpServer({ name: 'outcomes', version: '1.0.0' });
+// Sent to every client on connect, so agents learn the layers of the tree before
+// they create anything. Definitions live in product/domain-model/.
+const instructions = `An account's tree has three layers, each a different kind of thing:
+- Impact: a result that grows the business, revenue up or costs down, counted in money or a direct proxy (ARR, net revenue retention, win rate, churned revenue, support cost). "Grow enterprise ARR 20%" is an impact.
+- Outcome: a change in what customers (people or agents) get or do that drives an impact, written from the customer's side. "Admins invite a teammate in their first session" is an outcome.
+- Project: something the team builds or ships to drive outcomes. "Launch the public API" is a project.
+Before creating an impact, check it isn't really an outcome (customer behavior) or a project (a deliverable, launch, funding or adoption milestone). If it is, ask what business result it leads to and make that the impact.
+Metrics go on targets (create_target), never in names or descriptions.`;
+
+const server = new McpServer({ name: 'outcomes', version: '1.0.0' }, { instructions });
 
 // OUTCOMES_TOOLSET=collector runs the server for the insight collector agent
 // (product/agents/insight-collector/): only what it needs to read the account
