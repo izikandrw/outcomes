@@ -898,7 +898,7 @@ body.modal-open {
 }
 
 /* The card open in the side panel. */
-.node-selected > .tree-node > rect {
+.node-selected > g > .tree-node > rect {
   stroke: var(--text);
   stroke-width: 2.5;
 }

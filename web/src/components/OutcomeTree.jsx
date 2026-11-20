@@ -430,19 +430,29 @@ export default function OutcomeTree({
                   .join(' ') || undefined
               }
               onPointerDown={(event) => startLink(event, node)}
-              onMouseEnter={() =>
-                !linking && setRevealKey(isTruncated(nodeLines(node, coverageData)) ? keyOf(node) : null)
-              }
               onMouseLeave={() => setRevealKey(null)}
             >
-            {/* Before the node, so a revealed full name covers them. */}
+            {/* Only hovering the node itself reveals its full name, never its
+                target chips. While the name is revealed the chips drop below
+                it, still inside this group, so the pointer can go from the
+                name down to a chip without the name collapsing over it. */}
             <TargetChips
               owned={targetsFor(targets, node.data, node.type)}
               x={node.x}
               y={node.y}
+              drop={
+                keyOf(node) === revealKey
+                  ? fullNameLayout({ ...node, dollars: dollarsOf(node), suggested: suggestedOf(node) }).height - NODE_H
+                  : 0
+              }
               selectedKey={selectedKey}
               onViewTarget={onViewTarget}
             />
+            <g
+              onMouseEnter={() =>
+                !linking && setRevealKey(isTruncated(nodeLines(node, coverageData)) ? keyOf(node) : null)
+              }
+            >
             {node.type === 'impact' ? (
               <ImpactNode
                 key={`impact-${node.data.id}`}
@@ -496,6 +506,7 @@ export default function OutcomeTree({
                 {...node}
               />
             )}
+            </g>
             </g>
           ))}
           {linking && (
@@ -1006,13 +1017,18 @@ function nodeLabel(name, reserved = 0) {
 // children. A short stub joins them to the node; any connector from the node
 // down to its own children runs behind them. Clicking one opens its
 // measurements.
-function TargetChips({ owned, x, y, selectedKey, onViewTarget }) {
+// `drop` moves the chips down by how far a revealed full name hangs below the
+// node; an invisible strip then fills the gap so hovering stays unbroken.
+function TargetChips({ owned, x, y, drop = 0, selectedKey, onViewTarget }) {
   if (owned.length === 0) return null;
-  const top = y + NODE_H + TARGET_TOP;
+  const top = y + NODE_H + drop + TARGET_TOP;
   const chipY = (index) => top + index * (TARGET_H + TARGET_GAP);
   return (
     <g className="tree-targets">
       <path className="tree-target-stub" d={`M${x} ${y + NODE_H} V${chipY(owned.length - 1) + TARGET_H / 2}`} />
+      {drop > 0 && (
+        <rect x={x - TARGET_W / 2} y={y + NODE_H} width={TARGET_W} height={drop + TARGET_TOP} fill="transparent" />
+      )}
       {owned.map((target, index) => {
         const open = () => onViewTarget(target);
         const [label] = wrapLabel(targetSummary(target, TARGET_CHARS), TARGET_CHARS, 1);
