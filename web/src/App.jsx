@@ -553,14 +553,15 @@ export default function App({ user, account, onAccountChange, onSignOut }) {
     setModal(modal?.returnTo ? { kind: 'target-measurements', target: modal.returnTo } : null);
 
   async function removeTarget(target) {
-    if (!(await askConfirm('Delete target?', `“${targetLabel(target)}” will be permanently deleted.`))) return;
+    const readings = target.measurement_count > 0 ? ' and its readings' : '';
+    if (!(await askConfirm('Delete target?', `“${targetLabel(target)}”${readings} will be permanently deleted.`)))
+      return;
     try {
       await api.deleteTarget(accountId, target.id);
       setTargets((current) => current.filter((item) => item.id !== target.id));
       if (modal?.target?.id === target.id) setModal(null);
       setError(null);
     } catch (err) {
-      // 409 when readings still point at it.
       setError(`Could not delete: ${err.message}`);
     }
   }

@@ -156,16 +156,29 @@ router.put('/:targetId', async (req, res, next) => {
   }
 });
 
+// A reading means nothing without its target, so deleting a target deletes its
+// readings with it, in one transaction.
 router.delete('/:targetId', async (req, res, next) => {
+  const client = await pool.connect();
   try {
-    const { rowCount } = await pool.query('DELETE FROM targets WHERE id = $1 AND account_id = $2', [
+    await client.query('BEGIN');
+    await client.query(
+      `DELETE FROM measurements
+        WHERE target_id IN (SELECT id FROM targets WHERE id = $1 AND account_id = $2)`,
+      [req.params.targetId, req.accountId]
+    );
+    const { rowCount } = await client.query('DELETE FROM targets WHERE id = $1 AND account_id = $2', [
       req.params.targetId,
       req.accountId,
     ]);
+    await client.query('COMMIT');
     if (rowCount === 0) return res.status(404).json({ error: 'target not found' });
     res.status(204).send();
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     next(err);
+  } finally {
+    client.release();
   }
 });
 

@@ -9,6 +9,7 @@ export function registerTargetTools(server) {
     collection: 'targets',
     singular: 'target',
     idField: 'target_id',
+    deleteNote: ' Its readings are deleted with it.',
     listDescription:
       'List every target in the account. Each belongs to one outcome, impact or project and carries latest_value, latest_measured_at and measurement_count.',
   });
