@@ -1161,8 +1161,8 @@ function NodeText({ x, y, lines, lift = 0 }) {
 // every other outcome's link runs down into its top edge instead of climbing
 // into it from below. Outcome rows don't depend on where projects go, so a
 // first pass finds them and a second places the projects accordingly.
-// Siblings then get reordered a few times to cut down crossing lines, and the
-// layout with the fewest crossings wins.
+// Siblings then get reordered a row at a time to cut down crossing lines,
+// keeping each reorder only when it leaves fewer crossings.
 // Rows are spaced evenly, except that a row whose nodes own targets grows by
 // its tallest stack of target chips. Depths don't depend on that, so the order
 // is settled first and the rows stretched in a last pass.
@@ -1179,16 +1179,29 @@ function layout(outcomes, projects, impacts, targets = []) {
   let bestWeights = new Map();
   let best = pass(outcomeDepth, bestWeights);
   let bestCrossings = countCrossings(best.edges);
-  let current = best;
+  // One row at a time, deepest first: reordering every row at once lets a
+  // shared child and its parents all move toward each other, swapping places
+  // and leaving the same crossing mirrored. Moving the lower nodes first also
+  // keeps the rows above in the order they were given where that's enough.
+  const maxDepth = Math.max(0, ...best.nodes.map((node) => node.depth));
   for (let round = 0; round < ORDER_PASSES && bestCrossings > 0; round += 1) {
-    const weights = siblingWeights(current);
-    current = pass(outcomeDepth, weights);
-    const crossings = countCrossings(current.edges);
-    if (crossings < bestCrossings) {
-      best = current;
-      bestWeights = weights;
-      bestCrossings = crossings;
+    let improved = false;
+    for (let depth = maxDepth; depth >= 0 && bestCrossings > 0; depth -= 1) {
+      const wanted = siblingWeights(best);
+      const weights = new Map(best.nodes.map((node) => [`${node.type}-${node.data.id}`, node.x]));
+      for (const node of best.nodes) {
+        if (node.depth === depth) weights.set(`${node.type}-${node.data.id}`, wanted.get(`${node.type}-${node.data.id}`));
+      }
+      const candidate = pass(outcomeDepth, weights);
+      const crossings = countCrossings(candidate.edges);
+      if (crossings < bestCrossings) {
+        best = candidate;
+        bestWeights = weights;
+        bestCrossings = crossings;
+        improved = true;
+      }
     }
+    if (!improved) break;
   }
   const extra = [];
   for (const node of best.nodes) extra[node.depth] = Math.max(extra[node.depth] ?? 0, node.stack);
